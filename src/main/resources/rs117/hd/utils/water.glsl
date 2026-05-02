@@ -404,6 +404,25 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
     vec3 fragToCam = viewDir;
     vec3 I = -viewDir; // Incident
 
+    vec3 baseColor = waterType.surfaceColor * compositeLight;
+    baseColor = mix(baseColor, surfaceColor, waterType.fresnelAmount);
+    if (waterType.fresnelAmount == 0.85)
+        baseColor *= .75f; // Sailing hack
+    float shoreLineMask = 1 - dot(IN.texBlend, (fAlphaBiasHsl & 127) / 127.f);
+    float maxFoamAmount = 0.8;
+    float foamAmount = min(shoreLineMask, maxFoamAmount);
+    float foamDistance = 0.7;
+    vec3 foamColor = waterType.foamColor;
+    foamColor = foamColor * foamMask * compositeLight;
+    foamAmount = clamp(pow(1.0 - ((1.0 - foamAmount) / foamDistance), 3), 0.0, 1.0) * waterType.hasFoam;
+    foamAmount *= foamColor.r;
+    baseColor = mix(baseColor, foamColor, foamAmount);
+    vec3 specularComposite = mix(lightSpecularOut, vec3(0.0), foamAmount);
+    float flatFresnel = (1.0 - dot(viewDir, vec3(0, -1, 0))) * 1.0;
+    finalFresnel = max(finalFresnel, flatFresnel);
+    finalFresnel -= finalFresnel * shadow * 0.2;
+    baseColor += pointLightsSpecularOut + lightSpecularOut / 3;
+
     // Assume the water is level
     vec3 flatR = reflect(I, vec3(0, -1, 0));
     vec3 R = reflect(I, N);

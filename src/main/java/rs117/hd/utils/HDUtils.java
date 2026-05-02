@@ -24,9 +24,18 @@
  */
 package rs117.hd.utils;
 
+import java.awt.Canvas;
+import java.awt.Container;
+import java.awt.Frame;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.lang.management.ManagementFactory;
+import javax.annotation.Nullable;
 import javax.inject.Singleton;
+import javax.swing.JFrame;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.client.util.OSType;
 import rs117.hd.data.ObjectType;
 import rs117.hd.scene.areas.AABB;
 import rs117.hd.scene.areas.Area;
@@ -59,6 +68,10 @@ public final class HDUtils {
 		subtract(b, a, b);
 		subtract(c, a, c);
 		return cross(b, c);
+	}
+
+	public static int ceilPow2(int i) {
+		return (int) ceilPow2((long) i);
 	}
 
 	public static long ceilPow2(long l) {
@@ -367,11 +380,45 @@ public final class HDUtils {
 		return hsl;
 	}
 
-	public static boolean isSphereIntersectingFrustum(float x, float y, float z, float radius, float[][] cullingPlanes, int numPlanes) {
+	public static boolean isPointWithinFrustum(float x, float y, float z, float[][] cullingPlanes, int numPlanes) {
 		for (int i = 0; i < numPlanes; i++) {
-			var p = cullingPlanes[i];
-			if (p[0] * x + p[1] * y + p[2] * z + p[3] < -radius)
+			final float[] p = cullingPlanes[i];
+			if (p[0] * x + p[1] * y + p[2] * z + p[3] < 0)
 				return false;
+		}
+		return true;
+	}
+
+	public static int classifySphereFrustum(float x, float y, float z, float radius, float[][] cullingPlanes, int numPlanes) {
+		boolean fullyInside = true;
+		for (int i = 0; i < numPlanes; i++) {
+			final float[] p = cullingPlanes[i];
+			final float distance = p[0] * x + p[1] * y + p[2] * z + p[3];
+
+			if (distance < -radius) return -1;
+			if (distance < radius) fullyInside = false;
+		}
+		return fullyInside ? 1 : 0;
+	}
+
+	public static boolean isSphereIntersectingFrustum(float x, float y, float z, float radius, float[][] cullingPlanes, int numPlanes) {
+		return classifySphereFrustum(x, y, z, radius, cullingPlanes, numPlanes) != -1;
+	}
+
+	public static boolean isTriangleIntersectingFrustum(
+		float x0, float y0, float z0,
+		float x1, float y1, float z1,
+		float x2, float y2, float z2,
+		float[][] cullingPlanes, int numPlanes
+	) {
+		for (int i = 0; i < numPlanes; i++) {
+			final float[] p = cullingPlanes[i];
+			if (p[0] * x0 + p[1] * y0 + p[2] * z0 + p[3] > 0 ||
+				p[0] * x1 + p[1] * y1 + p[2] * z1 + p[3] > 0 ||
+				p[0] * x2 + p[1] * y2 + p[2] * z2 + p[3] > 0)
+				continue;
+
+			return false;
 		}
 		return true;
 	}
@@ -445,5 +492,52 @@ public final class HDUtils {
 		float heightB = yVertices[model.getFaceIndices2()[face]];
 		float heightC = yVertices[model.getFaceIndices3()[face]];
 		return heightA == heightB && heightA == heightC;
+	}
+
+	public static boolean isJFrameMinimized(@Nullable JFrame f) {
+		return f != null && (f.getExtendedState() & Frame.ICONIFIED) != 0;
+	}
+
+	@Nullable
+	public static JFrame getJFrame(Canvas canvas) {
+		if (canvas == null)
+			return null;
+
+		Container parent = canvas.getParent();
+		while (parent != null) {
+			if (parent instanceof JFrame)
+				return (JFrame) parent;
+			parent = parent.getParent();
+		}
+
+		return null;
+	}
+
+	public static String getCpuName() {
+		switch (OSType.getOSType()) {
+			case Linux:
+				try (var br = new BufferedReader(new FileReader("/proc/cpuinfo"))) {
+					String line;
+					while ((line = br.readLine()) != null)
+						if (line.startsWith("model name"))
+							return line.split(":", 2)[1].trim();
+				} catch (Exception ignored) {
+				}
+				break;
+			case MacOS:
+				return "aarch64".equals(System.getProperty("os.arch")) ? "Apple Silicon" : "Intel";
+			case Windows:
+				return System.getenv().getOrDefault("PROCESSOR_IDENTIFIER", "Unknown");
+		}
+		return "Unknown";
+	}
+
+	public static long getTotalSystemMemory() {
+		try {
+			var bean = ManagementFactory.getOperatingSystemMXBean();
+			return ((com.sun.management.OperatingSystemMXBean) bean).getTotalPhysicalMemorySize();
+		} catch (Throwable ignored) {
+			return Long.MAX_VALUE;
+		}
 	}
 }
