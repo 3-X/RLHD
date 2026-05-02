@@ -856,6 +856,13 @@ public class ZoneRenderer implements Renderer {
 		sceneProgram.use();
 		sceneProgram.uniRenderPass.set(SceneShaderProgram.RENDER_PASS_MAIN);
 		sceneProgram.uniWaterReflectionEnabled.set(renderWaterReflections);
+
+		// Bind water normal maps before rendering
+		if (plugin.texWaterNormalMaps != 0) {
+			glActiveTexture(HdPlugin.TEXTURE_UNIT_WATER_NORMAL_MAPS);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, plugin.texWaterNormalMaps);
+		}
+
 		sceneCmd.execute();
 
 		// TODO: Filler tiles

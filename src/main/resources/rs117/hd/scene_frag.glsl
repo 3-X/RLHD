@@ -26,11 +26,6 @@
 #version 330
 
 #define DISPLAY_BASE_COLOR 0
-#define DISPLAY_UV 0
-#define DISPLAY_NORMAL 0
-#define DISPLAY_TANGENT 0
-#define DISPLAY_SHADOWS 0
-#define DISPLAY_LIGHTING 0
 
 #include <uniforms/global.glsl>
 #include <uniforms/world_views.glsl>
@@ -56,8 +51,12 @@ flat in int fWorldViewId;
 flat in ivec3 fAlphaBiasHsl;
 flat in ivec3 fMaterialData;
 flat in ivec3 fTerrainData;
+#if !ZONE_RENDERER
+    flat in vec3 T;
+    flat in vec3 B;
+#endif
 
-#if FLAT_SHADING && ZONE_RENDERER
+#if ZONE_RENDERER
     flat in vec3 fFlatNormal;
 #endif
 
@@ -65,7 +64,9 @@ in FragmentData {
     vec3 position;
     vec2 uv;
     vec3 normal;
-    vec3 flatNormal;
+    #if !ZONE_RENDERER
+        vec3 flatNormal;
+    #endif
     vec3 texBlend;
 } IN;
 
@@ -116,8 +117,7 @@ void main() {
         waterDepth1 * IN.texBlend.x +
         waterDepth2 * IN.texBlend.y +
         waterDepth3 * IN.texBlend.z;
-    int waterTypeIndex = isTerrain ? fTerrainData[0] >> 3 & 0xFF : 0;
-    WaterType waterType = getWaterType(waterTypeIndex);
+    int waterTypeIndex = fTerrainData[0] >> 3 & 0xFF;
 
     bool isWater = waterTypeIndex > 0;
     bool isUnderwaterTile = waterDepth != 0;
@@ -127,6 +127,10 @@ void main() {
         if (isWater)
             waterTypeIndex = DEVELOPMENT_WATER_TYPE;
     #endif
+
+    WaterType waterType;
+    if (isWater)
+        waterType = getWaterType(waterTypeIndex);
 
     vec4 outputColor = vec4(1);
 
@@ -144,7 +148,7 @@ void main() {
         // Instead we manually clamp vanilla textures with transparency here. Including the transparency check
         // allows texture wrapping to work correctly for the mirror shield.
         if ((fMaterialData[0] >> MATERIAL_FLAG_VANILLA_UVS & 1) == 1 && getMaterialHasTransparency(material1))
-            blendedUv.x = clamp(blendedUv.x, 0, .984375);
+            uv.x = clamp(uv.x, 0, .984375);
 
         vec2 uv1 = uv;
         vec2 uv2 = uv;
@@ -172,28 +176,16 @@ void main() {
         }
 
         // Set up tangent-space transformation matrix
-
-        vec3 N;
-        #if FLAT_SHADING && ZONE_RENDERER
-            N = normalize(fFlatNormal);
+        vec3 N = normalize(IN.normal);
+        // Invert the normal for back-faces rendered in reflections, in order to add shading
+        // to the underside of docks. This actually needs to check for front-faces instead,
+        // since the projection matrix reverses winding order when flipping vertically
+        if (renderPass == RENDER_PASS_WATER_REFLECTION && gl_FrontFacing)
+            N *= -1;
+        #if ZONE_RENDERER
+            mat3 TBN = cotangent_frame(N, IN.position, IN.uv * -1.0);
         #else
-            N = normalize(IN.normal);
-        #endif
-        mat3 TBN = cotangent_frame(N, IN.position, IN.uv * -1.0);
-
-        #if DISPLAY_UV
-            FragColor = vec4(fract(uv1 * IN.texBlend.x + uv2 * IN.texBlend.y + uv3 * IN.texBlend.z), 0.0, 1.0);
-            if (DISPLAY_UV == 1) return; // Redundant, for syntax highlighting in IntelliJ
-        #endif
-
-        #if DISPLAY_NORMAL
-            FragColor = vec4(N * 0.5 + 0.5, 1.0);
-            if (DISPLAY_NORMAL == 1) return; // Redundant, for syntax highlighting in IntelliJ
-        #endif
-
-        #if DISPLAY_TANGENT
-            FragColor = vec4(TBN[0] * 0.5 + 0.5, 1.0);
-            if (DISPLAY_TANGENT == 1) return; // Redundant, for syntax highlighting in IntelliJ
+            mat3 TBN = mat3(T, B, N * min(length(T), length(B)));
         #endif
 
         float selfShadowing = 0;
@@ -350,12 +342,7 @@ void main() {
         if ((fMaterialData[0] >> MATERIAL_FLAG_DISABLE_SHADOW_RECEIVING & 1) == 0)
             shadow = sampleShadowMap(fragPos, vec2(0), lightDotNormals);
         shadow = max(shadow, selfShadowing);
-        float inverseShadow = 1 - shadow;
-
-        #if DISPLAY_SHADOWS
-            FragColor = vec4(inverseShadow, inverseShadow, inverseShadow, 1.0);
-            if (DISPLAY_SHADOWS == 1) return; // Redundant, for syntax highlighting in IntelliJ
-        #endif
+        float inverseShadow = 1 - shadow * baseColor1.a;
 
         // specular
         vec3 vSpecularGloss = vec3(material1.specularGloss, material2.specularGloss, material3.specularGloss);
@@ -465,11 +452,6 @@ void main() {
         vec3 compositeLight = ambientLightOut + lightOut + lightSpecularOut + skyLightOut + lightningOut +
         underglowOut + pointLightsOut + pointLightsSpecularOut + surfaceColorOut;
 
-        #if DISPLAY_LIGHTING
-            FragColor = vec4(compositeLight, 1.0);
-            if (DISPLAY_LIGHTING == 1) return; // Redundant, for syntax highlighting in IntelliJ
-        #endif
-
         float unlit = dot(IN.texBlend, vec3(
             getMaterialIsUnlit(material1),
             getMaterialIsUnlit(material2),
@@ -502,7 +484,7 @@ void main() {
             if (outputColor.a < 1 && outputColor.a >= .004) {
                 // Blending in linear color space makes transparent glass overly opaque.
                 // Bias the opacity somewhat to look closer to vanilla colors overall.
-                vec3 hsl = convertHsl(unpackRawHsl(vAlphaBiasHsl[0]));
+                vec3 hsl = convertHsl(unpackRawHsl(fAlphaBiasHsl[0]));
                 float alphaCorrectionMask = (1 - pow(hsl.y, 5.f)) * (1 - pow(outputColor.a, 3.f));
                 outputColor.a = pow(outputColor.a, 1 + alphaCorrectionMask);
             }

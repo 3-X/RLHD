@@ -55,9 +55,7 @@ layout (location = 0) in vec3 vPosition;
     flat out ivec3 fMaterialData;
     flat out ivec3 fTerrainData;
 
-    #if FLAT_SHADING
-        flat out vec3 fFlatNormal;
-    #endif
+    flat out vec3 fFlatNormal;
 
     out FragmentData {
         vec3 position;
@@ -105,9 +103,7 @@ layout (location = 0) in vec3 vPosition;
         OUT.texBlend = vec3(0);
         OUT.texBlend[vertex] = 1.0;
 
-        #if FLAT_SHADING
-            fFlatNormal = worldNormal;
-        #endif
+        fFlatNormal = worldNormal;
 
         vec4 clipPosition = projectionMatrix * vec4(worldPosition, 1.0);
         int depthBias = (alphaBiasHsl >> 16) & 0xff;

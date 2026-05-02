@@ -327,7 +327,14 @@ void sampleUnderwater(inout vec3 outputColor, int waterTypeIndex, float depth) {
 vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
     WaterType waterType = getWaterType(waterTypeIndex);
 
-    float slope = abs(IN.flatNormal.y);
+    #if ZONE_RENDERER
+        // Zone renderer stores normals with Y and Z swizzled (X, Z, Y layout)
+        vec3 waterFlatNormal = fFlatNormal.xzy;
+    #else
+        vec3 waterFlatNormal = IN.flatNormal;
+    #endif
+
+    float slope = abs(waterFlatNormal.y);
     if (slope < .8) {
         float waterfallMask = smoothstep(.8, .6, slope);
 
@@ -335,7 +342,7 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
         vec3 bgColor2 = srgbToLinear(vec3(.063, .2, .3));
         vec3 fgColor = srgbToLinear(vec3(.9));
 
-        vec3 N = IN.flatNormal;
+        vec3 N = waterFlatNormal;
         const float discretize = 5;
         N = floor(N * discretize) / discretize;
         vec3 T = normalize(vec3(-N.z, 0, N.x)); // Up cross normal
@@ -403,25 +410,6 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
 
     vec3 fragToCam = viewDir;
     vec3 I = -viewDir; // Incident
-
-    vec3 baseColor = waterType.surfaceColor * compositeLight;
-    baseColor = mix(baseColor, surfaceColor, waterType.fresnelAmount);
-    if (waterType.fresnelAmount == 0.85)
-        baseColor *= .75f; // Sailing hack
-    float shoreLineMask = 1 - dot(IN.texBlend, (fAlphaBiasHsl & 127) / 127.f);
-    float maxFoamAmount = 0.8;
-    float foamAmount = min(shoreLineMask, maxFoamAmount);
-    float foamDistance = 0.7;
-    vec3 foamColor = waterType.foamColor;
-    foamColor = foamColor * foamMask * compositeLight;
-    foamAmount = clamp(pow(1.0 - ((1.0 - foamAmount) / foamDistance), 3), 0.0, 1.0) * waterType.hasFoam;
-    foamAmount *= foamColor.r;
-    baseColor = mix(baseColor, foamColor, foamAmount);
-    vec3 specularComposite = mix(lightSpecularOut, vec3(0.0), foamAmount);
-    float flatFresnel = (1.0 - dot(viewDir, vec3(0, -1, 0))) * 1.0;
-    finalFresnel = max(finalFresnel, flatFresnel);
-    finalFresnel -= finalFresnel * shadow * 0.2;
-    baseColor += pointLightsSpecularOut + lightSpecularOut / 3;
 
     // Assume the water is level
     vec3 flatR = reflect(I, vec3(0, -1, 0));
@@ -534,7 +522,7 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
             vec2 uvFlow = texture(textureArray, vec3(flowMapUv, MAT_WATER_FLOW_MAP.colorMap)).xy;
             vec2 uv = IN.uv + uvFlow * flowMapStrength;
             float foamMask = texture(textureArray, vec3(uv, MAT_WATER_FOAM.colorMap)).r;
-            float shoreLineMask = 1 - dot(IN.texBlend, vAlphaBiasHsl / 127.f);
+            float shoreLineMask = 1 - dot(IN.texBlend, fAlphaBiasHsl / 127.f);
             shoreLineMask *= shoreLineMask;
             shoreLineMask *= shoreLineMask;
             shoreLineMask *= shoreLineMask;

@@ -398,7 +398,7 @@ public class HdPlugin extends Plugin {
 	public int texWaterReflection;
 	private int texWaterReflectionDepthMap;
 
-	private int texWaterNormalMaps;
+	public int texWaterNormalMaps;
 
 	public UBOGlobal uboGlobal;
 	public UBOUI uboUI;
@@ -1624,6 +1624,9 @@ public class HdPlugin extends Plugin {
 		setAnisotropicFilteringLevel(GL_TEXTURE_2D_ARRAY, config.anisotropicFilteringLevel());
 
 		glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+
+		// Reset active texture unit so subsequent glBindTexture calls don't overwrite this unit
+		glActiveTexture(GL_TEXTURE0);
 	}
 
 	private void destroyWaterNormalMaps() {
