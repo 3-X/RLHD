@@ -44,11 +44,18 @@ vec3 sampleWaterReflection(vec3 flatR, vec3 R, float distortionFactor) {
     float shoreLineMask = 1 - dot(IN.texBlend, fAlphaBiasHsl / 127.f);
     distortionFactor *= 1 - shoreLineMask * 1.1; // safety factor to remove artifacts
 
-    vec3 uvX = normalize(cross(flatR * vec3(1, 0, 1), flatR));
-    vec3 uvY = cross(uvX, flatR);
-    float x = dot(R, uvX);
-    float y = dot(R, uvY);
-    vec2 distortion = vec2(x, y) * distortionFactor;
+    vec3 flatRhoriz = flatR * vec3(1, 0, 1);
+    vec2 distortion = vec2(0);
+    if (dot(flatRhoriz, flatRhoriz) > 0.001) {
+        vec3 uvX = normalize(cross(flatRhoriz, flatR));
+        vec3 uvY = cross(uvX, flatR);
+        float x = dot(R, uvX);
+        float y = dot(R, uvY);
+        distortion = vec2(x, y) * distortionFactor;
+    } else {
+        // Near-vertical view: use normal's XZ deviation as distortion
+        distortion = (R.xz - flatR.xz) * distortionFactor;
+    }
 
     vec2 uv = gl_FragCoord.xy + distortion;
     uv /= sceneResolution;

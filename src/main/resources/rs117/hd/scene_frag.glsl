@@ -134,6 +134,18 @@ void main() {
 
     vec4 outputColor = vec4(1);
 
+    if (renderPass == RENDER_PASS_WATER_REFLECTION) {
+        // Discard water surface fragments (zone renderer has no geometry shader to cull them)
+        #if ZONE_RENDERER
+        if (isWaterSurface)
+            discard;
+        #endif
+
+        // Discard underwater geometry so it doesn't appear in the reflection
+        if (IN.position.y > waterHeight)
+            discard;
+    }
+
     if (isWaterSurface) {
         #if LEGACY_WATER
             outputColor = sampleLegacyWater(waterTypeIndex, viewDir);
