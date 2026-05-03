@@ -507,6 +507,7 @@ void main() {
             outputColor.b = floor(outputColor.b * 127) / 127;
             outputColor.rgb = hsvToSrgb(outputColor.rgb);
         #endif
+
     }
 
     vec2 tiledist = abs(floor(IN.position.xz / 128) - floor(cameraPos.xz / 128));

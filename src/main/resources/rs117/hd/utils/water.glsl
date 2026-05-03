@@ -328,8 +328,11 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
     WaterType waterType = getWaterType(waterTypeIndex);
 
     #if ZONE_RENDERER
-        // Zone renderer stores normals with Y and Z swizzled (X, Z, Y layout)
-        vec3 waterFlatNormal = fFlatNormal.xzy;
+        // Compute the face normal from screen-space derivatives of the world position.
+        // This gives the true geometric normal of the triangle, which is needed to
+        // distinguish flat water (slope ~1) from waterfalls (slope ~0).
+        // Stored normals can't be used because water surfaces use UP_NORMAL.
+        vec3 waterFlatNormal = normalize(cross(dFdx(IN.position), dFdy(IN.position)));
     #else
         vec3 waterFlatNormal = IN.flatNormal;
     #endif
@@ -383,19 +386,14 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
         vec3 omega_h = normalize(viewDir + lightDir); // half-way vector
         vec3 sunSpecular = pow(max(0, dot(n, omega_h)), 500) * lightColor * lightStrength;
         src.rgb += sunSpecular;
-        src.a = waterfallMask * .15;
+        #if ZONE_RENDERER
+            // Zone renderer uses depth testing, so we can't rely on alpha blending
+            // with the cliff behind the waterfall. Render the waterfall as an opaque surface.
+            src.a = 1;
+        #else
+            src.a = waterfallMask * .15;
+        #endif
         dst = dst * (1 - src.a) + src;
-
-//        src = mix(bgColor, bgColor2, pow(max(0, dot(N, viewDir)), 7));
-//        float noise = 1;
-//        noise *= (bccNoiseClassic(vec3(uv * 30 + vec2(0, elapsedTime), 0)) + 1) / 2;
-//        noise *= (bccNoiseClassic(vec3(uv * 13 + vec2(0, elapsedTime * 1.5), 0)) + 1) / 2;
-//        src = vec4(light, noise * .025);
-//
-//        // Blend as overlay
-//        dst.rgb = src.rgb * src.a + dst.rgb * dst.a * (1 - src.a);
-//        dst.a = src.a + dst.a * (1 - src.a);
-//        dst.rgb /= dst.a;
 
         return dst;
     }
