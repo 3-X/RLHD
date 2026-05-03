@@ -376,7 +376,6 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
         float fresnel = calculateFresnel(cosAngle, IOR_WATER);
 
         vec4 dst = vec4(0);
-
         vec4 src = vec4(0);
 
         vec3 light = lightColor * lightStrength + ambientColor * ambientStrength;
@@ -386,13 +385,7 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
         vec3 omega_h = normalize(viewDir + lightDir); // half-way vector
         vec3 sunSpecular = pow(max(0, dot(n, omega_h)), 500) * lightColor * lightStrength;
         src.rgb += sunSpecular;
-        #if ZONE_RENDERER
-            // Zone renderer uses depth testing, so we can't rely on alpha blending
-            // with the cliff behind the waterfall. Render the waterfall as an opaque surface.
-            src.a = 1;
-        #else
-            src.a = waterfallMask * .15;
-        #endif
+        src.a = waterfallMask * .15;
         dst = dst * (1 - src.a) + src;
 
         return dst;
