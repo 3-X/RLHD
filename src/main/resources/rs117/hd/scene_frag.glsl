@@ -605,29 +605,29 @@ void main() {
         } else {
             outputColor.rgb = mix(outputColor.rgb, fogColor, combinedFog);
         }
+    } else if (isUnderwater && skyGradientEnabled == 1) {
+        // Underwater terrain skips normal fog, but with the sky gradient
+        // we need distant underwater terrain to fade into the fog/sky color
+        // to avoid dark patches at coastlines
+        float uwFogAmount = calculateFogAmount(IN.position);
+        savedCombinedFog = uwFogAmount;
+        outputColor.rgb = mix(outputColor.rgb, fogColor, uwFogAmount);
     }
 
     outputColor.rgb = pow(outputColor.rgb, vec3(gammaCorrection));
 
-    // Post-gamma night fog correction: at night, make heavily-fogged
-    // fragments fully transparent so the sky shows through directly.
-    // This avoids any color mismatch between scene fog and sky shader.
+    // Make heavily-fogged fragments transparent so the actual sky
+    // shows through directly, ensuring a perfect color match at the world edge.
     // For underwater/water fragments that skip the fog block, compute
-    // fog amount here so they also fade out at the world edge.
+    // fog amount here so they also fade out.
     if (skyGradientEnabled == 1) {
-        float nightFadePost = smoothstep(-0.26, 0.0, skySunDir.y);
-        float nightAmountPost = 1.0 - nightFadePost;
-        if (nightAmountPost > 0.001) {
-            float fogForFade = savedCombinedFog;
-            if (fogForFade < 0.001) {
-                // Underwater/water fragments skipped the fog block,
-                // compute fog amount directly
-                fogForFade = calculateFogAmount(IN.position);
-            }
-            if (fogForFade > 0.1) {
-                float alphaFade = smoothstep(0.1, 0.6, fogForFade) * nightAmountPost;
-                outputColor.a *= (1.0 - alphaFade);
-            }
+        float fogForFade = savedCombinedFog;
+        if (fogForFade < 0.001) {
+            fogForFade = calculateFogAmount(IN.position);
+        }
+        if (fogForFade > 0.7) {
+            float alphaFade = smoothstep(0.7, 0.95, fogForFade);
+            outputColor.a *= (1.0 - alphaFade);
         }
     }
 
