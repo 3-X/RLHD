@@ -515,6 +515,7 @@ void main() {
     #endif
 
     // apply fog
+    float savedCombinedFog = 0.0;
     if (!isUnderwater) {
         // ground fog
         float distance = distance(IN.position, cameraPos);
@@ -526,6 +527,7 @@ void main() {
         // multiply the visibility of each fog
         float fogAmount = calculateFogAmount(IN.position);
         float combinedFog = 1 - (1 - fogAmount) * (1 - groundFog);
+        savedCombinedFog = combinedFog;
 
         if (isWater) {
             outputColor.a = combinedFog + outputColor.a * (1 - combinedFog);
@@ -577,14 +579,14 @@ void main() {
                 skyColorAtFragment += skySunColor * (coreGlow + innerGlow + midGlow + outerGlow);
             }
 
-            // Horizon haze (must match sky_frag.glsl)
+            // Horizon haze (must match sky_frag.glsl) — fade out at night
             float horizonHaze = 1.0 - abs(upAmount);
-            horizonHaze = pow(horizonHaze, 2.5) * 0.15;
+            horizonHaze = pow(horizonHaze, 2.5) * 0.15 * nightFade;
             vec3 hazeColor = mix(skyHorizonColor * 0.8, skyHorizonColor * 1.3, sunSideBlend);
             skyColorAtFragment = mix(skyColorAtFragment, hazeColor, horizonHaze);
 
-            // Atmospheric scattering (must match sky_frag.glsl)
-            float atmosphericScatter = sunSideBlend * (1.0 - zenithBlend) * 0.2;
+            // Atmospheric scattering (must match sky_frag.glsl) — fade out at night
+            float atmosphericScatter = sunSideBlend * (1.0 - zenithBlend) * 0.2 * nightFade;
             skyColorAtFragment = mix(skyColorAtFragment, skySunColor * 0.5 + skyHorizonColor * 0.5, atmosphericScatter);
 
             // Night sky blend: darken fog toward skyZenithColor, which is what
@@ -606,6 +608,28 @@ void main() {
     }
 
     outputColor.rgb = pow(outputColor.rgb, vec3(gammaCorrection));
+
+    // Post-gamma night fog correction: at night, make heavily-fogged
+    // fragments fully transparent so the sky shows through directly.
+    // This avoids any color mismatch between scene fog and sky shader.
+    // For underwater/water fragments that skip the fog block, compute
+    // fog amount here so they also fade out at the world edge.
+    if (skyGradientEnabled == 1) {
+        float nightFadePost = smoothstep(-0.26, 0.0, skySunDir.y);
+        float nightAmountPost = 1.0 - nightFadePost;
+        if (nightAmountPost > 0.001) {
+            float fogForFade = savedCombinedFog;
+            if (fogForFade < 0.001) {
+                // Underwater/water fragments skipped the fog block,
+                // compute fog amount directly
+                fogForFade = calculateFogAmount(IN.position);
+            }
+            if (fogForFade > 0.1) {
+                float alphaFade = smoothstep(0.1, 0.6, fogForFade) * nightAmountPost;
+                outputColor.a *= (1.0 - alphaFade);
+            }
+        }
+    }
 
     #if WINDOWS_HDR_CORRECTION
         outputColor.rgb = windowsHdrCorrection(outputColor.rgb);

@@ -373,14 +373,16 @@ void main() {
 
     // === HORIZON HAZE ===
     // Make the horizon slightly hazier/brighter, especially on the sun side
+    // Fade out at night so sky converges to uniform skyZenithColor
     float horizonHaze = 1.0 - abs(upAmount);
-    horizonHaze = pow(horizonHaze, 2.5) * 0.15;
+    horizonHaze = pow(horizonHaze, 2.5) * 0.15 * nightFade;
     vec3 hazeColor = mix(skyHorizonColor * 0.8, skyHorizonColor * 1.3, sunSideBlend);
     skyColor = mix(skyColor, hazeColor, horizonHaze);
 
     // === ATMOSPHERIC SCATTERING EFFECT ===
     // Add subtle warm tint on the sun side at the horizon during sunrise/sunset
-    float atmosphericScatter = sunSideBlend * (1.0 - zenithBlend) * 0.2;
+    // Fade out at night to keep horizon uniform
+    float atmosphericScatter = sunSideBlend * (1.0 - zenithBlend) * 0.2 * nightFade;
     skyColor = mix(skyColor, skySunColor * 0.5 + skyHorizonColor * 0.5, atmosphericScatter);
 
     // Apply gamma correction

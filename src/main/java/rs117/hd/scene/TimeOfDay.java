@@ -394,7 +394,7 @@ public class TimeOfDay
 		}
 
 		if (nightBlendFactor > 0.0f) {
-			// Deep night zenith color (15, 20, 35) converted to linear
+			// Deep night sky color (5, 7, 15) converted to linear
 			float[] nightSkyLinear = rs117.hd.utils.ColorUtils.srgbToLinear(
 				new float[] { 5f / 255f, 7f / 255f, 15f / 255f }
 			);
