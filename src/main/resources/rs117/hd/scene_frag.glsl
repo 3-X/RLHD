@@ -527,10 +527,28 @@ void main() {
         // multiply the visibility of each fog
         float fogAmount = calculateFogAmount(IN.position);
         float combinedFog = 1 - (1 - fogAmount) * (1 - groundFog);
+
+        // At night, soften the fog ramp so the transition from terrain
+        // to fog is more gradual — the brightness contrast between dark
+        // terrain and the fog color makes sharp edges very visible
+        if (skyGradientEnabled == 1) {
+            float nightFadeFog = smoothstep(-0.26, 0.0, skySunDir.y);
+            float nightAmount = 1.0 - nightFadeFog;
+            if (nightAmount > 0.001) {
+                // Only soften fog above a threshold so nearby geometry isn't affected
+                float softerFog = smoothstep(0.0, 0.8, combinedFog);
+                combinedFog = mix(combinedFog, softerFog, nightAmount);
+            }
+        }
+
         savedCombinedFog = combinedFog;
 
         if (isWater) {
-            outputColor.a = combinedFog + outputColor.a * (1 - combinedFog);
+            if (skyGradientEnabled != 1) {
+                outputColor.a = combinedFog + outputColor.a * (1 - combinedFog);
+            }
+            // When skyGradientEnabled, water fog is handled the same as terrain:
+            // color blends toward sky, alpha fades at the world edge (>0.95 fog)
         }
 
         if (skyGradientEnabled == 1) {
@@ -552,6 +570,10 @@ void main() {
 
             // Vertical zenith-to-horizon blend
             float zenithBlend = smoothstep(-0.1, 0.7, upAmount);
+
+            // Below the horizon, reduce horizontal variation (must match sky_frag.glsl)
+            float belowHorizonBlend = 1.0 - smoothstep(-0.5, 0.0, upAmount);
+            sunSideBlend = mix(sunSideBlend, 0.5, belowHorizonBlend);
 
             // Sun altitude factors
             float sunAltitude = clamp(skySunDir.y, 0.0, 1.0);
@@ -600,8 +622,12 @@ void main() {
             outputColor.rgb = mix(outputColor.rgb, skyColorAtFragment, combinedFog);
 
             // Dithering to reduce color banding in fog gradients
-            float dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453123) - 0.5;
-            outputColor.rgb += dither / 255.0;
+            // Stronger dithering at night where dark gradients show banding more
+            // Use interleaved gradient noise for artifact-free dithering
+            vec2 ditherCoord = gl_FragCoord.xy;
+            float dither = fract(52.9829189 * fract(0.06711056 * ditherCoord.x + 0.00583715 * ditherCoord.y)) - 0.5;
+            float ditherStrength = mix(1.0, 4.0, 1.0 - nightFade);
+            outputColor.rgb += dither * ditherStrength / 255.0;
         } else {
             outputColor.rgb = mix(outputColor.rgb, fogColor, combinedFog);
         }
@@ -610,23 +636,40 @@ void main() {
         // we need distant underwater terrain to fade into the fog/sky color
         // to avoid dark patches at coastlines
         float uwFogAmount = calculateFogAmount(IN.position);
+
+        // Apply the same night fog softening as above-water terrain
+        float nightFadeFogUW = smoothstep(-0.26, 0.0, skySunDir.y);
+        float nightAmountUW = 1.0 - nightFadeFogUW;
+        if (nightAmountUW > 0.001) {
+            float softerFogUW = smoothstep(0.0, 0.8, uwFogAmount);
+            uwFogAmount = mix(uwFogAmount, softerFogUW, nightAmountUW);
+        }
+
         savedCombinedFog = uwFogAmount;
         outputColor.rgb = mix(outputColor.rgb, fogColor, uwFogAmount);
     }
 
     outputColor.rgb = pow(outputColor.rgb, vec3(gammaCorrection));
 
-    // Make heavily-fogged fragments transparent so the actual sky
-    // shows through directly, ensuring a perfect color match at the world edge.
-    // For underwater/water fragments that skip the fog block, compute
-    // fog amount here so they also fade out.
+    // Global dithering to reduce color banding on all surfaces (water, terrain, etc.)
+    // Especially important at night where dark gradients show banding
+    if (skyGradientEnabled == 1) {
+        float nightFadeGlobal = smoothstep(-0.26, 0.0, skySunDir.y);
+        float globalDitherStrength = mix(3.0, 1.0, nightFadeGlobal);
+        vec2 gdc = gl_FragCoord.xy;
+        float globalDither = fract(52.9829189 * fract(0.06711056 * gdc.x + 0.00583715 * gdc.y)) - 0.5;
+        outputColor.rgb += globalDither * globalDitherStrength / 255.0;
+    }
+
+    // At the world edge, fade fragments to transparent so the actual sky
+    // shows through, ensuring a perfect color match.
     if (skyGradientEnabled == 1) {
         float fogForFade = savedCombinedFog;
         if (fogForFade < 0.001) {
             fogForFade = calculateFogAmount(IN.position);
         }
-        if (fogForFade > 0.7) {
-            float alphaFade = smoothstep(0.7, 0.95, fogForFade);
+        if (fogForFade > 0.95) {
+            float alphaFade = smoothstep(0.95, 1.0, fogForFade);
             outputColor.a *= (1.0 - alphaFade);
         }
     }

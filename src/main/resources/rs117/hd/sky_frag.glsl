@@ -112,6 +112,11 @@ void main() {
     // === VERTICAL GRADIENT (ZENITH TO HORIZON) ===
     float zenithBlend = smoothstep(-0.1, 0.7, upAmount);
 
+    // Below the horizon, reduce the horizontal sun-side variation so
+    // different directions converge smoothly instead of pinching
+    float belowHorizonBlend = 1.0 - smoothstep(-0.5, 0.0, upAmount);
+    sunSideBlend = mix(sunSideBlend, 0.5, belowHorizonBlend);
+
     // === COMBINE COLORS ===
     // Use sun altitude to determine how much directional gradient to apply
     // skySunDir.y = sin(altitude), positive when sun is up, negative when below horizon
