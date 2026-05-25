@@ -80,6 +80,17 @@ float calculateFogAmount(vec3 position) {
     float density = fogDepth / 100.0;
     float distanceFogAmount2 = 1 - clamp(exp(-distance2 * density), 0, 1);
 
+    // Reduce fog at higher elevations so tops of tall
+    // buildings remain more visible than their bases.
+    // More negative Y = higher elevation in world space.
+    // Height pushes back the effective fog start and reduces
+    // density, but fog still reaches full strength at the edges.
+    float heightAboveGround = max(groundFogStart - position.y, 0.0);
+    float heightFactor = smoothstep(0.0, 8.0 * TILE_SIZE, heightAboveGround);
+    distanceFogAmount1 = clamp((distance1 - mix(fogStart1, drawDistance2 * 0.95, heightFactor)) / (drawDistance2 * mix(.15, .05, heightFactor)), 0, 1);
+    float adjustedDensity = mix(density, density * 0.2, heightFactor);
+    distanceFogAmount2 = 1 - clamp(exp(-distance2 * adjustedDensity), 0, 1);
+
     // Combine distance fogs
     float distanceFogAmount = max(distanceFogAmount1, distanceFogAmount2);
 
