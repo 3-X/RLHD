@@ -86,10 +86,14 @@ float calculateFogAmount(vec3 position) {
     // Height pushes back the effective fog start and reduces
     // density, but fog still reaches full strength at the edges.
     float heightAboveGround = max(groundFogStart - position.y, 0.0);
-    float heightFactor = smoothstep(0.0, 8.0 * TILE_SIZE, heightAboveGround);
-    distanceFogAmount1 = clamp((distance1 - mix(fogStart1, drawDistance2 * 0.95, heightFactor)) / (drawDistance2 * mix(.15, .05, heightFactor)), 0, 1);
-    float adjustedDensity = mix(density, density * 0.2, heightFactor);
-    distanceFogAmount2 = 1 - clamp(exp(-distance2 * adjustedDensity), 0, 1);
+    float heightFactor = smoothstep(0.0, 6.0 * TILE_SIZE, heightAboveGround);
+    float xzDistance = length(cameraPos.xz - position.xz);
+    float xzFogAmount1 = clamp((xzDistance - fogStart1) / (drawDistance2 * .15), 0, 1);
+    distanceFogAmount1 = mix(distanceFogAmount1, xzFogAmount1, heightFactor);
+    float xzDistance2 = max(xzDistance - fogStart2, 0) / max(drawDistance2 - fogStart2, 1);
+    float adjustedDensity = mix(density, density * 0.3, heightFactor);
+    float xzFogAmount2 = 1 - clamp(exp(-xzDistance2 * adjustedDensity), 0, 1);
+    distanceFogAmount2 = mix(distanceFogAmount2, xzFogAmount2, heightFactor);
 
     // Combine distance fogs
     float distanceFogAmount = max(distanceFogAmount1, distanceFogAmount2);
