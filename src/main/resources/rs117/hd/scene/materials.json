@@ -282,6 +282,9 @@
     "flowMap": "LAVA_FLOW_MAP",
     "overrideBaseColor": true,
     "unlit": true,
+    "emissiveStrength": 4.0,
+    "emissiveColor": "#FF6A00",
+    "emissiveRadius": 350,
     "flowMapStrength": 0.05,
     "flowMapDuration": [
       12.0,
@@ -376,6 +379,9 @@
     "flowMap": "LAVA_FLOW_MAP",
     "overrideBaseColor": true,
     "unlit": true,
+    "emissiveStrength": 4.0,
+    "emissiveColor": "#FF3300",
+    "emissiveRadius": 350,
     "flowMapStrength": 0.02,
     "flowMapDuration": [
       12.0,

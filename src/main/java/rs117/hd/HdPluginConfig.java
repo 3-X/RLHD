@@ -531,12 +531,26 @@ public interface HdPluginConfig extends Config
 		return true;
 	}
 
+	String KEY_EMISSIVE_EQUIPMENT_LIGHTS = "emissiveEquipmentLights";
+	@ConfigItem(
+		keyName = KEY_EMISSIVE_EQUIPMENT_LIGHTS,
+		name = "Emissive Equipment Lights",
+		description =
+			"Makes equipment with emissive textures cast dynamic light onto the scene,<br>" +
+			"such as the fire cape lighting up nearby geometry as players move around.",
+		position = 4,
+		section = lightingSettings
+	)
+	default boolean emissiveEquipmentLights() {
+		return true;
+	}
+
 	String KEY_ATMOSPHERIC_LIGHTING = "environmentalLighting";
 	@ConfigItem(
 		keyName = KEY_ATMOSPHERIC_LIGHTING,
 		name = "Atmospheric Lighting",
 		description = "Change environmental lighting based on the current area.",
-		position = 4,
+		position = 5,
 		section = lightingSettings
 	)
 	default boolean atmosphericLighting() {

@@ -31,8 +31,10 @@ import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -57,6 +59,7 @@ import rs117.hd.scene.lights.Alignment;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.scene.lights.LightType;
+import rs117.hd.scene.materials.Material;
 import rs117.hd.utils.HDUtils;
 import rs117.hd.utils.ModelHash;
 import rs117.hd.utils.Props;
@@ -94,6 +97,9 @@ public class LightManager {
 
 	@Inject
 	private ModelOverrideManager modelOverrideManager;
+
+	@Inject
+	private MaterialManager materialManager;
 
 	@Inject
 	private EntityHiderPlugin entityHiderPlugin;
@@ -159,6 +165,7 @@ public class LightManager {
 
 	public void shutDown() {
 		eventBus.unregister(this);
+		clearEmissiveLightState();
 	}
 
 	public void update(@Nonnull SceneContext sceneContext, int[] cameraShift, float[][] cameraFrustum) {
@@ -173,6 +180,8 @@ public class LightManager {
 			reloadLights = false;
 			sceneContext.lights.clear();
 			sceneContext.knownProjectiles.clear();
+			// The light list was just cleared, so drop emissive bookkeeping that referenced it
+			clearEmissiveLightState();
 			loadSceneLights(sceneContext);
 			swapSceneLights(sceneContext, null);
 
@@ -191,6 +200,9 @@ public class LightManager {
 			log.warn("Too many lights: {}. Clearing...", sceneContext.lights.size());
 			sceneContext.lights.clear();
 		}
+
+		// Spawn/refresh/remove lights driven by emissive materials on players' worn equipment
+		updateEmissiveEquipmentLights(sceneContext);
 
 		int drawDistance = plugin.getDrawDistance() * LOCAL_TILE_SIZE;
 		Tile[][][] tiles = sceneContext.scene.getExtendedTiles();
@@ -666,10 +678,11 @@ public class LightManager {
 		if (oldSceneContext == null)
 			return;
 
-		// Copy over NPC and projectile lights from the old scene
+		// Copy over NPC and projectile lights from the old scene, skipping any already scheduled
+		// for removal so stale lights (e.g. despawned emissive equipment lights) don't carry over
 		ArrayList<Light> lightsToKeep = new ArrayList<>();
 		for (Light light : oldSceneContext.lights)
-			if (light.actor != null || light.projectile != null)
+			if ((light.actor != null || light.projectile != null) && !light.markedForRemoval)
 				lightsToKeep.add(light);
 
 		sceneContext.lights.addAll(lightsToKeep);
@@ -768,6 +781,283 @@ public class LightManager {
 			light.actor = npc;
 			sceneContext.lights.add(light);
 		}
+	}
+
+	/**
+	 * Tracks the active emissive-equipment light per player, for O(1) deduplication instead of
+	 * scanning the whole light list each frame. Entries are reconciled every frame and dropped
+	 * once a light is removed or its actor changes.
+	 */
+	private final Map<Player, Light> emissiveLightsByPlayer = new HashMap<>();
+
+	/**
+	 * Per-player cache of the last scanned model and its strongest emissive material, so the
+	 * expensive face scan only re-runs when a player's model actually changes (e.g. on equipment
+	 * change or a new animation frame). {@link #emissiveScanCache} stores the result for the
+	 * {@link #emissiveScanModel} that was last scanned for each player.
+	 */
+	private final Map<Player, Model> emissiveScanModel = new HashMap<>();
+	private final Map<Player, EmissiveScan> emissiveScanCache = new HashMap<>();
+	/**
+	 * The {@code MaterialManager.MATERIALS} array last seen by the scan. When materials hot-reload
+	 * this reference changes, so we invalidate the cached scans (which hold stale Material objects).
+	 */
+	private Material[] lastSeenMaterials;
+
+	/**
+	 * Result of scanning a model for the strongest emissive material and the centroid of its
+	 * emissive faces, in the model's pre-rotation local space (so it can be rotated by the actor's
+	 * orientation and added as a light offset to track the emissive surface as the model animates).
+	 */
+	private static class EmissiveScan {
+		@Nullable
+		final Material material;
+		final float centroidX;
+		final float centroidY;
+		final float centroidZ;
+
+		EmissiveScan(@Nullable Material material, float centroidX, float centroidY, float centroidZ) {
+			this.material = material;
+			this.centroidX = centroidX;
+			this.centroidY = centroidY;
+			this.centroidZ = centroidZ;
+		}
+	}
+
+	/** Drops all emissive-light bookkeeping. Call when the scene/light list resets or on shutdown. */
+	public void clearEmissiveLightState() {
+		emissiveLightsByPlayer.clear();
+		emissiveScanModel.clear();
+		emissiveScanCache.clear();
+		lastSeenMaterials = null;
+	}
+
+	/**
+	 * Spawns, refreshes and removes dynamic lights driven by emissive materials worn by
+	 * players in view (e.g. the fire cape). Runs every frame on the client thread. Each player
+	 * with an emissive material on its model gets at most one light, derived from the strongest
+	 * emissive material present, positioned at the height of its emissive faces and following
+	 * the player via the existing actor-light tracking in {@link #update}.
+	 */
+	private void updateEmissiveEquipmentLights(@Nonnull SceneContext sceneContext) {
+		// If the feature was disabled, remove any lights it previously spawned and reset state
+		if (!plugin.configEmissiveEquipmentLights) {
+			if (!emissiveLightsByPlayer.isEmpty()) {
+				removeLightIf(sceneContext, light -> light.emissiveMaterialName != null);
+				clearEmissiveLightState();
+			}
+			return;
+		}
+
+		// MATERIALS may be null momentarily during a material reload
+		if (MaterialManager.MATERIALS == null)
+			return;
+
+		// If materials were hot-reloaded, the cached scans hold stale Material objects; drop them
+		// so they get rescanned (and existing lights refreshed) against the new materials
+		if (lastSeenMaterials != MaterialManager.MATERIALS) {
+			lastSeenMaterials = MaterialManager.MATERIALS;
+			emissiveScanModel.clear();
+			emissiveScanCache.clear();
+		}
+
+		// Collect the players currently in view, used both to iterate and to prune the caches
+		var livePlayers = new HashSet<Player>();
+		for (Player player : client.getTopLevelWorldView().players())
+			if (player != null)
+				livePlayers.add(player);
+
+		// Drop tracked lights whose light is gone, or whose player left view / changed identity.
+		// The main update() loop marks departed actors' lights for removal, so we just untrack here.
+		emissiveLightsByPlayer.entrySet().removeIf(e -> {
+			Light light = e.getValue();
+			return light.markedForRemoval || light.actor != e.getKey() || !livePlayers.contains(e.getKey());
+		});
+
+		// Prune scan caches for players no longer in view, to keep the maps bounded
+		emissiveScanModel.keySet().retainAll(livePlayers);
+		emissiveScanCache.keySet().retainAll(livePlayers);
+
+		for (Player player : livePlayers) {
+			Light existing = emissiveLightsByPlayer.get(player);
+
+			// Force a fresh scan (ignoring the per-model cache) for players that already have an
+			// emissive light, so the centroid — and thus the light position — always tracks the
+			// live, animated cape geometry. The cache only spares re-scanning non-emissive players.
+			boolean forceRescan = existing != null;
+			EmissiveScan scan = isActorLightVisible(player) ? scanPlayerEmissive(player, forceRescan) : null;
+			Material emissive = scan == null ? null : scan.material;
+
+			if (emissive == null) {
+				// No emissive material this frame; remove any existing light. Keep the scan cache
+				// (keyed by model identity) so this player isn't rescanned until their model changes.
+				if (existing != null) {
+					existing.markedForRemoval = true;
+					emissiveLightsByPlayer.remove(player);
+				}
+				continue;
+			}
+
+			if (existing != null && !emissive.name.equals(existing.emissiveMaterialName)) {
+				// The emissive material changed (e.g. swapped capes); replace the light
+				existing.markedForRemoval = true;
+				emissiveLightsByPlayer.remove(player);
+				existing = null;
+			}
+
+			if (existing == null) {
+				LightDefinition def = createEmissiveLightDef(emissive);
+				existing = new Light(def);
+				existing.plane = -1;
+				existing.actor = player;
+				existing.emissiveMaterialName = emissive.name;
+				sceneContext.lights.add(existing);
+				emissiveLightsByPlayer.put(player, existing);
+			}
+
+			// Refresh the light each frame so the offset tracks the (animated) emissive surface,
+			// e.g. a swinging cape during an emote, and color/strength/radius track material reloads.
+			refreshEmissiveLight(existing, emissive, scan);
+		}
+	}
+
+	/**
+	 * Returns the strongest emissive material on the player's current model and the centroid of
+	 * its emissive faces, or null if none. The result is cached per player and only recomputed
+	 * when the player's {@link Model} instance changes (e.g. each animation frame of an emote),
+	 * since the face scan is the dominant cost of this feature.
+	 */
+	@Nullable
+	private EmissiveScan scanPlayerEmissive(@Nonnull Player player, boolean forceRescan) {
+		Model model;
+		try {
+			// getModel may throw from vanilla client code
+			model = player.getModel();
+		} catch (Exception ex) {
+			model = null;
+		}
+		if (model == null) {
+			emissiveScanModel.remove(player);
+			emissiveScanCache.remove(player);
+			return null;
+		}
+
+		// Reuse the cached scan only for players we don't already light. RuneLite reuses the same
+		// Model instance for an animating actor and mutates its vertices in place, so model identity
+		// does NOT change between animation frames; relying on it alone would freeze the centroid
+		// (and the light) while a cape swings. forceRescan keeps known-emissive players' lights live.
+		if (!forceRescan && emissiveScanModel.get(player) == model)
+			return emissiveScanCache.get(player);
+
+		EmissiveScan scan = findStrongestEmissiveMaterial(model);
+		emissiveScanModel.put(player, model);
+		emissiveScanCache.put(player, scan);
+		return scan;
+	}
+
+	/**
+	 * Resolves each textured face of the given model to its {@link Material} (mirroring the
+	 * resolution used during model pushing) and returns the emissive material with the highest
+	 * {@link Material#emissiveStrength}, along with the centroid of the emissive faces in the
+	 * model's local (pre-rotation) space, or null if no emissive faces are present. The centroid
+	 * lets the light track the emissive surface (e.g. a swinging cape) as the model animates.
+	 */
+	@Nullable
+	private EmissiveScan findStrongestEmissiveMaterial(@Nonnull Model model) {
+		final short[] faceTextures = model.getFaceTextures();
+		if (faceTextures == null)
+			return null; // Untextured models can't have emissive textures
+
+		final int faceCount = min(model.getFaceCount(), faceTextures.length);
+		final int[] indices1 = model.getFaceIndices1();
+		final int[] indices2 = model.getFaceIndices2();
+		final int[] indices3 = model.getFaceIndices3();
+		final float[] verticesX = model.getVerticesX();
+		final float[] verticesY = model.getVerticesY();
+		final float[] verticesZ = model.getVerticesZ();
+		boolean hasGeometry = indices1 != null && indices2 != null && indices3 != null &&
+			verticesX != null && verticesY != null && verticesZ != null;
+
+		Material strongest = null;
+		// Accumulate the centroid only over the strongest material's faces, so a small amount of a
+		// stronger emissive material doesn't get its centroid diluted by a different material.
+		float sumX = 0, sumY = 0, sumZ = 0;
+		int centroidCount = 0;
+
+		for (int face = 0; face < faceCount; face++) {
+			short textureId = faceTextures[face];
+			if (textureId == -1)
+				continue;
+
+			Material material = materialManager.fromVanillaTexture(textureId);
+			if (material == null || !material.isEmissive())
+				continue;
+
+			if (strongest == null || material.emissiveStrength > strongest.emissiveStrength) {
+				strongest = material;
+				// Restart the centroid accumulation for the new strongest material
+				sumX = sumY = sumZ = 0;
+				centroidCount = 0;
+			}
+
+			// Only accumulate faces belonging to the current strongest material
+			if (hasGeometry && material == strongest) {
+				int a = indices1[face], b = indices2[face], c = indices3[face];
+				sumX += (verticesX[a] + verticesX[b] + verticesX[c]) / 3f;
+				sumY += (verticesY[a] + verticesY[b] + verticesY[c]) / 3f;
+				sumZ += (verticesZ[a] + verticesZ[b] + verticesZ[c]) / 3f;
+				centroidCount++;
+			}
+		}
+
+		if (strongest == null)
+			return null;
+		if (centroidCount == 0)
+			return new EmissiveScan(strongest, 0, 0, 0);
+		return new EmissiveScan(strongest, sumX / centroidCount, sumY / centroidCount, sumZ / centroidCount);
+	}
+
+	/**
+	 * Builds a {@link LightDefinition} for an emissive-material light. Uses {@link Alignment#CUSTOM}
+	 * so the per-frame {@code light.offset} (the emissive-face centroid) is rotated by the actor's
+	 * orientation and added to the actor position. Color/radius/strength are filled from the
+	 * material; the position offset is set per-frame by {@link #refreshEmissiveLight}.
+	 */
+	private LightDefinition createEmissiveLightDef(@Nonnull Material material) {
+		LightDefinition def = new LightDefinition();
+		def.alignment = Alignment.CUSTOM;
+		def.type = LightType.STATIC;
+		def.height = 0; // Height comes from the per-frame offset, not a fixed def height
+		def.offset = new float[3];
+		def.color = new float[] { material.emissiveColor[0], material.emissiveColor[1], material.emissiveColor[2] };
+		def.radius = round(material.emissiveRadius);
+		def.strength = material.emissiveStrength;
+		def.normalize();
+		return def;
+	}
+
+	/**
+	 * Refreshes an existing emissive light in place each frame so it tracks the (animated) emissive
+	 * surface and any hot-reloaded material properties. The emissive-face centroid (in model-local,
+	 * pre-rotation space) is written to {@code light.offset}, which the actor-light branch in
+	 * {@link #update} rotates by the actor's orientation before adding it to the actor position.
+	 */
+	private void refreshEmissiveLight(@Nonnull Light light, @Nonnull Material material, @Nonnull EmissiveScan scan) {
+		// Model-space X/Z map directly to the light's local offset; the CUSTOM-alignment block in
+		// update() applies the actor's orientation. Model-space Y is negative-up, matching the
+		// internal offset Y convention (negative raises the light), so it's used as-is.
+		light.offset[0] = scan.centroidX;
+		light.offset[1] = scan.centroidY;
+		light.offset[2] = scan.centroidZ;
+
+		// LightType.STATIC lights copy strength/radius/color from def each frame in update(), so
+		// updating the def is sufficient; refresh them in case the material was hot-reloaded.
+		light.def.radius = round(material.emissiveRadius);
+		light.def.strength = material.emissiveStrength;
+		light.def.color[0] = material.emissiveColor[0];
+		light.def.color[1] = material.emissiveColor[1];
+		light.def.color[2] = material.emissiveColor[2];
+		light.color = light.def.color;
 	}
 
 	private void handleObjectSpawn(TileObject object) {

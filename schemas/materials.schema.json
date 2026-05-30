@@ -87,6 +87,23 @@
         "type": "number",
         "description": "The gloss of specular reflections. Defaults to 0. Commonly ranges from 10 to 500."
       },
+      "emissiveStrength": {
+        "type": "number",
+        "description": "When greater than 0, faces using this material cast dynamic light onto the scene (e.g. the fire cape lighting up nearby geometry). Scales the strength of the spawned light. Defaults to 0 (no light cast)."
+      },
+      "emissiveColor": {
+        "type": [ "string", "array" ],
+        "description": "The sRGB color of the light cast by emissive faces, as a hex string (e.g. \"#FF6A00\") or an array of color channels. Only used when `emissiveStrength` > 0. Defaults to white.",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": {
+          "type": "number"
+        }
+      },
+      "emissiveRadius": {
+        "type": "number",
+        "description": "The radius of the light cast by emissive faces, in local units. Only used when `emissiveStrength` > 0. Defaults to 300."
+      },
       "scrollSpeed": {
         "type": "array",
         "description": "The duration in seconds, per UV direction, before texture scrolling repeats. Defaults to [ 0, 0 ], which disables scrolling.",

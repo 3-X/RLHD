@@ -64,6 +64,23 @@ public class Material {
 	private float[] flowMapDuration = { 0, 0 };
 	private float specularStrength;
 	private float specularGloss;
+	/**
+	 * When greater than zero, faces using this material cast dynamic light onto the scene
+	 * (in addition to any self-illumination from {@link #unlit}). This drives the
+	 * "light-emitting textures" feature, e.g. the fire cape lighting up nearby geometry.
+	 * The value scales the strength of the spawned {@code Light}.
+	 */
+	public float emissiveStrength;
+	/**
+	 * Linear-space RGB color of the light cast by emissive faces. Parsed from an sRGB hex
+	 * string (e.g. {@code "#FF6A00"}) in materials.json. Only used when {@link #emissiveStrength} &gt; 0.
+	 */
+	@JsonAdapter(ColorUtils.SrgbToLinearAdapter.class)
+	public float[] emissiveColor = { 1, 1, 1 };
+	/**
+	 * Radius of the light cast by emissive faces, in local units. Only used when {@link #emissiveStrength} &gt; 0.
+	 */
+	public float emissiveRadius = 300;
 	private float[] scrollSpeed = { 0, 0 };
 	private float[] textureScale = { 1, 1, 1 };
 	public List<String> materialsToReplace = Collections.emptyList();
@@ -110,6 +127,9 @@ public class Material {
 		flowMapDuration = ensureDefaults(flowMapDuration, NONE.flowMapDuration);
 		scrollSpeed = ensureDefaults(scrollSpeed, NONE.scrollSpeed);
 		textureScale = ensureDefaults(textureScale, NONE.textureScale);
+		// Ensure emissive lights always have a valid 3-component color, even if omitted in JSON
+		if (emissiveColor == null || emissiveColor.length != 3)
+			emissiveColor = new float[] { 1, 1, 1 };
 
 		if (!materialsToReplace.isEmpty() && materialsToReplace.removeIf(Objects::isNull))
 			log.error("Error in material '{}': Null is not allowed as a replacement material", this);
@@ -152,6 +172,14 @@ public class Material {
 		while (base.parent != null)
 			base = base.parent;
 		return base;
+	}
+
+	/**
+	 * @return whether faces using this material should cast dynamic light onto the scene.
+	 * @see #emissiveStrength
+	 */
+	public boolean isEmissive() {
+		return emissiveStrength > 0;
 	}
 
 	public Material findParent(Function<Material, Object> propertyGetter) {

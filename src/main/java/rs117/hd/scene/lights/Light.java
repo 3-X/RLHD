@@ -60,6 +60,13 @@ public class Light
 	public int spotanimId = -1;
 	public int[] projectileRefCounter;
 
+	/**
+	 * Non-null for a light driven by an emissive material on an actor's worn equipment
+	 * (e.g. the fire cape). Holds the name of the emissive material so the light can be
+	 * deduplicated and refreshed when the actor's gear changes. Null for all other lights.
+	 */
+	public String emissiveMaterialName;
+
 	public int sizeX = 1;
 	public int sizeY = 1;
 
