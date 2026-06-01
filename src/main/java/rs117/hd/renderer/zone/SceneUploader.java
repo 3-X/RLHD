@@ -826,6 +826,16 @@ public class SceneUploader implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Resolves the water type index for a single water vertex, used to give boundary triangles
+	 * mixed per-corner types so the water shader blends between them. Falls back to the tile's own
+	 * water type when no per-vertex entry exists, preserving the original behaviour for interior tiles.
+	 */
+	private static int cornerWaterTypeIndex(ZoneSceneContext ctx, int vertexKey, WaterType fallback) {
+		WaterType waterType = ctx.vertexWaterType.get(vertexKey);
+		return (waterType != null ? waterType : fallback).index;
+	}
+
 	@SuppressWarnings({ "UnnecessaryLocalVariable" })
 	private void uploadTilePaint(
 		ZoneSceneContext ctx,
@@ -899,8 +909,17 @@ public class SceneUploader implements AutoCloseable {
 		int[] neNormals = UP_NORMAL;
 		int[] nwNormals = UP_NORMAL;
 
-		int swTerrainData, seTerrainData, nwTerrainData, neTerrainData;
-		swTerrainData = seTerrainData = nwTerrainData = neTerrainData = HDUtils.packTerrainData(true, 0, waterType, tileZ);
+		// Per-corner water type for cross-type blending; falls back to the tile's own type so
+		// interior tiles are unchanged (and the shader's all-equal fast path still applies).
+		int swWaterType = cornerWaterTypeIndex(ctx, swVertexKey, waterType);
+		int seWaterType = cornerWaterTypeIndex(ctx, seVertexKey, waterType);
+		int nwWaterType = cornerWaterTypeIndex(ctx, nwVertexKey, waterType);
+		int neWaterType = cornerWaterTypeIndex(ctx, neVertexKey, waterType);
+
+		int swTerrainData = HDUtils.packTerrainData(true, 0, swWaterType, tileZ);
+		int seTerrainData = HDUtils.packTerrainData(true, 0, seWaterType, tileZ);
+		int nwTerrainData = HDUtils.packTerrainData(true, 0, nwWaterType, tileZ);
+		int neTerrainData = HDUtils.packTerrainData(true, 0, neWaterType, tileZ);
 
 		if (!onlyWaterSurface) {
 			swNormals = ctx.vertexTerrainNormals.getOrDefault(swVertexKey, swNormals);
@@ -1015,10 +1034,10 @@ public class SceneUploader implements AutoCloseable {
 			nwHeight += nwDepth;
 			neHeight += neDepth;
 
-			swTerrainData = HDUtils.packTerrainData(true, max(1, swDepth), waterType, tileZ);
-			seTerrainData = HDUtils.packTerrainData(true, max(1, seDepth), waterType, tileZ);
-			nwTerrainData = HDUtils.packTerrainData(true, max(1, nwDepth), waterType, tileZ);
-			neTerrainData = HDUtils.packTerrainData(true, max(1, neDepth), waterType, tileZ);
+			swTerrainData = HDUtils.packTerrainData(true, max(1, swDepth), swWaterType, tileZ);
+			seTerrainData = HDUtils.packTerrainData(true, max(1, seDepth), seWaterType, tileZ);
+			nwTerrainData = HDUtils.packTerrainData(true, max(1, nwDepth), nwWaterType, tileZ);
+			neTerrainData = HDUtils.packTerrainData(true, max(1, neDepth), neWaterType, tileZ);
 		}
 
 		swHeight -= override.heightOffset;
@@ -1207,8 +1226,14 @@ public class SceneUploader implements AutoCloseable {
 			int[] normalsB = UP_NORMAL;
 			int[] normalsC = UP_NORMAL;
 
-			int terrainDataA, terrainDataB, terrainDataC;
-			terrainDataA = terrainDataB = terrainDataC = HDUtils.packTerrainData(true, 0, waterType, tileZ);
+			// Per-vertex water type for cross-type blending; falls back to the face's own type.
+			int waterTypeA = cornerWaterTypeIndex(ctx, vertexKeyA, waterType);
+			int waterTypeB = cornerWaterTypeIndex(ctx, vertexKeyB, waterType);
+			int waterTypeC = cornerWaterTypeIndex(ctx, vertexKeyC, waterType);
+
+			int terrainDataA = HDUtils.packTerrainData(true, 0, waterTypeA, tileZ);
+			int terrainDataB = HDUtils.packTerrainData(true, 0, waterTypeB, tileZ);
+			int terrainDataC = HDUtils.packTerrainData(true, 0, waterTypeC, tileZ);
 
 			if (!onlyWaterSurface) {
 				normalsA = ctx.vertexTerrainNormals.getOrDefault(vertexKeyA, normalsA);
@@ -1330,9 +1355,9 @@ public class SceneUploader implements AutoCloseable {
 				ly1 += depths[1];
 				ly2 += depths[2];
 
-				terrainDataA = HDUtils.packTerrainData(true, max(1, depths[0]), waterType, tileZ);
-				terrainDataB = HDUtils.packTerrainData(true, max(1, depths[1]), waterType, tileZ);
-				terrainDataC = HDUtils.packTerrainData(true, max(1, depths[2]), waterType, tileZ);
+				terrainDataA = HDUtils.packTerrainData(true, max(1, depths[0]), waterTypeA, tileZ);
+				terrainDataB = HDUtils.packTerrainData(true, max(1, depths[1]), waterTypeB, tileZ);
+				terrainDataC = HDUtils.packTerrainData(true, max(1, depths[2]), waterTypeC, tileZ);
 			}
 
 			if (ctx.vertexIsOverlay.containsKey(vertexKeyA) && ctx.vertexIsUnderlay.containsKey(vertexKeyA))

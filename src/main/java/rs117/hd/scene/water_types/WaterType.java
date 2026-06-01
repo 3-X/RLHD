@@ -43,6 +43,11 @@ public class WaterType {
 	private boolean hasFoam = true;
 	private float duration = 1;
 	public int fishingSpotRecolor = -1;
+	/**
+	 * Selects a special-effect shader branch in water.glsl (0 = none, 1 = storm).
+	 * Effects are blended across tile boundaries by their texBlend weight.
+	 */
+	public int effectType = 0;
 
 	public transient int index;
 
@@ -88,6 +93,7 @@ public class WaterType {
 		struct.foamColor.set(linearToSrgb(foamColor));
 		struct.depthColor.set(linearToSrgb(depthColor));
 		struct.normalMap.set(Material.getTextureLayer(normalMap));
+		struct.effectType.set(effectType);
 	}
 
 	@Slf4j

@@ -112,6 +112,13 @@ void main() {
         waterDepth2 * IN.texBlend.y +
         waterDepth3 * IN.texBlend.z;
     int waterTypeIndex = fTerrainData[0] >> 3 & 0xFF;
+    // Per-vertex water types (already on the GPU via the flat ivec3), used to blend
+    // across triangles where two different water types meet, mirroring the depth blend above.
+    ivec3 waterTypeIndices = ivec3(
+        fTerrainData[0] >> 3 & 0xFF,
+        fTerrainData[1] >> 3 & 0xFF,
+        fTerrainData[2] >> 3 & 0xFF
+    );
     bool isWater = waterTypeIndex > 0;
 
     // Not Terrain, but has water which means its a model that is intersecting with water!
@@ -122,8 +129,10 @@ void main() {
     bool isWaterSurface = isWater && !isUnderwaterTile;
 
     #ifdef DEVELOPMENT_WATER_TYPE
-        if (isWater)
+        if (isWater) {
             waterTypeIndex = DEVELOPMENT_WATER_TYPE;
+            waterTypeIndices = ivec3(DEVELOPMENT_WATER_TYPE);
+        }
     #endif
 
     WaterType waterType;
@@ -136,7 +145,7 @@ void main() {
         #if LEGACY_WATER
             outputColor = sampleLegacyWater(waterTypeIndex, viewDir);
         #else
-            outputColor = sampleWater(waterTypeIndex, viewDir);
+            outputColor = sampleWater(waterTypeIndices, IN.texBlend, viewDir);
         #endif
     }
 

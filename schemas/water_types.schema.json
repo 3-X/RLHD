@@ -92,6 +92,10 @@
       "fishingSpotRecolor": {
         "type": "integer",
         "description": "A Jagex HSL value to apply to fishing spot replacement models on this water type."
+      },
+      "effectType": {
+        "type": "integer",
+        "description": "Selects a special-effect shader branch in water.glsl. 0 = none, 1 = storm (amplified waves and whitecaps). Effects blend across tile boundaries by weight."
       }
     }
   }

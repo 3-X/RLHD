@@ -14,6 +14,7 @@ import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.materials.Material;
 import rs117.hd.scene.tile_overrides.TileOverrideVariables;
+import rs117.hd.scene.water_types.WaterType;
 import rs117.hd.utils.HDUtils;
 
 import static net.runelite.api.Constants.*;
@@ -68,6 +69,10 @@ public class SceneContext {
 	public HashMap<Integer, Boolean> vertexIsUnderlay;
 	public boolean[][][] skipTile;
 	public HashMap<Integer, Integer> vertexUnderwaterDepth;
+	// The water type assigned to each water vertex, keyed by the same shared vertex keys as
+	// vertexUnderwaterDepth. Lets water surfaces blend between two types where tiles of
+	// different types meet, by giving boundary triangles mixed per-corner water types.
+	public HashMap<Integer, WaterType> vertexWaterType;
 	public int[][][] underwaterDepthLevels;
 	public int sceneEdge0, sceneEdge1;
 	// Initialize array for counting the most prevalent water level

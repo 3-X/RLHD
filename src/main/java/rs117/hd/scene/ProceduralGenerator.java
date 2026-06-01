@@ -119,6 +119,7 @@ public class ProceduralGenerator {
 		sceneContext.vertexIsUnderlay = null;
 		sceneContext.skipTile = null;
 		sceneContext.vertexUnderwaterDepth = null;
+		sceneContext.vertexWaterType = null;
 		if (!(sceneContext instanceof LegacySceneContext))
 			sceneContext.underwaterDepthLevels = null;
 	}
@@ -360,6 +361,8 @@ public class ProceduralGenerator {
 		// the height adjustment for each vertex, to be applied to the vertex'
 		// real height to create the underwater terrain
 		sceneContext.vertexUnderwaterDepth = new HashMap<>();
+		// the water type assigned to each water vertex, used to blend between water types at boundaries
+		sceneContext.vertexWaterType = new HashMap<>();
 		// the basic 'levels' of underwater terrain, used to sink terrain based on its distance
 		// from the shore, then used to produce the world-space height offset
 		// 0 = land
@@ -431,8 +434,11 @@ public class ProceduralGenerator {
 							}
 
 							sceneContext.tileIsWater[z][x][y] = true;
-							for (int vertexKey : vertexKeys)
+							WaterType waterType = seasonalWaterType(override, tile.getSceneTilePaint().getTexture());
+							for (int vertexKey : vertexKeys) {
 								sceneContext.vertexIsWater.put(vertexKey, true);
+								mergeVertexWaterType(sceneContext, vertexKey, waterType);
+							}
 						}
 					}
 					else if (tile.getSceneTileModel() != null)
@@ -520,9 +526,11 @@ public class ProceduralGenerator {
 							{
 								sceneContext.tileIsWater[z][x][y] = true;
 
+								WaterType waterType = seasonalWaterType(override, textureId);
 								for (int vertex = 0; vertex < VERTICES_PER_FACE; vertex++)
 								{
 									sceneContext.vertexIsWater.put(vertexKeys[vertex], true);
+									mergeVertexWaterType(sceneContext, vertexKeys[vertex], waterType);
 								}
 							}
 						}
@@ -805,6 +813,25 @@ public class ProceduralGenerator {
 			return false;
 
 		return !override.blended;
+	}
+
+	/**
+	 * Records a water type for a shared water vertex, resolving conflicts deterministically so the
+	 * result is independent of tile iteration order. When two tiles of different water types share a
+	 * corner, the higher-priority type wins (hazard/effect types bleed outward into calmer water),
+	 * giving boundary triangles mixed per-corner types that the water shader then blends.
+	 */
+	private static void mergeVertexWaterType(SceneContext sceneContext, int vertexKey, WaterType waterType) {
+		if (waterType == null || waterType == WaterType.NONE)
+			return;
+		WaterType existing = sceneContext.vertexWaterType.get(vertexKey);
+		if (existing == null || waterTypePriority(waterType) > waterTypePriority(existing))
+			sceneContext.vertexWaterType.put(vertexKey, waterType);
+	}
+
+	/** Higher priority wins at a shared vertex: effect types first, then higher index as a stable tiebreak. */
+	private static int waterTypePriority(WaterType waterType) {
+		return waterType.effectType * 1000 + waterType.index;
 	}
 
 	public WaterType seasonalWaterType(TileOverride override, int textureId)

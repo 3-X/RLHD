@@ -294,6 +294,12 @@
     "waterType": "WATER"
   },
   {
+    "name": "STORMY_WATER_TEST",
+    "area": "STORMY_WATER_TEST",
+    "underlayIds": [ 48 ],
+    "waterType": "STORMY_WATER"
+  },
+  {
     "name": "YANILLE_AGILITY_DUNGEON_ENTRANCE_FIX",
     "area": "YANILLE_AGILITY_DUNGEON_ENTRANCE",
     "underlayIds": [

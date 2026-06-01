@@ -250,6 +250,20 @@
     "name": "CYAN_WATER"
   },
   {
+    "name": "STORMY_WATER",
+    "description": "Sailing hazard: rough, dark open sea with tall fast waves and whitecaps.",
+    "specularStrength": 0.4,
+    "specularGloss": 220.0,
+    "normalStrength": 0.18,
+    "baseOpacity": 0.8,
+    "fresnelAmount": 0.7,
+    "surfaceColor": "#33414E",
+    "foamColor": "#C8D2D8",
+    "depthColor": "#0B141C",
+    "duration": 0.55,
+    "effectType": 1
+  },
+  {
     "name": "GREEN_CAVE_WATER",
     "flat": true,
     "specularStrength": 0.1,

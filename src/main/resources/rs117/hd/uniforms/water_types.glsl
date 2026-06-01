@@ -15,6 +15,7 @@ struct WaterType {
     vec3 foamColor;
     vec3 depthColor;
     int normalMap;
+    int effectType;
 };
 
 layout(std140) uniform UBOWaterTypes {
@@ -41,5 +42,6 @@ layout(std140) uniform UBOWaterTypes {
 #define WATER_TYPE_DARK_BLUE_WATER  15
 #define WATER_TYPE_ARAXXOR_WASTE    16
 #define WATER_TYPE_CYAN_WATER       17
-#define WATER_TYPE_GREEN_CAVE_WATER 18
-#define WATER_TYPE_CAVE_WATER       19
+#define WATER_TYPE_STORMY_WATER     18
+#define WATER_TYPE_GREEN_CAVE_WATER 19
+#define WATER_TYPE_CAVE_WATER       20

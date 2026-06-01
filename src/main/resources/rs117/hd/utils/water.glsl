@@ -36,42 +36,71 @@
 
 #if !LEGACY_WATER
 
-vec3 sampleWaterSurfaceNormal(int waterTypeIndex, vec3 position) {
-    WaterType waterType = getWaterType(waterTypeIndex);
-    vec2 worldUv = -position.xz / 128;
+// Global multiplier for storm strength. Constant for now, but kept as a single
+// hook so a weather/time-of-day uniform can drive it later without touching the
+// effect math. 0 = calm, 1 = full storm.
+#define STORM_INTENSITY 1.0
 
-    float waveHeight = 1;
-    float waveSpeed = .0072;
+// Per-water-type wave parameters used by the surface normal. Returning these as a
+// struct lets us evaluate them per vertex type and blend the results across tile
+// boundaries instead of hard-switching on a single index.
+struct WaveParams {
+    float height;
+    float speed;
+    float stormWeight; // 0..1 contribution of the storm effect for this type
+};
+
+WaveParams getWaveParams(int waterTypeIndex) {
+    WaveParams w;
+    w.height = 1;
+    w.speed = .0072;
+    w.stormWeight = 0;
+
     switch (waterTypeIndex) {
         case WATER_TYPE_BLACK_TAR_FLAT:
-            waveHeight = .1;
-            waveSpeed *= .42;
+            w.height = .1;
+            w.speed *= .42;
             break;
         case WATER_TYPE_MUDDY_WATER:
-            waveHeight = .1;
+            w.height = .1;
             break;
         case WATER_TYPE_BLOOD:
-            waveHeight = .75;
+            w.height = .75;
             break;
         case WATER_TYPE_ICE:
         case WATER_TYPE_ICE_FLAT:
-            waveHeight = .3;
-            waveSpeed = 0;
+            w.height = .3;
+            w.speed = 0;
             break;
         case WATER_TYPE_ABYSS_BILE:
-            waveHeight = .7;
+            w.height = .7;
             break;
     }
 
-    vec2 uv1 = worldUv / 26 + waveSpeed * elapsedTime * vec2( 1, -4);
-    vec2 uv2 = worldUv /  6 + waveSpeed * elapsedTime * vec2(-2,  1);
+    // Storm waters: taller, faster, choppier. effectType == 1 selects the storm
+    // branch; STORM_INTENSITY scales the whole thing so it can later react to weather.
+    if (getWaterType(waterTypeIndex).effectType == 1) {
+        w.stormWeight = STORM_INTENSITY;
+        w.height = mix(w.height, 2.4, w.stormWeight);
+        w.speed = mix(w.speed, .0072 * 3.0, w.stormWeight);
+    }
+
+    return w;
+}
+
+// Evaluate the surface normal for a single set of wave parameters.
+vec3 evalWaterSurfaceNormal(WaveParams w, vec3 position) {
+    vec2 worldUv = -position.xz / 128;
+
+    vec2 uv1 = worldUv / 26 + w.speed * elapsedTime * vec2( 1, -4);
+    vec2 uv2 = worldUv /  6 + w.speed * elapsedTime * vec2(-2,  1);
 
     vec3 n1 = texture(waterNormalMaps, vec3(uv1, 0)).xyz;
     vec3 n2 = texture(waterNormalMaps, vec3(uv2, 1)).xyz;
 
     // Scale wave strength
-    n1.z /= waveHeight * .225;
-    n2.z /= waveHeight * .8;
+    n1.z /= w.height * .225;
+    n2.z /= w.height * .8;
     // Normalize
     n1.xy = n1.xy * 2 - 1;
     n2.xy = n2.xy * 2 - 1;
@@ -81,7 +110,40 @@ vec3 sampleWaterSurfaceNormal(int waterTypeIndex, vec3 position) {
     n1 = normalize(n1.xzy);
     n2 = normalize(n2.xzy);
 
-    return normalize(n1 + n2);
+    vec3 n = n1 + n2;
+
+    // Storm chop: a third, smaller and faster normal layer adds disordered detail
+    // on top of the base swell. Faded in by the storm weight so it disappears as
+    // storm water blends into calm water.
+    if (w.stormWeight > 0) {
+        vec2 uv3 = worldUv / 2.5 + w.speed * elapsedTime * vec2(3, -2);
+        vec3 n3 = texture(waterNormalMaps, vec3(uv3, 0)).xyz;
+        n3.z /= w.height * .35;
+        n3.xy = n3.xy * 2 - 1;
+        n3.z *= -1;
+        n3 = normalize(n3.xzy);
+        n += n3 * w.stormWeight;
+    }
+
+    return normalize(n);
+}
+
+// Blend the surface normal across up to three water types by their texBlend weights.
+// The common case (all three the same type) collapses to a single evaluation.
+vec3 sampleWaterSurfaceNormal(ivec3 waterTypeIndices, vec3 weights, vec3 position) {
+    WaveParams w0 = getWaveParams(waterTypeIndices[0]);
+    if (waterTypeIndices[0] == waterTypeIndices[1] && waterTypeIndices[0] == waterTypeIndices[2])
+        return evalWaterSurfaceNormal(w0, position);
+
+    vec3 n0 = evalWaterSurfaceNormal(w0, position);
+    vec3 n1 = evalWaterSurfaceNormal(getWaveParams(waterTypeIndices[1]), position);
+    vec3 n2 = evalWaterSurfaceNormal(getWaveParams(waterTypeIndices[2]), position);
+    return normalize(n0 * weights.x + n1 * weights.y + n2 * weights.z);
+}
+
+// Backwards-compatible single-type overload (used by sampleUnderwater).
+vec3 sampleWaterSurfaceNormal(int waterTypeIndex, vec3 position) {
+    return evalWaterSurfaceNormal(getWaveParams(waterTypeIndex), position);
 }
 
 void sampleUnderwater(inout vec3 outputColor, int waterTypeIndex, float depth) {
@@ -357,8 +419,53 @@ void sampleUnderwater(inout vec3 outputColor, int waterTypeIndex, float depth) {
     outputColor.rgb += (gradientNoise(gl_FragCoord.xy) - .5) / 0xFF;
 }
 
-vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
-    WaterType waterType = getWaterType(waterTypeIndex);
+// Blend the UBO-backed properties of up to three water types by their texBlend
+// weights into a single WaterType. The common case (a single type across the
+// triangle) returns that type directly to avoid the extra fetches and math.
+WaterType blendWaterTypes(ivec3 indices, vec3 weights) {
+    WaterType a = getWaterType(indices[0]);
+    if (indices[0] == indices[1] && indices[0] == indices[2])
+        return a;
+
+    WaterType b = getWaterType(indices[1]);
+    WaterType c = getWaterType(indices[2]);
+
+    WaterType r;
+    r.specularStrength = a.specularStrength * weights.x + b.specularStrength * weights.y + c.specularStrength * weights.z;
+    r.specularGloss    = a.specularGloss    * weights.x + b.specularGloss    * weights.y + c.specularGloss    * weights.z;
+    r.normalStrength   = a.normalStrength   * weights.x + b.normalStrength   * weights.y + c.normalStrength   * weights.z;
+    r.baseOpacity      = a.baseOpacity      * weights.x + b.baseOpacity      * weights.y + c.baseOpacity      * weights.z;
+    r.duration         = a.duration         * weights.x + b.duration         * weights.y + c.duration         * weights.z;
+    r.fresnelAmount    = a.fresnelAmount    * weights.x + b.fresnelAmount    * weights.y + c.fresnelAmount    * weights.z;
+    r.surfaceColor     = a.surfaceColor     * weights.x + b.surfaceColor     * weights.y + c.surfaceColor     * weights.z;
+    r.foamColor        = a.foamColor        * weights.x + b.foamColor        * weights.y + c.foamColor        * weights.z;
+    r.depthColor       = a.depthColor       * weights.x + b.depthColor       * weights.y + c.depthColor       * weights.z;
+    // Discrete flags: treat as "on if the dominant-weighted type has it on".
+    // A hard switch here would pop at the boundary, but flatness/foam can't be
+    // partially blended, so we bias toward the most-present type. isFlat is a bool
+    // in the struct, so accumulate its weight separately and threshold.
+    float flatWeight = (a.isFlat ? weights.x : 0.0) + (b.isFlat ? weights.y : 0.0) + (c.isFlat ? weights.z : 0.0);
+    r.isFlat   = flatWeight >= 0.5;
+    r.hasFoam  = (a.hasFoam  * weights.x + b.hasFoam  * weights.y + c.hasFoam  * weights.z) >= 0.5 ? 1 : 0;
+    r.normalMap = a.normalMap; // Normal map layer choice can't be interpolated; use the provoking type's.
+    r.effectType = a.effectType;
+    return r;
+}
+
+// Weighted storm contribution across the three vertex types (0 = calm, 1 = full storm).
+float blendStormWeight(ivec3 indices, vec3 weights) {
+    float s0 = getWaterType(indices[0]).effectType == 1 ? STORM_INTENSITY : 0.0;
+    if (indices[0] == indices[1] && indices[0] == indices[2])
+        return s0;
+    float s1 = getWaterType(indices[1]).effectType == 1 ? STORM_INTENSITY : 0.0;
+    float s2 = getWaterType(indices[2]).effectType == 1 ? STORM_INTENSITY : 0.0;
+    return s0 * weights.x + s1 * weights.y + s2 * weights.z;
+}
+
+vec4 sampleWater(ivec3 waterTypeIndices, vec3 weights, vec3 viewDir) {
+    int waterTypeIndex = waterTypeIndices[0];
+    WaterType waterType = blendWaterTypes(waterTypeIndices, weights);
+    float stormWeight = blendStormWeight(waterTypeIndices, weights);
 
     #if ZONE_RENDERER
         // Compute the face normal from screen-space derivatives of the world position.
@@ -430,7 +537,7 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
     vec3 ambientLight = ambientColor * ambientStrength;
     vec3 directionalLight = lightColor * lightStrength;
 
-    vec3 N = sampleWaterSurfaceNormal(waterTypeIndex, IN.position);
+    vec3 N = sampleWaterSurfaceNormal(waterTypeIndices, weights, IN.position);
 
     vec3 fragToCam = viewDir;
     vec3 I = -viewDir; // Incident
@@ -441,13 +548,18 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
     float distortionFactor = 50;
     float reflectionBias = 0;
 
-    switch (waterTypeIndex) {
-        case WATER_TYPE_ICE:
-            distortionFactor *= 12;
-            break;
-        case WATER_TYPE_ABYSS_BILE:
-            distortionFactor *= 4;
-            break;
+    // Per-type reflection distortion, blended by weight so it transitions smoothly.
+    {
+        float d = 0;
+        for (int i = 0; i < 3; i++) {
+            float di = 1.0;
+            switch (waterTypeIndices[i]) {
+                case WATER_TYPE_ICE:        di = 12.0; break;
+                case WATER_TYPE_ABYSS_BILE: di = 4.0;  break;
+            }
+            d += di * weights[i];
+        }
+        distortionFactor *= d;
     }
 
     vec4 reflection = vec4(
@@ -455,10 +567,13 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
         calculateFresnel(dot(fragToCam, N), IOR_WATER)
     );
 
-    switch (waterTypeIndex) {
-        case WATER_TYPE_BLOOD:
-            reflection.r = max(reflection.r, .4f);
-            break;
+    {
+        // Blood lifts the red floor of the reflection; fade it by blood's weight.
+        float bloodWeight = 0;
+        for (int i = 0; i < 3; i++)
+            if (waterTypeIndices[i] == WATER_TYPE_BLOOD)
+                bloodWeight += weights[i];
+        reflection.r = mix(reflection.r, max(reflection.r, .4f), bloodWeight);
     }
 
     // Break up color banding with some noise
@@ -473,6 +588,19 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
 
     vec3 sunSpecular = pow(max(0, dot(N, omega_h)), 2e3) * directionalLight;
     additionalLight += sunSpecular;
+
+    // Storm darkening: storm water reads as a darker, moodier surface. The sky
+    // reflection (driven by fresnel) otherwise washes the dark surfaceColor out, so
+    // we explicitly pull the reflection toward the (already-blended) storm surface
+    // color and knock down its brightness, scaled by the blended storm weight so it
+    // fades to nothing where storm water meets calm ocean.
+    if (stormWeight > 0) {
+        vec3 stormSurface = srgbToLinear(waterType.surfaceColor);
+        vec3 light = ambientColor * ambientStrength + lightColor * lightStrength;
+        // Tint toward the dark storm color and dim the reflection.
+        reflection.rgb = mix(reflection.rgb, stormSurface * light, 0.55 * stormWeight);
+        reflection.rgb *= mix(1.0, 0.7, stormWeight);
+    }
 
     // Begin constructing final output color
     vec4 dst = reflection;
@@ -498,30 +626,39 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
     }
 
     // TODO: specify transparent, faked depth or lambertian per water type
-    // A highly scattering medium roughly approaches a Lambertian reflector
-    bool lambertian =
-        waterTypeIndex == WATER_TYPE_MUDDY_WATER ||
-        waterTypeIndex == WATER_TYPE_ARAXXOR_WASTE ||
-        waterTypeIndex == WATER_TYPE_BLACK_TAR_FLAT;
-
-    if (lambertian) {
-        // TODO: make waterType.surfaceColor consistently linear RGB in the UBO
-        vec3 surfaceColor = srgbToLinear(waterType.surfaceColor);
-
-        switch (waterTypeIndex) {
-            case WATER_TYPE_MUDDY_WATER:
-                surfaceColor = vec3(.238, .161, .007) * .065;
-                break;
-            case WATER_TYPE_ARAXXOR_WASTE:
-                surfaceColor = vec3(22, 255, 13) / 0xFF * .5;
-                break;
+    // A highly scattering medium roughly approaches a Lambertian reflector.
+    // Compute the weighted presence of lambertian types and the weighted lambertian
+    // surface color, then blend the lambertian result in by that weight so a
+    // muddy/araxxor/tar tile transitions smoothly into clear water.
+    float lambertianWeight = 0;
+    vec3 lambertianColor = vec3(0);
+    for (int i = 0; i < 3; i++) {
+        vec3 ci = vec3(0);
+        bool isLambertian = true;
+        switch (waterTypeIndices[i]) {
+            case WATER_TYPE_MUDDY_WATER:   ci = vec3(.238, .161, .007) * .065; break;
+            case WATER_TYPE_ARAXXOR_WASTE: ci = vec3(22, 255, 13) / 0xFF * .5; break;
+            case WATER_TYPE_BLACK_TAR_FLAT: ci = srgbToLinear(getWaterType(waterTypeIndices[i]).surfaceColor); break;
+            default: isLambertian = false; break;
         }
+        if (isLambertian) {
+            lambertianWeight += weights[i];
+            lambertianColor += ci * weights[i];
+        }
+    }
 
+    if (lambertianWeight > 0) {
+        // Normalize the accumulated color by the lambertian weight to get its average color.
+        vec3 surfaceColor = lambertianColor / max(lambertianWeight, 1e-4);
         vec4 src = dst;
-        dst.rgb = surfaceColor * (ambientLight + directionalLight * max(0, dot(N, omega_o)));
-        dst.rgb = mix(dst.rgb, src.rgb, src.a);
-        dst.a = 1;
-    } else if (waterType.isFlat || WATER_TRANSPARENCY == 0) { // If the water is opaque, blend in a fake underwater surface
+        vec4 lamb;
+        lamb.rgb = surfaceColor * (ambientLight + directionalLight * max(0, dot(N, omega_o)));
+        lamb.rgb = mix(lamb.rgb, src.rgb, src.a);
+        lamb.a = 1;
+        dst = mix(dst, lamb, lambertianWeight);
+    }
+
+    if (waterType.isFlat || WATER_TRANSPARENCY == 0) { // If the water is opaque, blend in a fake underwater surface
         // Computed from packedHslToSrgb(6676)
         const vec3 underwaterColor = vec3(0.04856183, 0.025971446, 0.005794384);
         int depth = 768; // Works for boat cutscenes such as when going diving with Murphy
@@ -561,6 +698,31 @@ vec4 sampleWater(int waterTypeIndex, vec3 viewDir) {
             dst.rgb /= dst.a;
         }
     #endif
+
+    // Storm whitecaps: foamy crests across the open surface (not just the shoreline).
+    // Driven by the blended storm weight so they fade out as storm water meets calm
+    // water. Crests are detected where the surface normal tilts away from straight up,
+    // broken up with animated noise so they read as churning foam rather than a flat wash.
+    if (stormWeight > 0) {
+        // N.y is near -1 on flat water (UP_NORMAL points down in this space); crests
+        // are where it deviates. Map that deviation into a 0..1 crest mask.
+        float crest = saturate((1.0 - abs(N.y)) * 6.0);
+
+        vec2 capUv = worldUvs(2.5) + animationFrame(8.0) * vec2(1.0, -0.6);
+        float capNoise = noise(capUv * 8.0);
+        capNoise = capNoise * 0.6 + noise(capUv * 19.0 + 3.7) * 0.4;
+
+        float capMask = saturate(crest * capNoise * 2.0 - 0.35);
+        capMask *= stormWeight;
+
+        vec3 light = ambientColor * ambientStrength + lightColor * lightStrength;
+        vec3 capColor = srgbToLinear(vec3(0.92, 0.95, 0.97)) * light;
+
+        float capAlpha = capMask * 0.5;
+        dst.rgb = capColor * capAlpha + dst.rgb * dst.a * (1 - capAlpha);
+        dst.a = capAlpha + dst.a * (1 - capAlpha);
+        dst.rgb /= max(dst.a, 1e-4);
+    }
 
     return dst;
 }
