@@ -214,7 +214,7 @@ public class LightManager {
 			DaylightCycle daylightCycle = forcedMode != null ? forcedMode : config.daylightCycle();
 			TimeOfDay.setCycleMode(daylightCycle);
 			TimeOfDay.setDayLength(config.dayLength());
-			nightLightFactor = TimeOfDay.getNightLightFactor(plugin.latLong, config.cycleDurationMinutes());
+			nightLightFactor = TimeOfDay.getNightLightFactor(plugin.latLong, (float) config.cycleDurationMinutes());
 			nightFactorRising = previousNightLightFactor < 0 || nightLightFactor >= previousNightLightFactor;
 			previousNightLightFactor = nightLightFactor;
 		} else {

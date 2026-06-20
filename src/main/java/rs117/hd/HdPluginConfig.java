@@ -633,12 +633,11 @@ public interface HdPluginConfig extends Config
 		return DaylightCycle.DYNAMIC;
 	}
 
-	@Range(min = 1, max = 720)
 	@ConfigItem(
 		keyName = "cycleDurationMinutes",
 		name = "Cycle Duration (minutes)",
-		description = "How long a complete day/night cycle should take in real-time minutes.<br>" +
-			"• 1 minute = Very fast cycle for testing<br>" +
+		description = "How long a complete day/night cycle should take in real-time minutes. Accepts decimals.<br>" +
+			"• 0.5 minutes = Very fast cycle for testing<br>" +
 			"• 12 minutes = Quick atmospheric changes<br>" +
 			"• 30 minutes = Default cycle<br>" +
 			"• 60 minutes = Slow hourly cycle<br>" +
@@ -646,7 +645,7 @@ public interface HdPluginConfig extends Config
 		position = 2,
 		section = daylightCycleSettings
 	)
-	default int cycleDurationMinutes() {
+	default double cycleDurationMinutes() {
 		return 30;
 	}
 

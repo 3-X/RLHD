@@ -1016,7 +1016,7 @@ public class LegacyRenderer implements Renderer {
 			if (environmentManager.isOverworld() && config.enableDaylightCycle()) {
 				TimeOfDay.setDayLength(config.dayLength());
 				int minimumBrightness = (int) (config.minimumBrightness() * (1 + environmentManager.currentMinBrightnessBoost));
-				float cycleDuration = config.cycleDurationMinutes();
+				float cycleDuration = (float) config.cycleDurationMinutes();
 
 				float[] originalRegionalDirectionalColor = environmentManager.currentDirectionalColor;
 				float[] originalRegionalAmbientColor = new float[3];

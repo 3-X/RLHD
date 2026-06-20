@@ -439,7 +439,8 @@ public class ZoneRenderer implements Renderer {
 				TimeOfDay.setCycleMode(daylightCycle);
 				TimeOfDay.setDayLength(config.dayLength());
 				TimeOfDay.setMoonPhase(config.moonPhase());
-				double[] sunAnglesD = TimeOfDay.getSunAngles(plugin.latLong, config.cycleDurationMinutes());
+				float cycleDuration = (float) config.cycleDurationMinutes();
+				double[] sunAnglesD = TimeOfDay.getSunAngles(plugin.latLong, cycleDuration);
 				double sunAltDeg = Math.toDegrees(sunAnglesD[1]);
 				MoonBehavior shadowMoonBehavior = config.moonBehavior();
 
@@ -454,16 +455,16 @@ public class ZoneRenderer implements Renderer {
 					// Below +2° sun shadows are faded out, switch to moon direction
 					// early so the shadow map is already oriented when moon shadows
 					// start fading in via smoothstep — prevents brightness pop
-					double moonAltDeg = TimeOfDay.getMoonAltitudeDegrees(plugin.latLong, config.cycleDurationMinutes(), shadowMoonBehavior);
+					double moonAltDeg = TimeOfDay.getMoonAltitudeDegrees(plugin.latLong, cycleDuration, shadowMoonBehavior);
 					if (moonAltDeg > -10) {
 						if (shadowMoonBehavior == MoonBehavior.NIGHT_SYNCED) {
 							double[] moonAnglesD = TimeOfDay.getNightSyncedMoonAngles(
-								plugin.latLong, config.cycleDurationMinutes());
+								plugin.latLong, cycleDuration);
 							shadowSunAngles = new float[] {
 								(float) moonAnglesD[1], (float) moonAnglesD[0]
 							};
 						} else {
-							Instant moonDate = TimeOfDay.getMoonDate(config.cycleDurationMinutes());
+							Instant moonDate = TimeOfDay.getMoonDate(cycleDuration);
 							double[] moonAnglesD = AtmosphereUtils.getMoonPosition(
 								moonDate.toEpochMilli(), plugin.latLong);
 							shadowSunAngles = new float[] {
@@ -621,7 +622,7 @@ public class ZoneRenderer implements Renderer {
 			TimeOfDay.setDayLength(config.dayLength());
 			TimeOfDay.setMoonPhase(config.moonPhase());
 			int minimumBrightness = config.minimumBrightness();
-			float cycleDuration = config.cycleDurationMinutes();
+			float cycleDuration = (float) config.cycleDurationMinutes();
 
 			float[] originalRegionalDirectionalColor = environmentManager.currentDirectionalColor;
 			float[] originalRegionalAmbientColor = new float[3];
