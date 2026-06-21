@@ -17201,7 +17201,7 @@
   {
     "description": "Ape Atoll  - Plant - Jungle grass",
     "windDisplacementMode": "OBJECT",
-    "baseMaterial": "GRAY_50",
+    "baseMaterial": "GRAY_55",
     "castShadows": false,
     "upwardsNormals": true,
     "terrainVertexSnap": true,
