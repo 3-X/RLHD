@@ -3028,8 +3028,6 @@
     "baseMaterial": "NONE",
     "flatNormals": true,
     "castShadows": false,
-    "uvType": "MODEL_XY",
-    "upwardsNormals": true,
     "windDisplacementMode": "OBJECT",
     "inheritTileColorType": "UNDERLAY",
     "objectIds": [
@@ -3840,7 +3838,6 @@
     "description": "Short grass with rock objects",
     "baseMaterial": "GRAY_75",
     "flatNormals": true,
-    "upwardsNormals": true,
     "castShadows": false,
     "windDisplacementMode": "OBJECT",
     "objectIds": [
