@@ -5,6 +5,10 @@
     "unlit": true
   },
   {
+    "name": "GRASSBLADE",
+    "brightness": 1
+  },
+  {
     "name": "UNLIT_125",
     "parent": "UNLIT",
     "brightness": 1.25

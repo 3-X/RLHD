@@ -2838,10 +2838,13 @@
   },
   {
     "description": "Short grass which shouldn't cast shadows",
-    "baseMaterial": "GRAY_65",
+    "baseMaterial": "GRASSBLADE",
+    "uvType": "MODEL_XY",
     "flatNormals": true,
+    "upwardsNormals": true,
     "windDisplacementMode": "OBJECT",
     "castShadows": false,
+    "inheritTileColorType": "UNDERLAY",
     "terrainVertexSnap": true,
     "objectIds": [
       "GRASS_1",
