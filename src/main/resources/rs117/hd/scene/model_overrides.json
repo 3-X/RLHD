@@ -3000,10 +3000,13 @@
   {
     "description": "Fremmenik Isles, Lighten Grass",
     "areas": [ "FREMENNIK_ISLES" ],
-    "baseMaterial": "GRAY_90",
+    "baseMaterial": "GRASSBLADE_90",
     "flatNormals": true,
     "castShadows": false,
+    "upwardsNormals": true,
+    "uvType": "MODEL_XY",
     "windDisplacementMode": "OBJECT",
+    "inheritTileColorType": "UNDERLAY",
     "objectIds": [
       "FRIS_LONG_GRASS_1",
       "FRIS_SHORT_GRASS_1",
@@ -3025,6 +3028,8 @@
     "baseMaterial": "NONE",
     "flatNormals": true,
     "castShadows": false,
+    "uvType": "MODEL_XY",
+    "upwardsNormals": true,
     "windDisplacementMode": "OBJECT",
     "inheritTileColorType": "UNDERLAY",
     "objectIds": [
@@ -4118,6 +4123,9 @@
       "FRIS_SHORT_GRASS_2",
       "FRIS_SHORT_GRASS_1",
       "FRIS_LONG_GRASS_4",
+      "FRIS_LONG_GRASS_3",
+      "FRIS_SHORT_GRASS_3",
+      "FRIS_LONG_GRASS_1",
       "FRIS_SHORT_GRASS_4_CASTLE_EDGE",
       "FRIS_SHORT_GRASS_4_CASTLE_EDGE2",
       "FRIS_SHORT_GRASS_3_CASTLE_EDGE",
