@@ -3054,9 +3054,12 @@
   },
   {
     "description": "Varlamore, Fortis and Avium Grass",
-    "baseMaterial": "GRAY_75",
+    "baseMaterial": "GRASSBLADE_85",
+    "uvType": "MODEL_XY",
+    "inheritTileColorType": "UNDERLAY",
     "flatNormals": true,
     "castShadows": false,
+    "upwardsNormals": true,
     "windDisplacementMode": "OBJECT",
     "objectIds": [
       "AVIUM_GRASS_1",
@@ -3837,6 +3840,7 @@
     "description": "Short grass with rock objects",
     "baseMaterial": "GRAY_75",
     "flatNormals": true,
+    "upwardsNormals": true,
     "castShadows": false,
     "windDisplacementMode": "OBJECT",
     "objectIds": [

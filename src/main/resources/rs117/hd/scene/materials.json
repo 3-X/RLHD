@@ -13,6 +13,11 @@
     "brightness": 0.9
   },
   {
+    "name": "GRASSBLADE_85",
+    "parent": "GRASSBLADE",
+    "brightness": 0.85
+  },
+  {
     "name": "UNLIT_125",
     "parent": "UNLIT",
     "brightness": 1.25
