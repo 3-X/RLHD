@@ -3990,9 +3990,12 @@
   },
   {
     "description": "Hunter guild grass, that's also used elsewhere so restrict this to Varlamore",
-    "baseMaterial": "GRAY_75",
+    "baseMaterial": "GRASSBLADE",
+    "uvType": "MODEL_XY",
+    "inheritTileColorType": "UNDERLAY",
     "flatNormals": true,
     "castShadows": false,
+    "upwardsNormals": true,
     "areas": [ "VARLAMORE" ],
     "objectIds": [
       "HUNTING_JUNGLE_GRASS3"
@@ -68946,10 +68949,13 @@
   {
     "description": "Tempoross - Grass - Override Wind Strength",
     "areas": [ "TEMPOROSS_COVE" ],
-    "baseMaterial": "GRAY_75",
-    "windDisplacementMode": "OBJECT",
-    "windDisplacementModifier": 2,
+    "baseMaterial": "GRASSBLADE",
+    "uvType": "MODEL_XY",
+    "inheritTileColorType": "UNDERLAY",
     "flatNormals": true,
+    "castShadows": false,
+    "upwardsNormals": true,
+    "windDisplacementModifier": 2,
     "objectIds": [
       "HUNTING_JUNGLE_GRASS1",
       "HUNTING_JUNGLE_GRASS3"
