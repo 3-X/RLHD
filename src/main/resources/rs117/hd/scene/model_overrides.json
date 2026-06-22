@@ -3927,9 +3927,11 @@
   },
   {
     "description": "Varrock - Farming Patch Edges with grass around them",
-    "baseMaterial": "GRAY_75",
+    "baseMaterial": "GRAY_55",
     "flatNormals": true,
     "castShadows": false,
+    "undoVanillaShading": false,
+    "upwardsNormals": true,
     "windDisplacementMode": "OBJECT",
     "objectIds": [
       "FAI_VARROCK_FARMING_BORDER_STRAIGHT",
