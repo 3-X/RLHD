@@ -2800,9 +2800,13 @@
   },
   {
     "description": "Hunter Grass",
-    "baseMaterial": "GRAY_75",
+    "baseMaterial": "GRASSBLADE",
     "windDisplacementMode": "OBJECT",
     "flatNormals": true,
+    "castShadows": false,
+    "upwardsNormals": true,
+    "inheritTileColorType": "UNDERLAY",
+    "uvType": "MODEL_XY",
     "objectIds": [
       "HUNTING_LONG_JUNGLE_GRASS1",
       "HUNTING_LONG_JUNGLE_GRASS2",
@@ -2831,7 +2835,8 @@
         "description": "Grass",
         "colors": "h == 12",
         "upwardsNormals": true,
-        "baseMaterial": "GRAY_75",
+        "castShadows": false,
+        "baseMaterial": "GRAY_65",
         "windDisplacementMode": "OBJECT"
       }
     ]
