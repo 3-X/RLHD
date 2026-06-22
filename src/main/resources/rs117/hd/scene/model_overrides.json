@@ -2901,6 +2901,7 @@
       "SHORT_GRASS_DARK_4",
       "SHORT_GRASS_DARK_3_CASTLE_EDGE",
       "SHORT_GRASS_DARK_4_CASTLE_EDGE",
+      "SHORT_GRASS_DARK_4_CASTLE_CORNER",
       "SHORT_GRASS_DARK_4_CASTLE_EDGE2",
       "SHORT_GRASS_DARK_3_WALL_EDGE",
       "SHORT_GRASS_DARK_4_WALL_EDGE",
@@ -4099,6 +4100,7 @@
       "SHORT_GRASS_DARK_2",
       "SHORT_GRASS_DARK_3",
       "SHORT_GRASS_DARK_4",
+      "SHORT_GRASS_DARK_4_CASTLE_CORNER",
       "SHORT_GRASS_DARK_3_CASTLE_EDGE",
       "SHORT_GRASS_DARK_4_CASTLE_EDGE",
       "SHORT_GRASS_DARK_4_CASTLE_EDGE2",
@@ -5700,7 +5702,7 @@
   },
   {
     "description": "STONE_WALL_FENCES",
-    "baseMaterial": "STONE_NORMALED",
+    "baseMaterial": "STONE_NORMALED_DARK",
     "textureMaterial": "HD_CONCRETE",
     "objectIds": [
       "VIKING_DRYSTONEWALL",
@@ -5708,24 +5710,62 @@
       "DRYSTONEWALL_BUST",
       "DRYSTONEWALL_FALL",
       "DRYSTONEWALL_FALL_MIRR",
-      "DRYSTONEWALL_GRASS",
-      "BARROW_LOW_WALLS_PILLAR",
-      "BARROW_LOW_WALLS_PILLARL",
-      "BARROW_LOW_WALLS_PILLARTOP",
-      "BARROWS_DRYSTONEWALL_GRASS",
-      "FAI_VARROCK_STONE_SHORT_WALL",
-      "FAI_VARROCK_STONE_SHORT_WALL_CUT",
-      "FAI_VARROCK_CASTLE_WALL_SHORT_WALL_BLEND",
-      "FAI_VARROCK_CASTLE_WALL_SHORT_WALL_BLEND_MIRROR",
-      "FAI_VARROCK_STONE_SHORT_WALL_CUT_MIRROR",
       "DRYSTONEWALL_PILE",
       "POH_FENCING3"
     ],
     "uvType": "BOX",
     "retainVanillaUvs": false,
-    "flatNormals": true,
     "uvOrientation": 250,
     "uvScale": 0.8
+  },
+  {
+    "description": "Stone Walls, with Grass",
+    "baseMaterial": "STONE_NORMALED",
+    "textureMaterial": "HD_CONCRETE",
+    "undoVanillaShading": false,
+    "objectIds": [
+      "DRYSTONEWALL_GRASS",
+      "FAI_VARROCK_STONE_SHORT_WALL",
+      "FAI_VARROCK_STONE_SHORT_WALL_CUT",
+      "FAI_VARROCK_CASTLE_WALL_SHORT_WALL_BLEND",
+      "FAI_VARROCK_CASTLE_WALL_SHORT_WALL_BLEND_MIRROR",
+      "FAI_VARROCK_STONE_SHORT_WALL_CUT_MIRROR"
+    ],
+    "uvType": "BOX",
+    "retainVanillaUvs": false,
+    "uvOrientation": 250,
+    "uvScale": 0.8,
+    "colorOverrides": [
+      {
+        "colors": "h == 17",
+        "baseMaterial": "GRASSBLADE_85",
+        "uvType": "MODEL_XY",
+        "upwardsNormals": true,
+        "castShadows": false
+      }
+    ]
+  },
+  {
+    "description": "Barrows Walls, with Grass",
+    "baseMaterial": "STONE_NORMALED_LIGHT",
+    "objectIds": [
+      "BARROW_LOW_WALLS_PILLAR",
+      "BARROW_LOW_WALLS_PILLARL",
+      "BARROW_LOW_WALLS_PILLARTOP",
+      "BARROWS_DRYSTONEWALL_GRASS"
+    ],
+    "uvType": "BOX",
+    "retainVanillaUvs": false,
+    "uvOrientation": 250,
+    "uvScale": 0.8,
+    "colorOverrides": [
+      {
+        "colors": "h == 17",
+        "baseMaterial": "GRAY_50",
+        "upwardsNormals": true,
+        "castShadows": false
+      }
+    ]
   },
   {
     "description": "STATUE_OF_A_WARRIOR_1",
