@@ -17147,11 +17147,12 @@
     "description": "Objects - Vines with grass",
     "baseMaterial": "GRUNGE_3_DARK",
     "uvType": "BOX",
+    "undoVanillaShading": false,
     "colorOverrides": [
       {
         "description": "Grass",
         "colors": "s == 7",
-        "baseMaterial": "GRAY_65",
+        "baseMaterial": "GRAY_85",
         "windDisplacementMode": "OBJECT",
         "upwardsNormals": true,
         "castShadows": false
@@ -17203,9 +17204,10 @@
   {
     "description": "Karamja - Mos le Harmless  - Plant - Jungle grass",
     "windDisplacementMode": "OBJECT",
-    "baseMaterial": "GRAY_65",
+    "baseMaterial": "GRAY_85",
     "castShadows": false,
     "upwardsNormals": true,
+    "undoVanillaShading": false,
     "objectIds": [
       "JUNGLEFLOOR1",
       "JUNGLEFLOOR2",
@@ -17220,6 +17222,7 @@
     "windDisplacementMode": "OBJECT",
     "baseMaterial": "GRAY_55",
     "castShadows": false,
+    "flatNormals": true,
     "upwardsNormals": true,
     "terrainVertexSnap": true,
     "objectIds": [
