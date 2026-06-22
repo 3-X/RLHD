@@ -2819,6 +2819,7 @@
   {
     "description": "Hunter Grass with Vines",
     "baseMaterial": "GRUNGE_1",
+    "undoVanillaShading": false,
     "objectIds": [
       "HUNTING_GREENVINE_STRAIGHT",
       "HUNTING_GREENVINE_CORNER",
@@ -2836,7 +2837,7 @@
         "colors": "h == 12",
         "upwardsNormals": true,
         "castShadows": false,
-        "baseMaterial": "GRAY_65",
+        "baseMaterial": "GRAY_70",
         "windDisplacementMode": "OBJECT"
       }
     ]
@@ -3896,9 +3897,10 @@
   },
   {
     "description": "Farming Guild - Farming patch Edges with grass made of stone and edged with wood",
-    "baseMaterial": "GRAY_75",
-    "flatNormals": true,
+    "baseMaterial": "GRAY_65",
     "castShadows": false,
+    "flatNormals": true,
+    "undoVanillaShading": false,
     "windDisplacementMode": "OBJECT",
     "objectIds": [
       "KEBOS_FARMING_GUILD_BORDER_STRAIGHT",
@@ -50840,6 +50842,12 @@
         "baseMaterial": "BARK",
         "uvType": "BOX",
         "uvScale": 0.6
+      },
+      {
+        "colors": [ "h == 13 && l > 10" ],
+        "baseMaterial": "GRASSBLADE_85",
+        "upwardsNormals": true,
+        "uvType": "MODEL_XY"
       }
     ]
   },
@@ -70900,6 +70908,7 @@
   {
     "description": "WGS - Broav Trap - Edge",
     "baseMaterial": "DIRT_1",
+    "undoVanillaShading": false,
     "uvType": "BOX",
     "uvScale": 0.65,
     "objectIds": [
@@ -70910,7 +70919,8 @@
       {
         "colors": "h == 12",
         "upwardsNormals": true,
-        "baseMaterial": "GRAY_75",
+        "baseMaterial": "GRAY_70",
+        "castShadows": false,
         "windDisplacementMode": "OBJECT"
       }
     ]
