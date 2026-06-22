@@ -2137,6 +2137,7 @@
   {
     "description": "Tirannwn - Wood Debris",
     "baseMaterial": "BARK",
+    "undoVanillaShading": false,
     "objectIds": [
       "REGICIDE_TWIGS1",
       "REGICIDE_TWIGS2",
@@ -2153,6 +2154,7 @@
         "colors": "h == 12",
         "baseMaterial": "GRAY_75",
         "flatNormals": true,
+        "upwardsNormals": true,
         "castShadows": false
       }
     ]
@@ -2183,12 +2185,13 @@
       "REGICIDE_ROCK1_TRAP"
     ],
     "retainVanillaUvs": false,
+    "undoVanillaShading": false,
     "uvType": "BOX",
     "uvScale": 0.45,
     "colorOverrides": [
       {
         "colors": "h == 12",
-        "baseMaterial": "PLANT_GRUNGE_1",
+        "baseMaterial": "PLANT_GRUNGE_2_DARK",
         "uvScale": 0.5,
         "upwardsNormals": true,
         "uvType": "MODEL_XZ",
@@ -3001,6 +3004,23 @@
       "NIGHTMARE_GARDEN_GRASS_LONG",
       "NIGHTMARE_GARDEN_GRASS_SPARSE",
       "NIGHTMARE_GARDEN_GRASS_SHORT"
+    ]
+  },
+  {
+    "description": "River grass which shouldn't cast shadows",
+    "baseMaterial": "GRASSBLADE",
+    "uvType": "MODEL_XY",
+    "flatNormals": true,
+    "upwardsNormals": true,
+    "windDisplacementMode": "OBJECT",
+    "castShadows": false,
+    "undoVanillaShading": false,
+    "inheritTileColorType": "UNDERLAY",
+    "terrainVertexSnap": true,
+    "objectIds": [
+      "REGICIDE_GRASS1_RIVER",
+      "REGICIDE_GRASS2_RIVER",
+      "REGICIDE_GRASS2L_RIVER"
     ]
   },
   {
@@ -81091,7 +81111,7 @@
       {
         "description": "Grass",
         "colors": "h == 12 && s == 7",
-        "baseMaterial": "GRAY_65",
+        "baseMaterial": "GRAY_60",
         "flatNormals": true,
         "windDisplacementMode": "OBJECT",
         "castShadows": false,

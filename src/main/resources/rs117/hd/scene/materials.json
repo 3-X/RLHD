@@ -3046,6 +3046,11 @@
     "specularGloss": 20.0
   },
   {
+    "name": "PLANT_GRUNGE_2_DARK",
+    "parent": "PLANT_GRUNGE_2",
+    "brightness": 0.8
+  },
+  {
     "name": "HD_CONCRETE_D"
   },
   {
