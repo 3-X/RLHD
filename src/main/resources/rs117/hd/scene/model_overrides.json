@@ -17241,14 +17241,15 @@
     "description": "Objects - Ape Atoll - Vines with grass",
     "baseMaterial": "GRUNGE_2",
     "uvType": "BOX",
+    "undoVanillaShading": false,
     "colorOverrides": [
       {
         "description": "Grass",
         "colors": "h == 12",
-        "upwardsNormals": true,
-        "baseMaterial": "GRAY_75",
+        "baseMaterial": "GRAY_80",
         "windDisplacementMode": "OBJECT",
-        "castShadows": false
+        "castShadows": false,
+        "flatNormals": true
       }
     ],
     "objectIds": [
@@ -17282,7 +17283,10 @@
   {
     "description": "Ape Atoll  - Plant - Jungle grass",
     "windDisplacementMode": "OBJECT",
-    "baseMaterial": "GRAY_55",
+    "baseMaterial": "GRASSBLADE",
+    "uvType": "MODEL_XY",
+    "uvOrientation": 512,
+    "inheritTileColorType": "UNDERLAY",
     "castShadows": false,
     "flatNormals": true,
     "upwardsNormals": true,
