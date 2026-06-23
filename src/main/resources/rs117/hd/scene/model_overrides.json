@@ -2135,7 +2135,7 @@
     ]
   },
   {
-    "description": "Tirannwn - Wood Debris",
+    "description": "Tirannwn - Wood Debris, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "BARK",
     "undoVanillaShading": false,
     "objectIds": [
@@ -2820,7 +2820,7 @@
     ]
   },
   {
-    "description": "Hunter Grass with Vines",
+    "description": "Hunter Grass with Vines, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "GRUNGE_1",
     "undoVanillaShading": false,
     "objectIds": [
@@ -3914,7 +3914,7 @@
     "uvScale": 0.32
   },
   {
-    "description": "Farming Guild - Farming patch Edges with grass made of stone and edged with wood",
+    "description": "Farming Guild - Farming patch Edges with grass made of stone and edged with wood, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "GRAY_65",
     "castShadows": false,
     "flatNormals": true,
@@ -3944,7 +3944,7 @@
     ]
   },
   {
-    "description": "Varrock - Farming Patch Edges with grass around them",
+    "description": "Varrock - Farming Patch Edges with grass around them, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "GRAY_55",
     "flatNormals": true,
     "castShadows": false,
@@ -4939,7 +4939,8 @@
     ],
     "colorOverrides": [
       {
-        "description": "Grass",
+        "description": "Grass, TODO: Hidden until proper fix via undoVanillaShading",
+        "hide": true,
         "colors": "h == 17",
         "baseMaterial": "GRAY_65",
         "flatNormals": true,
@@ -5719,7 +5720,7 @@
     "uvScale": 0.8
   },
   {
-    "description": "Stone Walls, with Grass",
+    "description": "Stone Walls, with Grass, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "STONE_NORMALED",
     "textureMaterial": "HD_CONCRETE",
     "undoVanillaShading": false,
@@ -5737,7 +5738,8 @@
     "uvScale": 0.8,
     "colorOverrides": [
       {
-        "colors": "h == 17",
+        "description": "Grass",
+        "colors": "h == 13 || h == 17",
         "baseMaterial": "GRASSBLADE_85",
         "uvType": "MODEL_XY",
         "upwardsNormals": true,
@@ -17206,7 +17208,7 @@
     "uvType": "GEOMETRY"
   },
   {
-    "description": "Objects - Vines with grass",
+    "description": "Objects - Vines with grass, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "GRUNGE_3_DARK",
     "uvType": "BOX",
     "undoVanillaShading": false,
@@ -17238,7 +17240,7 @@
     ]
   },
   {
-    "description": "Objects - Ape Atoll - Vines with grass",
+    "description": "Objects - Ape Atoll - Vines with grass, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "GRUNGE_2",
     "uvType": "BOX",
     "undoVanillaShading": false,
@@ -17265,7 +17267,7 @@
     ]
   },
   {
-    "description": "Karamja - Mos le Harmless  - Plant - Jungle grass",
+    "description": "Karamja - Mos le Harmless  - Plant - Jungle grass, TODO: Passable until proper fix via undoVanillaShading",
     "windDisplacementMode": "OBJECT",
     "baseMaterial": "GRAY_85",
     "castShadows": false,
@@ -28822,9 +28824,6 @@
       "FAI_ANDROMEDA_ROCK_04",
       "FAI_ANDROMEDA_ROCK_05",
       "FAI_ANDROMEDA_ROCK_06",
-      "FAI_ROCK_VSMALL_01",
-      "FAI_ROCK_VSMALL_02",
-      "FAI_ROCK_VSMALL_03",
       "DAGANNOTH_WATERBIRTH_ROCK_CLIMB_AGILITY_SHORTCUT_MIDDLE",
       "TOURTRAP_QIP_ROCKS1",
       "TOURTRAP_QIP_ROCKS2",
@@ -28842,9 +28841,6 @@
       "CAVEROCKS2",
       "ROCKSLIDE_LIGHTGREY5",
       "ROCKSLIDE_LIGHTGREY6",
-      "FAI_ROCK_SMALL_01",
-      "FAI_ROCK_SMALL_02",
-      "FAI_ROCK_SMALL_03",
       "DAGANNOTH_WATERBIRTH_ROCK_CLIMB_AGILITY_SHORTCUT_BOTTOM",
       "DAGANNOTH_WATERBIRTH_ROCK_CLIMB_AGILITY_SHORTCUT_TOP"
     ],
@@ -28882,15 +28878,38 @@
     "description": "Rocks - Large",
     "baseMaterial": "ROCK_1",
     "objectIds": [
-      "FAI_ROCK_BIG_01",
-      "FAI_ROCK_BIG_02",
-      "FAI_ROCK_BIG_03",
-      "FAI_ROCK_BIG_04",
       "TOURTRAP_QIP_MINE_ROCKS_BIG_02",
       "TOURTRAP_QIP_MINE_ROCKS_BIG_01"
     ],
     "uvType": "BOX",
     "uvScale": 0.22
+  },
+  {
+    "description": "Falador - Rock Formation/Standing Stones",
+    "baseMaterial": "ROCK_3_SEMI_SMOOTH",
+    "objectIds": [
+      "FAI_ROCK_BIG_01",
+      "FAI_ROCK_BIG_02",
+      "FAI_ROCK_BIG_03",
+      "FAI_ROCK_BIG_04",
+      "FAI_ROCK_SMALL_01",
+      "FAI_ROCK_SMALL_02",
+      "FAI_ROCK_SMALL_03",
+      "FAI_ROCK_VSMALL_01",
+      "FAI_ROCK_VSMALL_02",
+      "FAI_ROCK_VSMALL_03"
+    ],
+    "uvType": "BOX",
+    "uvScale": 0.6,
+    "colorOverrides": [
+      {
+        "description": "Grass, TODO: Hidden until proper fix via undoVanillaShading",
+        "hide": true,
+        "colors": "h == 13",
+        "baseMaterial": "GRAY_55",
+        "upwardsNormals": true
+      }
+    ]
   },
   {
     "description": "Crashed Star",
@@ -70970,7 +70989,7 @@
     ]
   },
   {
-    "description": "WGS - Broav Trap - Edge",
+    "description": "WGS - Broav Trap - Edge, TODO: Passable until proper fix via undoVanillaShading",
     "baseMaterial": "DIRT_1",
     "undoVanillaShading": false,
     "uvType": "BOX",
