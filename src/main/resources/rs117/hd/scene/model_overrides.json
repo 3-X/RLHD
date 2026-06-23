@@ -2135,7 +2135,7 @@
     ]
   },
   {
-    "description": "Tirannwn - Wood Debris, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Tirannwn - Wood Debris, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "BARK",
     "undoVanillaShading": false,
     "objectIds": [
@@ -2820,7 +2820,7 @@
     ]
   },
   {
-    "description": "Hunter Grass with Vines, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Hunter Grass with Vines, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "GRUNGE_1",
     "undoVanillaShading": false,
     "objectIds": [
@@ -3894,8 +3894,9 @@
     ]
   },
   {
-    "description": "Objects - Rocks - Medium",
+    "description": "Objects - Rocks - Medium, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "ROCK_1_LIGHT",
+    "undoVanillaShading": false,
     "objectIds": [
       "TROLL_ROCKS_GRASS",
       "TROLL_ROCKS_GRASS_FALLOFF"
@@ -3903,10 +3904,11 @@
     "colorOverrides": [
       {
         "colors": "h == 12",
-        "baseMaterial": "GRAY_65",
+        "baseMaterial": "GRAY_55",
         "windDisplacementMode": "OBJECT",
         "uvType": "BOX",
         "upwardsNormals": true,
+        "castShadows": false,
         "uvScale": 0.6
       }
     ],
@@ -3914,7 +3916,7 @@
     "uvScale": 0.32
   },
   {
-    "description": "Farming Guild - Farming patch Edges with grass made of stone and edged with wood, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Farming Guild - Farming patch Edges with grass made of stone and edged with wood, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "GRAY_65",
     "castShadows": false,
     "flatNormals": true,
@@ -3944,7 +3946,7 @@
     ]
   },
   {
-    "description": "Varrock - Farming Patch Edges with grass around them, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Varrock - Farming Patch Edges with grass around them, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "GRAY_55",
     "flatNormals": true,
     "castShadows": false,
@@ -3998,9 +4000,10 @@
     ]
   },
   {
-    "description": "Short grass with rock objects Morytania Farming Patches",
-    "baseMaterial": "GRAY_75",
+    "description": "Short grass with rock objects Morytania Farming Patches, TODO: Grass passable until proper fix via inheritTileColorType",
+    "baseMaterial": "GRAY_65",
     "flatNormals": true,
+    "undoVanillaShading": false,
     "castShadows": false,
     "objectIds": [
       "FARMING_BORDER_STRAIGHT_DARK",
@@ -4939,7 +4942,7 @@
     ],
     "colorOverrides": [
       {
-        "description": "Grass, TODO: Hidden until proper fix via undoVanillaShading",
+        "description": "Grass, TODO: Grass hidden until proper fix via inheritTileColorType",
         "hide": true,
         "colors": "h == 17",
         "baseMaterial": "GRAY_65",
@@ -5720,7 +5723,7 @@
     "uvScale": 0.8
   },
   {
-    "description": "Stone Walls, with Grass, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Stone Walls, with Grass, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "STONE_NORMALED",
     "textureMaterial": "HD_CONCRETE",
     "undoVanillaShading": false,
@@ -13788,10 +13791,32 @@
     "description": "Mysterious Statue",
     "baseMaterial": "STONE_NORMALED",
     "uvType": "BOX",
-    "uvScale": 0.66,
+    "uvScale": 0.75,
     "uvOrientation": 255,
     "objectIds": [
-      "GRIM_JUNGLESTATUE"
+      "GRIM_JUNGLESTATUE",
+      "JUNGLESTATUE"
+    ]
+  },
+  {
+    "description": "Mysterious Statue with Grass",
+    "baseMaterial": "STONE_NORMALED",
+    "uvType": "BOX",
+    "uvOrientation": 255,
+    "uvScale": 0.75,
+    "terrainVertexSnap": true,
+    "objectIds": [
+      "RIMMINGTON_JUNGLESTATUE"
+    ],
+    "colorOverrides": [
+      {
+        "description": "Grass, TODO: Grass hidden until proper fix via inheritTileColorType",
+        "colors": "h == 13",
+        "baseMaterial": "LAVA",
+        "castShadows": false,
+        "hide": true,
+        "upwardsNormals": true
+      }
     ]
   },
   {
@@ -17208,7 +17233,7 @@
     "uvType": "GEOMETRY"
   },
   {
-    "description": "Objects - Vines with grass, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Objects - Vines with grass, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "GRUNGE_3_DARK",
     "uvType": "BOX",
     "undoVanillaShading": false,
@@ -17240,7 +17265,7 @@
     ]
   },
   {
-    "description": "Objects - Ape Atoll - Vines with grass, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Objects - Ape Atoll - Vines with grass, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "GRUNGE_2",
     "uvType": "BOX",
     "undoVanillaShading": false,
@@ -17267,7 +17292,7 @@
     ]
   },
   {
-    "description": "Karamja - Mos le Harmless  - Plant - Jungle grass, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "Karamja - Mos le Harmless  - Plant - Jungle grass, TODO: Grass passable until proper fix via inheritTileColorType",
     "windDisplacementMode": "OBJECT",
     "baseMaterial": "GRAY_85",
     "castShadows": false,
@@ -28903,7 +28928,7 @@
     "uvScale": 0.6,
     "colorOverrides": [
       {
-        "description": "Grass, TODO: Hidden until proper fix via undoVanillaShading",
+        "description": "Grass, TODO: Grass hidden until proper fix via inheritTileColorType",
         "hide": true,
         "colors": "h == 13",
         "baseMaterial": "GRAY_55",
@@ -70989,7 +71014,7 @@
     ]
   },
   {
-    "description": "WGS - Broav Trap - Edge, TODO: Passable until proper fix via undoVanillaShading",
+    "description": "WGS - Broav Trap - Edge, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "DIRT_1",
     "undoVanillaShading": false,
     "uvType": "BOX",
