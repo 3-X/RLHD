@@ -2803,9 +2803,10 @@
   },
   {
     "description": "Hunter Grass",
-    "baseMaterial": "GRASSBLADE",
+    "baseMaterial": "GRASS_BLADE",
     "windDisplacementMode": "OBJECT",
     "flatNormals": true,
+    "uvOrientation": 512,
     "castShadows": false,
     "upwardsNormals": true,
     "inheritTileColorType": "UNDERLAY",
@@ -2847,7 +2848,7 @@
   },
   {
     "description": "Short grass which shouldn't cast shadows",
-    "baseMaterial": "GRASSBLADE",
+    "baseMaterial": "GRASS_BLADE",
     "uvType": "MODEL_XY",
     "flatNormals": true,
     "upwardsNormals": true,
@@ -3006,7 +3007,7 @@
   },
   {
     "description": "River grass which shouldn't cast shadows",
-    "baseMaterial": "GRASSBLADE",
+    "baseMaterial": "GRASS_BLADE",
     "uvType": "MODEL_XY",
     "flatNormals": true,
     "upwardsNormals": true,
@@ -3024,7 +3025,7 @@
   {
     "description": "Fremmenik Isles, Lighten Grass",
     "areas": [ "FREMENNIK_ISLES" ],
-    "baseMaterial": "GRASSBLADE_90",
+    "baseMaterial": "GRASS_BLADE_90",
     "flatNormals": true,
     "castShadows": false,
     "upwardsNormals": true,
@@ -3076,7 +3077,7 @@
   },
   {
     "description": "Varlamore, Fortis and Avium Grass",
-    "baseMaterial": "GRASSBLADE_85",
+    "baseMaterial": "GRASS_BLADE_85",
     "uvType": "MODEL_XY",
     "inheritTileColorType": "UNDERLAY",
     "flatNormals": true,
@@ -4020,7 +4021,7 @@
   },
   {
     "description": "Hunter guild grass, that's also used elsewhere so restrict this to Varlamore",
-    "baseMaterial": "GRASSBLADE",
+    "baseMaterial": "GRASS_BLADE",
     "uvType": "MODEL_XY",
     "inheritTileColorType": "UNDERLAY",
     "flatNormals": true,
@@ -5743,7 +5744,7 @@
       {
         "description": "Grass",
         "colors": "h == 13 || h == 17",
-        "baseMaterial": "GRASSBLADE_85",
+        "baseMaterial": "GRASS_BLADE_85",
         "uvType": "MODEL_XY",
         "upwardsNormals": true,
         "castShadows": false
@@ -17310,7 +17311,7 @@
   {
     "description": "Ape Atoll  - Plant - Jungle grass",
     "windDisplacementMode": "OBJECT",
-    "baseMaterial": "GRASSBLADE",
+    "baseMaterial": "GRASS_BLADE",
     "uvType": "MODEL_XY",
     "uvOrientation": 512,
     "inheritTileColorType": "UNDERLAY",
@@ -50953,7 +50954,7 @@
       },
       {
         "colors": [ "h == 13 && l > 10" ],
-        "baseMaterial": "GRASSBLADE_85",
+        "baseMaterial": "GRASS_BLADE_85",
         "upwardsNormals": true,
         "uvType": "MODEL_XY"
       }
@@ -69079,9 +69080,10 @@
   {
     "description": "Tempoross - Grass - Override Wind Strength",
     "areas": [ "TEMPOROSS_COVE" ],
-    "baseMaterial": "GRASSBLADE",
+    "baseMaterial": "GRASS_BLADE",
     "uvType": "MODEL_XY",
     "inheritTileColorType": "UNDERLAY",
+    "uvOrientation": 512,
     "flatNormals": true,
     "castShadows": false,
     "upwardsNormals": true,
