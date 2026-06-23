@@ -58695,7 +58695,7 @@
     ]
   },
   {
-    "description": "Morytania Spider Cave",
+    "description": "Morytania Spider Cave, TODO: Grass passable until proper fix via inheritTileColorTypea",
     "baseMaterial": "GRASS_3",
     "uvOrientation": 512,
     "uvType": "BOX",
@@ -58715,10 +58715,10 @@
         "windDisplacementModifier": -3
       },
       {
-        "description": "Grass that needs flat normals to fix",
+        "description": "Grass, TODO: Grass passable until proper fix via inheritTileColorType",
         "colors": "h == 12",
-        "baseMaterial": "GRAY_70",
-        "flatNormals": true,
+        "baseMaterial": "GRAY_50",
+        "upwardsNormals": true,
         "castShadows": false
       }
     ],
@@ -58727,7 +58727,7 @@
     ]
   },
   {
-    "description": "Morytania webbed trees",
+    "description": "Morytania webbed trees, TODO: Grass passable until proper fix via inheritTileColorType",
     "baseMaterial": "BARK",
     "uvOrientation": 188,
     "uvType": "BOX",
@@ -58737,6 +58737,12 @@
         "description": "Web",
         "colors": "h == 10",
         "baseMaterial": "GROUND_WEB_2_LIGHT"
+      },
+      {
+        "description": "Grass",
+        "colors": "h == 12",
+        "baseMaterial": "GRAY_35",
+        "upwardsNormals": true
       }
     ],
     "objectIds": [
