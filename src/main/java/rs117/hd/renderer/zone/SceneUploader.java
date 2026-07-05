@@ -2337,7 +2337,14 @@ public class SceneUploader implements AutoCloseable {
 			tileY < sceneMax - 1 &&
 			Area.OVERWORLD.containsPoint(worldPos);
 
-		if (shouldFill) {
+		// For instanced scenes, getMapRegions() returns the template chunk region
+		// IDs, which never match the region ID derived from the mapped world
+		// position. The region-membership check below would therefore always fail
+		// and fall through to the expandedMapLoadingChunks force-fill, painting
+		// black gap tiles across streaming gaps (e.g. Vampyrium). The scene-bounds
+		// and OVERWORLD checks above already constrain where fill happens, so skip
+		// the region check entirely for instances.
+		if (shouldFill && !ctx.scene.isInstance()) {
 			int tileRegionID = HDUtils.worldToRegionID(worldPos);
 			int[] regions = ctx.scene.getMapRegions();
 
