@@ -68,6 +68,9 @@ import static rs117.hd.utils.MathUtils.*;
 public class SceneUploader implements AutoCloseable {
 	public static ConcurrentPool<SceneUploader> POOL;
 
+	// TEMP DIAGNOSTIC: bounds the gap-fill logging so it doesn't spam.
+	public static int GAP_FILL_LOG_COUNT = 0;
+
 	private static final short[] UP_NORMAL = { 0, -1, 0 };
 	private final int[] EMPTY_NORMALS = new int[9];
 
@@ -2337,14 +2340,9 @@ public class SceneUploader implements AutoCloseable {
 			tileY < sceneMax - 1 &&
 			Area.OVERWORLD.containsPoint(worldPos);
 
-		// For instanced scenes, getMapRegions() returns the template chunk region
-		// IDs, which never match the region ID derived from the mapped world
-		// position. The region-membership check below would therefore always fail
-		// and fall through to the expandedMapLoadingChunks force-fill, painting
-		// black gap tiles across streaming gaps (e.g. Vampyrium). The scene-bounds
-		// and OVERWORLD checks above already constrain where fill happens, so skip
-		// the region check entirely for instances.
-		if (shouldFill && !ctx.scene.isInstance()) {
+		boolean regionMatched = false;
+		boolean forceFilled = false;
+		if (shouldFill) {
 			int tileRegionID = HDUtils.worldToRegionID(worldPos);
 			int[] regions = ctx.scene.getMapRegions();
 
@@ -2352,12 +2350,26 @@ public class SceneUploader implements AutoCloseable {
 			for (int region : regions) {
 				if (region == tileRegionID) {
 					shouldFill = true;
+					regionMatched = true;
 					break;
 				}
 			}
 
-			if (!shouldFill && ctx.expandedMapLoadingChunks > 0)
+			if (!shouldFill && ctx.expandedMapLoadingChunks > 0) {
 				shouldFill = true;
+				forceFilled = true;
+			}
+		}
+
+		// TEMP DIAGNOSTIC: log gap-fill decisions on the real (non-estimate) pass.
+		if (!isEstimate && shouldFill && GAP_FILL_LOG_COUNT < 200) {
+			GAP_FILL_LOG_COUNT++;
+			log.info(
+				"GAPFILL world=({},{},{}) instance={} tileNull={} regionMatched={} forceFilled={} expandedChunks={} overworld={}",
+				worldPos[0], worldPos[1], worldPos[2],
+				ctx.scene.isInstance(), tile == null, regionMatched, forceFilled,
+				ctx.expandedMapLoadingChunks, Area.OVERWORLD.containsPoint(worldPos)
+			);
 		}
 
 		if (!shouldFill)
