@@ -229,10 +229,16 @@ public class EnvironmentManager {
 				Environment.AUTUMN = map.getOrDefault("AUTUMN", Environment.DEFAULT);
 				Environment.WINTER = map.getOrDefault("WINTER", Environment.DEFAULT);
 
-				for (var env : environments)
-					env.normalize();
-
 				clientThread.invoke(() -> {
+					// Normalize on the client thread so Area.OVERWORLD is guaranteed
+					// to be populated first (AreaManager assigns it inside its own
+					// clientThread.invoke). Environment.normalize() derives isOverworld
+					// from Area.OVERWORLD; doing this off-thread races that assignment
+					// on initial startup and can misclassify freshly-added overworld
+					// areas (e.g. Vampyrium), which then fail to load until a reload.
+					for (var env : environments)
+						env.normalize();
+
 					// Force instant transition during development
 					if (!first)
 						reset();
