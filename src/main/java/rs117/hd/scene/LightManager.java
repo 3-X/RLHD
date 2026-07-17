@@ -595,7 +595,6 @@ public class LightManager {
 			} else {
 				light.strength = light.def.strength;
 				light.radius = light.def.radius;
-				System.arraycopy(light.def.color, 0, light.color, 0, light.color.length);
 			}
 
 			applyTimeOfDayColor(sceneContext, light);
