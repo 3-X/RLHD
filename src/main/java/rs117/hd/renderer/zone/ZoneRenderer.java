@@ -1226,7 +1226,6 @@ public class ZoneRenderer implements Renderer {
 			float[] fogColor = { 0, 0, 0 };
 			if (!shouldRenderRSSkybox) {
 				fogColor = calculatedFogColorSrgb != null ? calculatedFogColorSrgb : ColorUtils.linearToSrgb(environmentManager.currentFogColor);
-				pow(fogColor, fogColor, plugin.getGammaCorrection());
 			}
 
 			float[] gammaCorrectedFogColor = pow(fogColor, plugin.getGammaCorrection());
