@@ -24,6 +24,10 @@ import static rs117.hd.utils.MathUtils.*;
 @Slf4j
 public class TimeOfDay {
 
+	// Pre-linearized deep-night sky color.
+	// Read-only: every consumer only reads components into fresh blend arrays.
+	private static final float[] NIGHT_SKY_LINEAR = srgbToLinear(5f / 255f, 7f / 255f, 15f / 255f);
+
 	// Sky color keyframe tables. These are read-only constant data consumed by
 	// AtmosphereUtils.interpolateSrgb (which only reads and builds fresh float[]
 	// per call). Hoisted to static final so they aren't reallocated every frame.
@@ -574,8 +578,6 @@ public class TimeOfDay {
 		// For negative altitudes, fade suppression out by -25° where night colors dominate.
 		if (sunStrength < 1.0f && regionalFogColor != null) {
 			float[] regionalLin = srgbToLinear(regionalFogColor);
-			float[] nightSkyLin = srgbToLinear(
-				5f / 255f, 7f / 255f, 15f / 255f);
 
 			float suppressionWindow;
 			if (sunAltitudeDegrees >= 0) {
@@ -601,7 +603,7 @@ public class TimeOfDay {
 				}
 				float[] blendTarget = new float[3];
 				for (int i = 0; i < 3; i++)
-					blendTarget[i] = regionalLin[i] * (1 - nightMix) + nightSkyLin[i] * nightMix;
+					blendTarget[i] = regionalLin[i] * (1 - nightMix) + NIGHT_SKY_LINEAR[i] * nightMix;
 
 				for (int i = 0; i < 3; i++)
 					enhancedColor[i] = enhancedColor[i] * (1 - suppression) + blendTarget[i] * suppression;
@@ -666,6 +668,8 @@ public class TimeOfDay {
 		// (handled as a special case below to avoid dividing by zero in the ramps).
 		float takeover = Math.max(0.0f, skyColorTakeoverAngle);
 
+		float[] regionalLin = regionalFogColor != null ? srgbToLinear(regionalFogColor) : null;
+
 		float[] zenithColor = AtmosphereUtils.interpolateSrgb((float) sunAltitudeDegrees, ZENITH_KEYFRAMES);
 		float[] horizonColor = AtmosphereUtils.interpolateSrgb((float) sunAltitudeDegrees, HORIZON_KEYFRAMES);
 		float[] sunGlowColor = AtmosphereUtils.interpolateSrgb((float) sunAltitudeDegrees, SUN_GLOW_KEYFRAMES);
@@ -674,10 +678,6 @@ public class TimeOfDay {
 		// For positive altitudes, keep full suppression — the regional blend will take over.
 		// For negative altitudes, fade suppression out by -25° where night colors dominate.
 		if (sunStrength < 1.0f && regionalFogColor != null) {
-			float[] regionalLin = srgbToLinear(regionalFogColor);
-			float[] nightSkyLin = srgbToLinear(
-				5f / 255f, 7f / 255f, 15f / 255f);
-
 			float suppressionWindow;
 			if (sunAltitudeDegrees >= 0) {
 				suppressionWindow = 1.0f; // Full suppression above horizon
@@ -703,7 +703,7 @@ public class TimeOfDay {
 				}
 				float[] blendTarget = new float[3];
 				for (int i = 0; i < 3; i++)
-					blendTarget[i] = regionalLin[i] * (1 - nightMix) + nightSkyLin[i] * nightMix;
+					blendTarget[i] = regionalLin[i] * (1 - nightMix) + NIGHT_SKY_LINEAR[i] * nightMix;
 
 				for (int i = 0; i < 3; i++) {
 					zenithColor[i] = zenithColor[i] * (1 - suppression) + blendTarget[i] * suppression;
@@ -755,8 +755,6 @@ public class TimeOfDay {
 
 			float sunsetSuppression = (1.0f - sunriseSunsetStrength) * sunsetWindow;
 			if (sunsetSuppression > 0.0f) {
-				float[] regionalLin = srgbToLinear(regionalFogColor);
-
 				// Hold the horizon/zenith at the area's regional color.
 				for (int i = 0; i < 3; i++) {
 					zenithColor[i] = zenithColor[i] * (1 - sunsetSuppression) + regionalLin[i] * sunsetSuppression;
@@ -784,16 +782,13 @@ public class TimeOfDay {
 
 		// Blend with regional fog color if we have regional influence
 		if (blendFactor > 0.0f && regionalFogColor != null) {
-			// Convert regional fog color to linear for blending
-			float[] regionalLinear = srgbToLinear(regionalFogColor);
-
 			// Blend zenith color with regional color (same intensity as horizon for uniformity)
 			for (int i = 0; i < 3; i++)
-				zenithColor[i] = zenithColor[i] * (1 - blendFactor) + regionalLinear[i] * blendFactor;
+				zenithColor[i] = zenithColor[i] * (1 - blendFactor) + regionalLin[i] * blendFactor;
 
 			// Blend horizon color with regional color
 			for (int i = 0; i < 3; i++)
-				horizonColor[i] = horizonColor[i] * (1 - blendFactor) + regionalLinear[i] * blendFactor;
+				horizonColor[i] = horizonColor[i] * (1 - blendFactor) + regionalLin[i] * blendFactor;
 		}
 
 		// Nighttime: blend both zenith and horizon toward flat night sky color
@@ -810,21 +805,16 @@ public class TimeOfDay {
 		}
 
 		if (nightBlendFactor > 0.0f) {
-			// Deep night zenith color (cold blue) converted to linear. The night sky
+			// Deep night zenith color (cold blue), pre-linearized. The night sky
 			// always resolves to this generic night base so that, once the sun is well
 			// down, the moon-color night-sky tint (applied downstream in the renderer)
 			// and the procedural starfield take over — including in reduced
 			// sunriseSunsetStrength areas, where the regional hold only spans the
 			// visible sunrise/sunset (above) and must not persist into deep night.
-			float[] nightSkyLinear = srgbToLinear(
-				5f / 255f, 7f / 255f, 15f / 255f);
-
-			for (int i = 0; i < 3; i++) {
-				zenithColor[i] = zenithColor[i] * (1 - nightBlendFactor) + nightSkyLinear[i] * nightBlendFactor;
-			}
-			for (int i = 0; i < 3; i++) {
-				horizonColor[i] = horizonColor[i] * (1 - nightBlendFactor) + nightSkyLinear[i] * nightBlendFactor;
-			}
+			for (int i = 0; i < 3; i++)
+				zenithColor[i] = zenithColor[i] * (1 - nightBlendFactor) + NIGHT_SKY_LINEAR[i] * nightBlendFactor;
+			for (int i = 0; i < 3; i++)
+				horizonColor[i] = horizonColor[i] * (1 - nightBlendFactor) + NIGHT_SKY_LINEAR[i] * nightBlendFactor;
 		}
 
 		// Convert from linear RGB (what interpolateSrgb returns) back to sRGB for the shader
