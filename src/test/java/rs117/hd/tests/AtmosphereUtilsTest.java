@@ -84,19 +84,19 @@ public class AtmosphereUtilsTest {
 			AtmosphereUtils.getDirectionalLightForAngles(tod, angles(0)), 1e-6f
 		);
 		assertArrayEquals(
-			new float[] { 0.331188440f, 0.209243685f, 0.103225976f },
+			new float[] { 0.302544773f, 0.215248346f, 0.120878309f },
 			AtmosphereUtils.getDirectionalLightForAngles(tod, angles(12)), 1e-6f
 		);
 		assertArrayEquals(
-			new float[] { 1.356104612f, 0.747321188f, 0.278463453f },
+			new float[] { 1.009382844f, 0.819268167f, 0.548119307f },
 			AtmosphereUtils.getDirectionalLightForAngles(tod, angles(30)), 1e-6f
 		);
 		assertArrayEquals(
-			new float[] { 3.834468603f, 2.048453808f, 0.702207565f },
+			new float[] { 2.343648672f, 2.354422808f, 2.118747473f },
 			AtmosphereUtils.getDirectionalLightForAngles(tod, angles(60)), 1e-6f
 		);
 		assertArrayEquals(
-			new float[] { 5.035998344f, 2.679252863f, 0.907642066f },
+			new float[] { 2.864768744f, 3.122953415f, 3.115890741f },
 			AtmosphereUtils.getDirectionalLightForAngles(tod, angles(85)), 1e-6f
 		);
 	}

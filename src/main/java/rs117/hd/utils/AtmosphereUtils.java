@@ -165,7 +165,7 @@ public class AtmosphereUtils
 	public static float interpolate(float x, float[][] keyframesDegreesValue) {
 		int end = keyframesDegreesValue.length - 1;
 		int i = 0;
-		while (i < end && x < keyframesDegreesValue[i][0])
+		while (i < end && x > keyframesDegreesValue[i + 1][0])
 			i++;
 
 		if (i == end)
