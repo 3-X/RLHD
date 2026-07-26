@@ -1,6 +1,5 @@
 package rs117.hd.opengl.uniforms;
 
-import rs117.hd.scene.StarField;
 import rs117.hd.utils.buffer.GLBuffer;
 
 import static org.lwjgl.opengl.GL15C.GL_DYNAMIC_DRAW;
@@ -38,8 +37,6 @@ public class UBOSkybox extends UniformBuffer<GLBuffer> {
 	// Moon size multiplier (from environment override) — scales moon disk, glow, and star mask
 	public Property moonSizeMult = addProperty(PropertyType.Float, "moonSizeMult");
 
-	public final Property[] nebulaClusters = addPropertyArray(PropertyType.FVec4, "nebulaClusters", StarField.CLUSTER_COUNT);
-	
 	public void reset() {
 		skyGradientEnabled.set(0);
 		skyMoonDir.set(new float[]{ 0, 0, 0 });

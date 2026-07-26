@@ -114,7 +114,6 @@ import rs117.hd.scene.MaterialManager;
 import rs117.hd.scene.ModelOverrideManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SceneContext;
-import rs117.hd.scene.StarField;
 import rs117.hd.scene.TextureManager;
 import rs117.hd.scene.TileOverrideManager;
 import rs117.hd.scene.WaterTypeManager;
@@ -974,7 +973,6 @@ public class HdPlugin extends Plugin {
 			)
 			.addInclude("MATERIAL_GETTER", () -> generateGetter("Material", MaterialManager.MATERIALS.length))
 			.addInclude("WATER_TYPE_GETTER", () -> generateGetter("WaterType", waterTypeManager.uboWaterTypes.getCount()))
-			.define("NEBULA_CLUSTER_COUNT", StarField.CLUSTER_COUNT)
 			.addUniformBuffer(uboGlobal)
 			.addUniformBuffer(uboSkybox)
 			.addUniformBuffer(uboLights)
