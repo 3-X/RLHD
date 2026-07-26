@@ -97,10 +97,7 @@ public final class StarField {
 	// density without being tied to screen resolution.
 	private static final int BRIGHT_STAR_COUNT = 350;   // layer 0: sparse/bright/large
 	private static final int DIM_STAR_COUNT = 2200;     // layer 1: dense/dim/small
-	// Layer 2 is denser than the sparse/bright layer because it is concentrated
-	// into the nebula clouds rather than spread over the whole sky — it needs
-	// enough stars to read as a thickening of the star field there.
-	private static final int CLUSTER_STAR_COUNT = 2400; // layer 2: clustered
+	private static final int CLUSTER_STAR_COUNT = 1600; // layer 2: clustered
 	private static final int MAX_STAR_COUNT = BRIGHT_STAR_COUNT + DIM_STAR_COUNT + CLUSTER_STAR_COUNT;
 
 	// Exponent applied to the normalized nebula density when it is used as a star
