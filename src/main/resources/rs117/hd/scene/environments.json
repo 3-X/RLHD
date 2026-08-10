@@ -1602,6 +1602,15 @@
     "moonVisibility": 0.01
   },
   {
+    "area": "BATTLEFRONT_LIZARDMAN_CANYON_SHAMANS",
+    "fogColor": "#121216",
+    "fogDepth": 16.5,
+    "minBrightnessBoost": 1.5,
+    "windAngle": 40,
+    "windSpeed": 15,
+    "windStrength": 50
+  },
+  {
     "area": "THE_STRANGLEWOOD",
     "ambientColor": "#c0bde7",
     "ambientStrength": 2,
