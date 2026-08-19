@@ -1593,7 +1593,6 @@
     "directionalStrength": 4,
     "fogColor": "#150a05",
     "fogDepth": 40,
-    "waterColor": "#b9d6ff",
     "starVisibility": 0.05,
     "sunlightStrength": 0.01,
     "sunStrength": 0.1,
