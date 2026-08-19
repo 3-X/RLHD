@@ -144,7 +144,9 @@ void main() {
         vec3 lightCenterVec = (lightDistSqr > 0.0) ? lightViewPos / sqrt(lightDistSqr) : vec3(0.0);
 
         float lightSinSqr = clamp(lightRadiusSqr / max(lightDistSqr, 1e-6), 0.0, 1.0);
-        float lightCos = sqrt(0.999 - lightSinSqr);
+        // Guard the sqrt: lightSinSqr reaches 1 as the camera approaches the light's radius, and
+        // sqrt of a negative yields NaN, which then propagates through sumCos below.
+        float lightCos = sqrt(max(0.0, 0.999 - lightSinSqr));
         float lightTileCos = dot(lightCenterVec, tileCenterVec);
 
         bool lightAffectsTile;
@@ -164,7 +166,20 @@ void main() {
             lightAffectsTile = length(lightNDC - closest) <= lightNDCRadius;
             combinedScore = distanceScore;
         } else {
-            float sumCos = (lightRadiusSqr > lightDistSqr) ? -1.0 : (tileCos * lightCos - tileSin * sqrt(lightSinSqr));
+            // Once lightSinSqr passes 0.999 the camera is effectively inside the light's sphere of
+            // influence, so the light can reach any tile - the same conclusion the old
+            // lightRadiusSqr > lightDistSqr test drew, widened to cover the whole range where the
+            // angular math degenerates. Testing lightSinSqr subsumes that case, since a ratio of 1
+            // or more clamps to exactly 1.
+            //
+            // This matters because a PULSE light's radius sweeps +/-10% every cycle: at a camera
+            // distance inside that sweep, the light crossed this window for a single frame twice
+            // per cycle. sumCos was NaN there, every comparison against NaN is false, so
+            // 'lightTileCos >= sumCos' rejected the light from EVERY tile at once - the light
+            // vanished entirely for a frame, on the pulse's period. (master used the inverted form
+            // 'if (lightTileCos < sumCos) continue', which fails open on NaN and keeps the light,
+            // which is why master never showed this.)
+            float sumCos = (lightSinSqr > 0.999) ? -1.0 : (tileCos * lightCos - tileSin * sqrt(lightSinSqr));
             lightAffectsTile = lightTileCos >= sumCos;
             combinedScore = (lightTileCos * PROXIMITY_WEIGHT) + distanceScore * (1.0 - PROXIMITY_WEIGHT);
         }
