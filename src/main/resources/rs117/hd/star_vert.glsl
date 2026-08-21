@@ -86,8 +86,10 @@ void main() {
     float nightSkyBlend = pow(baseProgress, mix(0.4, 0.9, sunProximity)) * starVisibility;
 
     // Fade out at the horizon. Slightly higher band than the sky's nebula fade so
-    // individual stars don't linger visibly below the horizon line.
-    float horizonStarFade = smoothstep(0.0, 0.12, upAmount);
+    // individual stars don't linger visibly below the horizon line. The band slides
+    // with the environment's starHorizonHeight, in lockstep with sky_frag.glsl.
+    float horizonShift = nightHorizonOffset();
+    float horizonStarFade = smoothstep(horizonShift, 0.12 + horizonShift, upAmount);
 
     float visibility = nightSkyBlend * horizonStarFade * moonOcclusion;
 

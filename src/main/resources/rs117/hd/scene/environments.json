@@ -1447,7 +1447,8 @@
     "ambientColor": "#97baff",
     "fogColor": "#000000",
     "directionalStrength": 4,
-    "fogDepth": 6.5
+    "fogDepth": 6.5,
+	"starHorizonHeight": 0
   },
   {
     "area": "SHADOW_DUNGEON",

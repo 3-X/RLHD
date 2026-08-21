@@ -67,6 +67,11 @@ void main() {
     // Save sky color before stars are blended in, for opaque moon dark side
     vec3 skyColorPreStars = skyColor;
 
+    // Per-environment vertical shift of the night sky's horizon fade (starHorizonHeight).
+    // 0 leaves the line where it has always been; negative lowers it (far enough and it's
+    // gone entirely, so stars/nebulas wrap the whole sphere), positive raises it.
+    float horizonShift = nightHorizonOffset();
+
     // === PROCEDURAL NIGHT SKY ===
     // Fade in the starfield as sun drops below horizon
     // nightFade is already 0 at -15° and 1 at 0°, so we use its inverse
@@ -100,11 +105,11 @@ void main() {
 
         // Fade out the night sky/nebula near the horizon so the sky converges
         // to the plain gradient color that the fog uses, hiding the world edge
-        float horizonStarFade = smoothstep(-0.1, 0.07, sky.upAmount);
+        float horizonStarFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
         skyColor = mix(skyColor, nightSkyColor, nightSkyBlend * horizonStarFade);
 
         // Shooting stars (atmospheric, use un-rotated viewDir)
-        if (viewDir.y < -0.05) {
+        if (-viewDir.y > 0.05 + horizonShift) {
             skyColor += shootingStars(viewDir, elapsedTime) * nightSkyBlend;
         }
     }
@@ -272,7 +277,7 @@ void main() {
                 vec3 darkSideMoon = darkSideBase + skyMoonColor * 0.02;
                 vec3 moonFinalColor = mix(darkSideMoon, litColor, isLit);
                 // Fade moon near the horizon to match the star/nebula horizon fade
-                float moonHorizonFade = smoothstep(-0.1, 0.07, sky.upAmount);
+                float moonHorizonFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
                 float moonAlpha = moonDisk * moonDayAlpha * moonVisibility * moonHorizonFade;
 
                 skyColor = mix(skyColor, moonFinalColor, moonAlpha);
@@ -281,7 +286,7 @@ void main() {
             // Subtle atmospheric glow around the moon (also faded by daytime transparency).
             // Divide the falloff exponent by moonSizeMult so the glow widens with a
             // larger moon (and tightens with a smaller one), matching the disk.
-            float glowHorizonFade = smoothstep(-0.1, 0.07, sky.upAmount);
+            float glowHorizonFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
             float moonGlow = pow(moonDot, 256.0 / max(moonSizeMult, 0.001)) * 0.05 * skyMoonIllumination * moonDayAlpha * moonVisibility * glowHorizonFade;
             skyColor += skyMoonColor * moonGlow;
         }

@@ -37,6 +37,9 @@ public class UBOSkybox extends UniformBuffer<GLBuffer> {
 	// Moon size multiplier (from environment override) - scales moon disk, glow, and star mask
 	public Property moonSizeMult = addProperty(PropertyType.Float, "moonSizeMult");
 
+	// Night-sky horizon line position (from environment override) - 1 = default, 0 = no line
+	public Property starHorizonHeight = addProperty(PropertyType.Float, "starHorizonHeight");
+
 	public final Property[] nebulaClusters = addPropertyArray(PropertyType.FVec4, "nebulaClusters", StarField.CLUSTER_COUNT);
 	
 	public void reset() {
@@ -48,6 +51,7 @@ public class UBOSkybox extends UniformBuffer<GLBuffer> {
 		nebulaVisibility.set(0f);
 		auroraVisibility.set(0f);
 		moonSizeMult.set(1f);
+		starHorizonHeight.set(1f);
 		upload();
 	}
 }

@@ -396,6 +396,7 @@ public class DayNightLighting {
 		boolean moonEnabled = config.enableMoon() || environmentManager.forceMoonActive();
 		ubo.moonVisibility.set(!hidesMoon(daylightCycle) && moonEnabled ? environmentManager.currentMoonVisibility : 0);
 		ubo.moonSizeMult.set(environmentManager.currentMoonSizeMult);
+		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);
 
 		ubo.starVisibility.set(config.enableStarMap() ? environmentManager.currentStarVisibility : 0);
 		// Float suffixes matter: an all-int ternary would bind set(int), which silently no-ops

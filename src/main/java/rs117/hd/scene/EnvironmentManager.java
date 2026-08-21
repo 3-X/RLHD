@@ -229,6 +229,10 @@ public class EnvironmentManager {
 	public float currentMoonSizeMult = 1f;
 	private float targetMoonSizeMult = 1f;
 
+	private float startStarHorizonHeight = 1f;
+	public float currentStarHorizonHeight = 1f;
+	private float targetStarHorizonHeight = 1f;
+
 	private float startNightSkyColorStrength = 1f;
 	public float currentNightSkyColorStrength = 1f;
 	private float targetNightSkyColorStrength = 1f;
@@ -482,6 +486,7 @@ public class EnvironmentManager {
 			currentMoonVisibility = mix(startMoonVisibility, targetMoonVisibility, t);
 			currentAuroraVisibility = mix(startAuroraVisibility, targetAuroraVisibility, t);
 			currentMoonSizeMult = mix(startMoonSizeMult, targetMoonSizeMult, t);
+			currentStarHorizonHeight = mix(startStarHorizonHeight, targetStarHorizonHeight, t);
 			currentNightSkyColorStrength = mix(startNightSkyColorStrength, targetNightSkyColorStrength, t);
 			currentSunStrength = mix(startSunStrength, targetSunStrength, t);
 			currentSunriseSunsetStrength = mix(startSunriseSunsetStrength, targetSunriseSunsetStrength, t);
@@ -549,6 +554,7 @@ public class EnvironmentManager {
 		startMoonVisibility = currentMoonVisibility;
 		startAuroraVisibility = currentAuroraVisibility;
 		startMoonSizeMult = currentMoonSizeMult;
+		startStarHorizonHeight = currentStarHorizonHeight;
 		startNightSkyColorStrength = currentNightSkyColorStrength;
 		startSunStrength = currentSunStrength;
 		startSunriseSunsetStrength = currentSunriseSunsetStrength;
@@ -598,6 +604,7 @@ public class EnvironmentManager {
 		targetMoonVisibility = env.moonVisibility;
 		targetAuroraVisibility = env.auroraVisibility;
 		targetMoonSizeMult = env.moonSizeMult;
+		targetStarHorizonHeight = env.starHorizonHeight;
 		targetSunStrength = env.sunStrength;
 		targetSunriseSunsetStrength = env.sunriseSunsetStrength;
 		targetSkyColorTakeoverAngle = env.skyColorTakeoverAngle;

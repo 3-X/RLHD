@@ -352,6 +352,12 @@
         "type": "number",
         "description": "Moon size multiplier for this area. Scales the moon disk together with its glow and the star-occlusion mask around it. 1 (default) is the normal size; values above 1 make the moon larger, below 1 smaller.",
         "minimum": 0
+      },
+      "starHorizonHeight": {
+        "type": "number",
+        "description": "Vertical position of the night sky's horizon line - the band where stars, nebulas, shooting stars and the moon fade out toward the ground so the sky converges to the plain gradient/fog color and the world edge stays hidden. 1 (default) keeps the line just above the true horizon. 0 pushes the fade band below the entire sky, so there is no horizon line at all and the starfield and nebulas wrap the full sphere - use this for void-like set pieces such as the Fragment of Seren arena. Values between 0 and 1 lower the line, values above 1 raise it (2 puts it at the zenith, hiding the night sky entirely). Only controls where the night sky is masked, not how bright it is - use starVisibility and moonVisibility for that.",
+        "minimum": 0,
+        "maximum": 2
       }
     }
   }

@@ -175,6 +175,16 @@ public class Environment {
 	// star-occlusion mask around it, together. 1 (default) = normal size; >1 larger,
 	// <1 smaller.
 	public float moonSizeMult = 1;
+	// Vertical position of the night sky's horizon line - the band where stars, nebulas and
+	// the moon fade out toward the ground so the sky converges to the plain gradient/fog
+	// color and the world edge stays hidden. 1 (default) keeps the line just above the true
+	// horizon, the original behavior. 0 pushes the fade band below the entire sky, so there
+	// is no horizon line at all and the starfield/nebulas wrap the full sphere - use this for
+	// void-like set pieces (e.g. the Fragment of Seren arena). Values between 0 and 1 lower
+	// the line, values above 1 raise it (2 puts it at the zenith, hiding the night sky
+	// entirely). Only affects where the night sky is masked, not how bright it is - use
+	// starVisibility/moonVisibility for that.
+	public float starHorizonHeight = 1;
 	public float sunStrength = 1;
 	// How strongly the procedural day & night sunrise/sunset is allowed to paint this
 	// area's sky, in [0, 1]. 1 = full procedural sunrise/sunset (default). Lower
