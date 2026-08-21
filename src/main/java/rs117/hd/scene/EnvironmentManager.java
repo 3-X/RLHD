@@ -225,6 +225,12 @@ public class EnvironmentManager {
 	public float currentAuroraVisibility = 1f;
 	private float targetAuroraVisibility = 1f;
 
+	// Driven by the environment's forceHideNebulas flag rather than a numeric field, so that
+	// hiding nebulas fades over the transition instead of popping at an area boundary
+	private float startNebulaVisibility = 1f;
+	public float currentNebulaVisibility = 1f;
+	private float targetNebulaVisibility = 1f;
+
 	private float startMoonSizeMult = 1f;
 	public float currentMoonSizeMult = 1f;
 	private float targetMoonSizeMult = 1f;
@@ -485,6 +491,7 @@ public class EnvironmentManager {
 			currentStarVisibility = mix(startStarVisibility, targetStarVisibility, t);
 			currentMoonVisibility = mix(startMoonVisibility, targetMoonVisibility, t);
 			currentAuroraVisibility = mix(startAuroraVisibility, targetAuroraVisibility, t);
+			currentNebulaVisibility = mix(startNebulaVisibility, targetNebulaVisibility, t);
 			currentMoonSizeMult = mix(startMoonSizeMult, targetMoonSizeMult, t);
 			currentStarHorizonHeight = mix(startStarHorizonHeight, targetStarHorizonHeight, t);
 			currentNightSkyColorStrength = mix(startNightSkyColorStrength, targetNightSkyColorStrength, t);
@@ -553,6 +560,7 @@ public class EnvironmentManager {
 		startStarVisibility = currentStarVisibility;
 		startMoonVisibility = currentMoonVisibility;
 		startAuroraVisibility = currentAuroraVisibility;
+		startNebulaVisibility = currentNebulaVisibility;
 		startMoonSizeMult = currentMoonSizeMult;
 		startStarHorizonHeight = currentStarHorizonHeight;
 		startNightSkyColorStrength = currentNightSkyColorStrength;
@@ -603,6 +611,7 @@ public class EnvironmentManager {
 		targetStarVisibility = env.starVisibility;
 		targetMoonVisibility = env.moonVisibility;
 		targetAuroraVisibility = env.auroraVisibility;
+		targetNebulaVisibility = env.forceHideNebulas ? 0 : 1;
 		targetMoonSizeMult = env.moonSizeMult;
 		targetStarHorizonHeight = env.starHorizonHeight;
 		targetSunStrength = env.sunStrength;

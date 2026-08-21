@@ -399,9 +399,11 @@ public class DayNightLighting {
 		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);
 
 		ubo.starVisibility.set(config.enableStarMap() ? environmentManager.currentStarVisibility : 0);
+		// An environment may hide nebulas on its own (forceHideNebulas), which the manager blends to
+		// 0 over the transition; the config toggle still hides them everywhere when off.
 		// Float suffixes matter: an all-int ternary would bind set(int), which silently no-ops
 		// on a Float property rather than failing to compile
-		ubo.nebulaVisibility.set(config.enableNebulas() ? 1f : 0f);
+		ubo.nebulaVisibility.set(config.enableNebulas() ? environmentManager.currentNebulaVisibility : 0f);
 
 		// Auroras appear on nights a per-night random roll selects. In modes with a real
 		// day/night arc the roll flips during daytime, where it's hidden behind nightSkyBlend;

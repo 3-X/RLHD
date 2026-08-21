@@ -51,6 +51,10 @@
         "type": "boolean",
         "description": "Whether to hide the game's built-in skybox models (e.g. the ones added for The Blood Moon Rises quest) in this area, so the day & night cycle's own sky is shown instead. Only takes effect while the 'Override Vanilla Skyboxes' option is enabled. Defaults to false."
       },
+      "forceHideNebulas": {
+        "type": "boolean",
+        "description": "Whether to hide the procedural nebula clouds in this area, even when the player has the 'Nebulas' option enabled, leaving the night sky as stars over the plain gradient. Use it for areas whose sky should read as clear or overcast rather than deep-space. Fades in and out over the normal environment transition rather than popping. Turning the 'Nebulas' option off still hides nebulas everywhere; this flag can only take them away, never force them on. Defaults to false."
+      },
       "varbitCondition": {
         "description": "Optional expression that must evaluate to true for this environment to apply, in addition to the area check. Variables are varbit gameval names. Numbers are truthy when nonzero, so bare names like CUTSCENE_STATUS work with `&&`, `||` and `!`. Example: \"CUTSCENE_STATUS && 0 < MYQ6 && MYQ6 < 170\". For an array of expressions, the condition is met when at least one of the expressions evaluates to true.",
         "oneOf": [

@@ -54,6 +54,12 @@ public class Environment {
 	// (its default); turning that toggle off forces vanilla skyboxes back on everywhere,
 	// including areas that set this flag.
 	public boolean hideVanillaSkyboxes = false;
+	// When true, the procedural nebula clouds are hidden in this area even if the player has the
+	// "Nebulas" config toggle on, leaving the night sky as stars over the plain gradient. Intended
+	// for areas whose sky should read as clear or overcast rather than deep-space. Fades in/out
+	// over the normal environment transition rather than popping. Turning the config toggle off
+	// still hides nebulas everywhere; this flag can only take them away, never force them on.
+	public boolean forceHideNebulas = false;
 	@Nullable
 	@JsonAdapter(ExpressionParser.PredicateAdapter.class)
 	public ExpressionPredicate varbitCondition;
