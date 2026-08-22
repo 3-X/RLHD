@@ -1447,9 +1447,12 @@
     "ambientColor": "#97baff",
     "fogColor": "#000000",
     "directionalStrength": 4,
-    "fogDepth": 6.5,
 	"starHorizonHeight": 0,
-	"forceHideNebulas": true
+    "moonVisibility": 0,
+    "nightSkyColorStrength": 5,
+    "nightSkyColor": "#ff0000",
+    "cycleMode": "FIXED_NIGHT",
+    "forceHideNebulas": true
   },
   {
     "area": "SHADOW_DUNGEON",
