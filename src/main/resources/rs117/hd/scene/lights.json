@@ -29252,6 +29252,7 @@
   },
   {
     "description": "Round Lantern with Flame",
+    "excludeAreas": [ "LUMBRIDGE_WINDMILL" ],
     "offset": [ -5, 220, 0 ],
     "radius": 350,
     "strength": 7.5,
@@ -29265,6 +29266,26 @@
     "nightMultiplier": 1.5,
     "range": 20,
     "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "LANTERN_GLOWS"
+    ]
+  },
+  {
+    "description": "Round Lantern with Flame - Lumbridge Windmill",
+    "areas": [ "LUMBRIDGE_WINDMILL" ],
+    "offset": [ -5, 220, 0 ],
+    "radius": 350,
+    "strength": 7.5,
+    "color": [
+      255,
+      180,
+      103
+    ],
+    "type": "FLICKER",
+    "duration": 0,
+    "nightMultiplier": 1.5,
+    "range": 20,
+    "visibleFromOtherPlanes": false,
     "objectIds": [
       "LANTERN_GLOWS"
     ]
