@@ -18,17 +18,10 @@
 #define NEBULA_BAKE
 #include <utils/starfield.glsl>
 
-in vec2 fFacePos;
+in vec3 fFaceDirection;
 
 out vec4 FragColor;
 
-// Per-face basis: a direction for fFacePos == (0,0), plus right/up axes spanning
-// [-1, 1]. dir = normalize(forward + x*right + y*up).
-uniform vec3 faceForward;
-uniform vec3 faceRight;
-uniform vec3 faceUp;
-
 void main() {
-    vec3 dir = normalize(faceForward + fFacePos.x * faceRight + fFacePos.y * faceUp);
-    FragColor = vec4(proceduralNebula(dir), 1.0);
+    FragColor = vec4(proceduralNebula(normalize(fFaceDirection)), 1.0);
 }

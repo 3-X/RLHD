@@ -43,17 +43,6 @@ public final class StarField {
 		new Color(0.70f, 0.80f, 1.0f)  // cool blue
 	};
 
-	// Standard OpenGL cubemap face orientation: {forward, right, up} per face,
-	// where dir = normalize(forward + u*right + v*up) for u,v in [-1, 1].
-	private static final float[][][] NEBULA_CUBE_FACES = {
-		{ { 1, 0, 0 }, { 0, 0, -1 }, { 0, -1, 0 } }, // +X
-		{ { -1, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, // -X
-		{ { 0, 1, 0 }, { 1, 0, 0 }, { 0, 0, 1 } },   // +Y
-		{ { 0, -1, 0 }, { 1, 0, 0 }, { 0, 0, -1 } }, // -Y
-		{ { 0, 0, 1 }, { 1, 0, 0 }, { 0, -1, 0 } },  // +Z
-		{ { 0, 0, -1 }, { -1, 0, 0 }, { 0, -1, 0 } } // -Z
-	};
-
 	// Per-vertex layout written to the VBO, in floats:
 	//   position.xyz (unit direction), size, brightness, color.rgb, speed => 9 floats
 	// speed scales the celestial rotation so the layers parallax (depth effect).
@@ -188,9 +177,7 @@ public final class StarField {
 
 		zoneRenderer.nebulaBakeProgram.use();
 		for (int face = 0; face < 6; face++) {
-			bakeShader.uniFaceForward.set(NEBULA_CUBE_FACES[face][0]);
-			bakeShader.uniFaceRight.set(NEBULA_CUBE_FACES[face][1]);
-			bakeShader.uniFaceUp.set(NEBULA_CUBE_FACES[face][2]);
+			bakeShader.uniCubeFace.set(face);
 
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texNebulaCubemap, 0);
 			glDrawArrays(GL_TRIANGLES, 0, 3);
