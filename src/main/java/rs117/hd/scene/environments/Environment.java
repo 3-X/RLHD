@@ -79,13 +79,10 @@ public class Environment {
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] underglowColor = rgb("#000000");
 	public float underglowStrength = 0;
-	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] moonColor;
-	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] moonLightColor;
-	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] nightSkyColor;
 	public float nightSkyColorStrength = 1;
