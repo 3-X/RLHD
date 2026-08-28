@@ -33462,6 +33462,7 @@
     "textureMaterial": "WATER_DROPS",
     "flatNormals": true,
     "baseMaterial": "GRAY_90",
+    "heightOffset": 288,
     "objectIds": [
       "FAIRY2_WATERFALL_BOTTOM"
     ]
@@ -33470,6 +33471,7 @@
     "description": "Enchanted Valley - Fix Waterfall Cliff Position",
     "areas": [ "ENCHANTED_VALLEY_WATERFALL_FIX" ],
     "baseMaterial": "GRAVEL",
+    "heightOffset": 20,
     "receiveShadows": false,
     "terrainVertexSnap": true,
     "uvType": "BOX",
@@ -52984,6 +52986,7 @@
     "description": "Kraken Cove - Wall Offset Fix",
     "baseMaterial": "STONE_NORMALED",
     "areas": [ "KRAKEN_COVE_WALL_FIX" ],
+    "heightOffset": 16,
     "objectIds": [
       "ROYAL_CAVEWALL_FACE_GLOW",
       "ROYAL_CAVEWALL_FACE"
