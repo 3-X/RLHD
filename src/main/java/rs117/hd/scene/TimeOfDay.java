@@ -3,11 +3,14 @@ package rs117.hd.scene;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import javax.annotation.Nullable;
+import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import rs117.hd.HdPlugin;
+import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DayLength;
 import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonBehavior;
@@ -28,15 +31,13 @@ import static rs117.hd.utils.MathUtils.*;
  * <h2>Per-frame contract</h2>
  * The renderer calls, in this order, once per frame:
  * <ol>
- *   <li>{@link #update()} - advances the simulated clock and pins {@link #currentInstant}</li>
- *   <li>the {@code set*} frame-state methods (cycle mode, day length, moon phase/behavior,
- *       cycle duration, hemisphere, fixed-angle overrides)</li>
+ *   <li>{@link #update()} - applies the current environment's overrides,
+ *       advances the simulated clock, resolves the latitude, pins
+ *       {@link #currentInstant}, and clears the astronomy snapshot.</li>
  *   <li>any number of getters</li>
  * </ol>
  * Getters are pure with respect to that state and share a per-frame astronomy snapshot, so
- * calling them repeatedly within a frame is cheap. Each {@code set*} only invalidates the
- * snapshot when the value actually changes, since they are called with the same values
- * every frame.
+ * calling them repeatedly within a frame is cheap.
  *
  * <h2>Angle conventions</h2>
  * Two orderings are in play, and mixing them up is the classic bug here:
@@ -64,6 +65,11 @@ import static rs117.hd.utils.MathUtils.*;
 @Singleton
 @Slf4j
 public class TimeOfDay {
+	@Inject
+	private HdPlugin plugin;
+
+	@Inject
+	private EnvironmentManager environmentManager;
 
 	// Pre-linearized deep-night sky color.
 	// Read-only: every consumer only reads components into fresh blend arrays.
@@ -248,22 +254,32 @@ public class TimeOfDay {
 	private double accumulatedCycleTime = 0.35;
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
-	// Current cycle mode - set once per frame by ZoneRenderer before any TimeOfDay calls
+	// Player-configured defaults are updated by HdPlugin.updateCachedConfigs().
+	@Setter
+	private DaylightCycle configuredCycleMode = DaylightCycle.DYNAMIC;
+
+	@Getter
 	private DaylightCycle currentCycleMode = DaylightCycle.DYNAMIC;
 
 	// Current day length skew - set once per frame alongside the cycle mode.
 	// Warps the linear cycle clock so day & night occupy different shares of the
 	// fixed total cycle time (see applyDayLengthWarp).
+	@Setter
 	private DayLength currentDayLength = DayLength.STANDARD;
 
 	// Current moon phase lock - set once per frame. DYNAMIC = phase advances
 	// naturally; any other value locks the moon's illumination fraction.
+	@Setter
+	private MoonPhase configuredMoonPhase = MoonPhase.DYNAMIC;
+
 	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
 
 	@Getter
+	@Setter
 	private MoonBehavior currentMoonBehavior = MoonBehavior.NIGHT_SYNCED;
 
 	@Getter
+	@Setter
 	private float currentCycleDuration = 700;
 
 	@Getter
@@ -286,9 +302,8 @@ public class TimeOfDay {
 	// ===== Per-frame state =======================================================
 
 	/**
-	 * Invalidate the per-frame astronomy snapshot. Called from update() once per
-	 * rendered frame before any TimeOfDay getters, and by the frame-state setters
-	 * whenever an input actually changes mid-frame.
+	 * Invalidate the per-frame astronomy snapshot. update() is the sole frame boundary:
+	 * all state must be settled before getters run.
 	 */
 	public void beginFrame() {
 		frameSunAngles = null;
@@ -300,6 +315,17 @@ public class TimeOfDay {
 	}
 
 	/**
+	 * Refresh player-configured values when HdPlugin processes pending config changes.
+	 */
+	public void updateConfig(HdPluginConfig config) {
+		configuredCycleMode = config.daylightCycle();
+		currentDayLength = config.dayLength();
+		currentMoonBehavior = config.moonBehavior();
+		configuredMoonPhase = config.moonPhase();
+		currentCycleDuration = config.cycleDurationMinutes();
+	}
+
+	/**
 	 * Set the per-environment fixed sun/moon angle overrides for this frame.
 	 * <p>
 	 * Inputs are in the environment-file convention {altitude, azimuth} in radians
@@ -308,10 +334,10 @@ public class TimeOfDay {
 	 * AtmosphereUtils.getSunAngles()/getMoonPosition() and consumed by the rest of
 	 * this class.
 	 * <p>
-	 * Call before any other TimeOfDay methods. Only takes effect under a fixed
-	 * cycle mode; the dynamic cycle ignores these.
+	 * Applied from {@link #update()}. Only takes effect under a fixed cycle
+	 * mode; the dynamic cycle ignores these.
 	 */
-	public void setFixedAngleOverrides(@Nullable float[] sunAngles, @Nullable float[] moonAngles) {
+	private void setFixedAngleOverrides(@Nullable float[] sunAngles, @Nullable float[] moonAngles) {
 		// sunAngles/moonAngles are {altitude, azimuth}; store {azimuth, altitude}.
 		// Add PI to the azimuth: anglesToSkyDirection was changed (PI - az -> PI + az,
 		// with the north/south component negated) to correct the real astronomical sun,
@@ -323,73 +349,24 @@ public class TimeOfDay {
 			new double[] { sunAngles[1] + Math.PI, sunAngles[0] };
 		double[] newMoon = moonAngles == null ? null :
 			new double[] { moonAngles[1] + Math.PI, moonAngles[0] };
-		// Only invalidate the frame snapshot when the overrides actually change;
-		// this is called redundantly every frame with the same values.
-		if (!Arrays.equals(newSun, fixedSunAnglesOverride)
-			|| !Arrays.equals(newMoon, fixedMoonAnglesOverride)) {
-			fixedSunAnglesOverride = newSun;
-			fixedMoonAnglesOverride = newMoon;
-			beginFrame();
-		}
-	}
-
-	/** Set the cycle mode for this frame. */
-	public void setCycleMode(DaylightCycle mode) {
-		if (currentCycleMode != mode) {
-			currentCycleMode = mode;
-			beginFrame();
-		}
-	}
-
-	/** Set the day length skew for this frame. */
-	public void setDayLength(DayLength dayLength) {
-		if (currentDayLength != dayLength) {
-			currentDayLength = dayLength;
-			beginFrame();
-		}
-	}
-
-	/** Set how long one full day & night cycle takes, in real minutes. */
-	public void setCycleDurationMinutes(float cycleDuration) {
-		if (currentCycleDuration != cycleDuration) {
-			currentCycleDuration = cycleDuration;
-			beginFrame();
-		}
-	}
-
-	/** Set the moon phase lock for this frame. DYNAMIC lets the phase advance naturally. */
-	public void setMoonPhase(MoonPhase moonPhase) {
-		if (currentMoonPhase != moonPhase) {
-			currentMoonPhase = moonPhase;
-			beginFrame();
-		}
-	}
-
-	/** Set how the moon is positioned relative to the sun for this frame. */
-	public void setMoonBehavior(MoonBehavior moonBehavior) {
-		if (currentMoonBehavior != moonBehavior) {
-			currentMoonBehavior = moonBehavior;
-			beginFrame();
-		}
+		fixedSunAnglesOverride = newSun;
+		fixedMoonAnglesOverride = newMoon;
 	}
 
 	/**
-	 * Set the observer latitude from the player's seasonal hemisphere: northern -> New
-	 * York City, southern -> Rio de Janeiro. Must be called after {@link #setCycleMode}.
+	 * Resolve the observer latitude from the synchronized seasonal hemisphere: northern ->
+	 * New York City, southern -> Rio de Janeiro.
 	 *
 	 * <p>Synced Days is a special case: it is UTC-locked so every player sees the same sky
 	 * at the same moment, so it always uses the northern latitude regardless of this
 	 * setting, which would otherwise make the two hemispheres diverge.
 	 */
-	public void setSeasonalHemisphere(SeasonalHemisphere hemisphere) {
-		double[] latLong = currentCycleMode.isForcesNorthernHemisphere() || hemisphere != SeasonalHemisphere.SOUTHERN
+	private void updateSeasonalHemisphere() {
+		double[] latLong = currentCycleMode.isForcesNorthernHemisphere() || plugin.configSeasonalHemisphere != SeasonalHemisphere.SOUTHERN
 			? NORTHERN_LAT_LONG
 			: SOUTHERN_LAT_LONG;
-		if (currentLatLong[0] != latLong[0] || currentLatLong[1] != latLong[1]) {
-			currentLatLong[0] = latLong[0];
-			currentLatLong[1] = latLong[1];
-			beginFrame();
-		}
+		currentLatLong[0] = latLong[0];
+		currentLatLong[1] = latLong[1];
 	}
 
 	// ===== Fixed cycle modes =====================================================
@@ -1021,7 +998,16 @@ public class TimeOfDay {
 	// instant every getter derives from. Called once per frame, so the astronomy
 	// snapshot invalidated here is rebuilt at most once per frame.
 	public void update() {
+		DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
+		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
+		currentCycleMode = forcedMode != null ? forcedMode : configuredCycleMode;
+		currentMoonPhase = forcedMoonPhase != null ? forcedMoonPhase : configuredMoonPhase;
+		setFixedAngleOverrides(
+			environmentManager.getForcedFixedSunAngles(),
+			environmentManager.getForcedFixedMoonAngles()
+		);
 		beginFrame();
+		updateSeasonalHemisphere();
 
 		long currentTimeMillis = System.currentTimeMillis();
 		currentInstant = Instant.ofEpochMilli(currentTimeMillis);

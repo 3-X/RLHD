@@ -687,17 +687,14 @@ public class LegacyRenderer implements Renderer {
 				plugin.invViewProjMatrix = Mat4.inverse(plugin.viewProjMatrix);
 
 				if (sceneContext.scene == scene) {
-					// Advance the time-of-day clock and refresh the per-frame astronomy
-					// snapshot before the first TimeOfDay usage of the frame. The
-					// EnvironmentManager/LightManager updates below read its getters, which
-					// dereference the instant pinned here, so this renderer has to drive
-					// update() the same way ZoneRenderer does.
-					timeOfDay.update();
-
 					try {
 						frameTimer.begin(Timer.UPDATE_ENVIRONMENT);
 						environmentManager.update(sceneContext);
 						frameTimer.end(Timer.UPDATE_ENVIRONMENT);
+
+						// Environment resolution supplies the effective per-area overrides.
+						// Synchronize those before update() establishes this frame's snapshot.
+						timeOfDay.update();
 
 						frameTimer.begin(Timer.UPDATE_LIGHTS);
 						lightManager.update(sceneContext, plugin.cameraShift, plugin.cameraFrustum);

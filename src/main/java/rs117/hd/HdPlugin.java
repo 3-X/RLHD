@@ -117,6 +117,7 @@ import rs117.hd.scene.SceneContext;
 import rs117.hd.scene.StarField;
 import rs117.hd.scene.TextureManager;
 import rs117.hd.scene.TileOverrideManager;
+import rs117.hd.scene.TimeOfDay;
 import rs117.hd.scene.WaterTypeManager;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.DestructibleHandler;
@@ -271,6 +272,9 @@ public class HdPlugin extends Plugin {
 
 	@Inject
 	private EnvironmentManager environmentManager;
+
+	@Inject
+	private TimeOfDay timeOfDay;
 
 	@Inject
 	private TextureManager textureManager;
@@ -1821,6 +1825,8 @@ public class HdPlugin extends Plugin {
 				}
 			}
 		}
+
+		timeOfDay.updateConfig(config);
 	}
 
 	@Subscribe

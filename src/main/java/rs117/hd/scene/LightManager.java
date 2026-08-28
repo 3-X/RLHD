@@ -213,22 +213,11 @@ public class LightManager {
 		boolean nightFactorRising = true;
 		if (environmentManager.isOverworld() && plugin.configEnableDayNightCycle) {
 			overworldDayNightActive = true;
-			DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
-			DaylightCycle daylightCycle = forcedMode != null ? forcedMode : config.daylightCycle();
-			timeOfDay.setCycleMode(daylightCycle);
-			timeOfDay.setDayLength(config.dayLength());
 			nightLightFactor = timeOfDay.getNightLightFactor();
 			nightFactorRising = previousNightLightFactor < 0 || nightLightFactor >= previousNightLightFactor;
 			previousNightLightFactor = nightLightFactor;
 		} else {
 			previousNightLightFactor = -1f;
-		}
-
-		if (plugin.configEnableDayNightCycle) {
-			DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
-			DaylightCycle daylightCycle = forcedMode != null ? forcedMode : config.daylightCycle();
-			timeOfDay.setCycleMode(daylightCycle);
-			timeOfDay.setDayLength(config.dayLength());
 		}
 
 		// These should never occur, but just in case...

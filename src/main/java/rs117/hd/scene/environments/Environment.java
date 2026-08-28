@@ -148,7 +148,7 @@ public class Environment {
 	// environments schema. Null = astronomical.
 	// NOTE: this is the opposite order from AtmosphereUtils.getSunAngles()/
 	// getMoonPosition(), which return {azimuth, altitude}. TimeOfDay
-	// .setFixedAngleOverrides() swaps these into that convention on ingest.
+	// applies these during its per-frame update.
 	@Nullable
 	@JsonAdapter(DegreesToRadians.class)
 	public float[] fixedSunAngles;

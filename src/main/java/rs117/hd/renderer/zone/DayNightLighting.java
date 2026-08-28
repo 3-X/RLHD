@@ -7,7 +7,6 @@ import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonBehavior;
-import rs117.hd.config.MoonPhase;
 import rs117.hd.opengl.uniforms.UBOSkybox;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.TimeOfDay;
@@ -19,7 +18,7 @@ import static rs117.hd.utils.MathUtils.*;
 // Day & night cycle lighting for the zone renderer. Owns everything the cycle contributes to a
 // frame, so ZoneRenderer is left with ordinary render plumbing. Three things happen here, in the
 // order the renderer calls them:
-//   1. syncConfig - push config & per-area overrides into TimeOfDay
+//   1. TimeOfDay.update applies environment overrides and establishes the frame
 //   2. resolveDirectionalAngles - pick the pitch/yaw for the shadow-casting directional camera,
 //      from the sun, the moon, or a fixed override
 //   3. computeLighting - derive sky/fog/light colors and strengths, and upload the skybox UBO
@@ -126,31 +125,6 @@ public class DayNightLighting {
 		return environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
 	}
 
-	// Push config and per-area overrides into TimeOfDay, and return the cycle mode in effect.
-	// An environment may force a mode, which wins over the user's config setting. Call before
-	// reading any TimeOfDay getter, so every consumer in the frame sees the same settings.
-	// Every setter is equality-guarded, so calling this more than once per frame is a no-op.
-	public DaylightCycle syncConfig() {
-		DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
-		DaylightCycle daylightCycle = forcedMode != null ? forcedMode : config.daylightCycle();
-
-		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
-		MoonPhase moonPhase = forcedMoonPhase != null ? forcedMoonPhase : config.moonPhase();
-
-		timeOfDay.setCycleMode(daylightCycle);
-		timeOfDay.setDayLength(config.dayLength());
-		timeOfDay.setMoonPhase(moonPhase);
-		timeOfDay.setMoonBehavior(config.moonBehavior());
-		timeOfDay.setCycleDurationMinutes(config.cycleDurationMinutes());
-		timeOfDay.setSeasonalHemisphere(config.seasonalHemisphere());
-		timeOfDay.setFixedAngleOverrides(
-			environmentManager.getForcedFixedSunAngles(),
-			environmentManager.getForcedFixedMoonAngles()
-		);
-
-		return daylightCycle;
-	}
-
 	// Writes the shadow-casting directional camera's angles into out as { pitch, yaw }, and
 	// returns it. Picks whichever body is lighting the scene, in priority order: a fixed sun
 	// override, a fixed moon (FIXED_NIGHT or an environment override), the moon once the sun has
@@ -158,7 +132,7 @@ public class DayNightLighting {
 	// its shadows stay aligned - shadows drifting away from a stationary sun or moon are the bug
 	// this ordering prevents.
 	public float[] resolveDirectionalAngles(float[] out) {
-		DaylightCycle daylightCycle = syncConfig();
+		DaylightCycle daylightCycle = timeOfDay.getCurrentCycleMode();
 
 		double[] sunAngles = timeOfDay.getSunAngles();
 
@@ -190,7 +164,7 @@ public class DayNightLighting {
 	// The caller seeds lighting from the environment first; this modifies it in place. On
 	// return, lighting.fogColorSrgb holds the sky horizon color, which doubles as the fog color.
 	public void computeLighting(Lighting lighting) {
-		DaylightCycle daylightCycle = syncConfig();
+		DaylightCycle daylightCycle = timeOfDay.getCurrentCycleMode();
 
 		copyTo(lighting.directionalColor, timeOfDay.getRegionalDirectionalLight(environmentManager.currentDirectionalColor));
 		copyTo(lighting.ambientColor, timeOfDay.getRegionalAmbientLight(environmentManager.currentAmbientColor));
