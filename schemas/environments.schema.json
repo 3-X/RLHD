@@ -49,14 +49,14 @@
       },
       "hideVanillaSkyboxes": {
         "type": "boolean",
-        "description": "Whether to hide the game's built-in skybox models (e.g. the ones added for The Blood Moon Rises quest) in this area, so the day & night cycle's own sky is shown instead. Only takes effect while the 'Override Vanilla Skyboxes' option is enabled. Defaults to false."
+        "description": "Whether to hide the game's built-in skybox models in this area so the day & night cycle's sky is shown. Requires the 'Override Vanilla Skyboxes' option. Defaults to false."
       },
       "forceHideNebulas": {
         "type": "boolean",
-        "description": "Whether to hide the procedural nebula clouds in this area, even when the player has the 'Nebulas' option enabled, leaving the night sky as stars over the plain gradient. Use it for areas whose sky should read as clear or overcast rather than deep-space. Fades in and out over the normal environment transition rather than popping. Turning the 'Nebulas' option off still hides nebulas everywhere; this flag can only take them away, never force them on. Defaults to false."
+        "description": "Whether to hide procedural nebulas in this area. Cannot enable them when the 'Nebulas' option is off. Fades with environment transitions. Defaults to false."
       },
       "varbitCondition": {
-        "description": "Optional expression that must evaluate to true for this environment to apply, in addition to the area check. Variables are varbit gameval names. Numbers are truthy when nonzero, so bare names like CUTSCENE_STATUS work with `&&`, `||` and `!`. Example: \"CUTSCENE_STATUS && 0 < MYQ6 && MYQ6 < 170\". For an array of expressions, the condition is met when at least one of the expressions evaluates to true.",
+        "description": "Optional condition that must be true in addition to the area check. Variables are varbit gameval names; nonzero numbers are truthy, so bare names work with `&&`, `||` and `!`. Arrays match when any expression is true. Example: \"CUTSCENE_STATUS && 0 < MYQ6 && MYQ6 < 170\".",
         "oneOf": [
           { "type": "boolean" },
           { "type": "string" },
@@ -68,7 +68,7 @@
         ]
       },
       "varpCondition": {
-        "description": "Optional expression that must evaluate to true for this environment to apply, in addition to the area check. Variables are varplayer gameval names. Numbers are truthy when nonzero. For an array of expressions, the condition is met when at least one of the expressions evaluates to true.",
+        "description": "Optional condition that must be true in addition to the area check. Variables are varplayer gameval names; nonzero numbers are truthy. Arrays match when any expression is true.",
         "oneOf": [
           { "type": "boolean" },
           { "type": "string" },
@@ -81,17 +81,17 @@
       },
       "cycleMode": {
         "type": "string",
-        "description": "Force a certain day & night cycle mode for this environment, overriding the player's currently chosen cycle mode. Only applies if the day & night cycle is enabled.",
+        "description": "Day & night cycle mode to force in this area, overriding the player's setting. Only applies when the cycle is enabled.",
         "enum": [ "DYNAMIC", "FIXED_DAWN", "FIXED_MIDDAY", "FIXED_SUNSET", "FIXED_TWILIGHT", "FIXED_NIGHT", "ALWAYS_NIGHT" ]
       },
       "forceMoonPhase": {
         "type": "string",
-        "description": "Force a certain moon phase for this environment, overriding the player's currently chosen moon phase. DYNAMIC is a real override that forces a naturally-advancing phase even when the player has locked one; omit the field entirely to defer to the player's config instead. Only applies if the day & night cycle is enabled.",
+        "description": "Moon phase to force in this area, overriding the player's setting. DYNAMIC forces an advancing phase even when the player has locked one; omit to use the player's setting. Only applies when the cycle is enabled.",
         "enum": [ "DYNAMIC", "FULL_MOON", "GIBBOUS", "HALF_MOON", "CRESCENT", "NEW_MOON" ]
       },
       "forceMoonActive": {
         "type": "boolean",
-        "description": "Whether to show the moon in this environment even if the player has turned the 'Moon' config toggle off. Intended for cutscenes and set pieces that require the moon to be present. Does not override the daytime fixed cycle modes (FIXED_DAWN, FIXED_MIDDAY, FIXED_SUNSET, FIXED_TWILIGHT), which still hide the moon, and does not change `moonVisibility` - use that to scale how visible the moon is once it is shown. Defaults to false."
+        "description": "Whether to show the moon when the player's 'Moon' option is off. Does not override daytime fixed modes or `moonVisibility`. Defaults to false."
       },
       "ambientColor": {
         "type": [ "string", "array" ],
@@ -119,32 +119,32 @@
       },
       "directionalStrength": {
         "type": "number",
-        "description": "Directional light strength multiplier. Defaults to 0.25. While the day & night cycle is active this drives sunlight, and also moonlight unless `moonDirectionalStrength` is set."
+        "description": "Directional light strength multiplier. Defaults to 0.25. While the day & night cycle is active, also controls moonlight unless `moonDirectionalStrength` is set."
       },
       "moonDirectionalStrength": {
         "type": "number",
-        "description": "Directional light strength multiplier used while the moon is lighting the scene, crossfading in over twilight on the same schedule as the moonlight tint. When unset, falls back to `directionalStrength`, so moonlight is as strong as sunlight. Only applies while the day & night cycle is driving the scene.",
+        "description": "Moonlight directional strength multiplier. Fades in over twilight. Defaults to `directionalStrength`. Only applies while the day & night cycle is active.",
         "minimum": 0
       },
       "moonShadowStrength": {
         "type": "number",
-        "description": "How much of the moon's light casts shadows, as a multiplier on moon shadow visibility. 1 (default) is the standard behavior. Light scaled out of the directional term becomes ambient sky-fill rather than being lost, so raising this deepens moonlit shadows without brightening the scene and lowering it flattens them without darkening it. Combine with `moonDirectionalStrength` to set total moonlight and shadow contrast independently - e.g. a dim moon that still casts crisp shadows. Does not affect sunlight.",
+        "description": "Moon shadow visibility multiplier. Defaults to 1. Reduced directional light becomes ambient sky fill, so this adjusts moon-shadow contrast without changing total brightness. Does not affect sunlight.",
         "minimum": 0
       },
       "minMoonIllumination": {
         "type": "number",
-        "description": "Floor on the moon's illumination fraction for lighting only; the visible moon disk still renders at its true phase. 0 (default) means a new moon casts no light or shadows. Raise it so even a new moon keeps some directional moonlight, for areas whose fiction calls for a permanently moonlit night.",
+        "description": "Minimum moon illumination for lighting; the moon disk still uses its true phase. 0 (default) gives a new moon no light or shadows.",
         "minimum": 0,
         "maximum": 1
       },
       "sunlightStrength": {
         "type": "number",
-        "description": "Multiplier applied to the day & night cycle's directional (sun/moon) light strength in this area, on top of the cycle's own time-of-day curve. 1 (default) leaves the cycle's lighting untouched; lower values dim the direct light for areas that should stay gloomy even at midday, higher values brighten it. Only applies while the day & night cycle is driving the scene.",
+        "description": "Multiplier for the day & night cycle's directional sun/moon light, after its time-of-day curve. 1 (default) is unchanged. Only applies while the cycle is active.",
         "minimum": 0
       },
       "minBrightnessBoost": {
         "type": "number",
-        "description": "How far this area's night-time ambient floor is raised to stand in for absent moonlight, as a fraction of the player's minimum brightness setting (e.g. 0.2 raises the floor by up to 20%). Scaled by how much moonlight is actually missing, so it is at full strength on a new moon and on nights when the moon has set, tapers off as the moon waxes and climbs, and contributes almost nothing under a full moon overhead. 0 (default) disables it.",
+        "description": "Night-time ambient-floor boost, as a fraction of the player's minimum brightness. Scales with missing moonlight: strongest for a new or set moon, weakest for a full overhead moon. 0 (default) disables it.",
         "minimum": 0
       },
       "waterColor": {
@@ -187,7 +187,7 @@
       },
       "moonColor": {
         "type": [ "string", "array" ],
-        "description": "Moon color in sRGB, specified as a hex color code or an array in the range 0-255. Controls the visible moon disk and its glow, and the light it casts, unless moonLightColor is set. Defaults to a cool silver (~8000K).",
+        "description": "Moon color in sRGB, specified as a hex color code or an array in the range 0-255. Controls the disk, glow and, unless `moonLightColor` is set, moonlight. Defaults to cool silver (~8000K).",
         "pattern": "^#[A-Fa-f0-9]{6}$",
         "minItems": 3,
         "maxItems": 3,
@@ -197,7 +197,7 @@
       },
       "moonLightColor": {
         "type": [ "string", "array" ],
-        "description": "Color of the light the moon casts in sRGB, as a hex color code or an array in the range 0-255. This allows moonlight be tinted differently than the visible moon disk. When omitted, it falls back to the `moonColor`.",
+        "description": "Moonlight color in sRGB, specified as a hex color code or an array in the range 0-255. Defaults to `moonColor`.",
         "pattern": "^#[A-Fa-f0-9]{6}$",
         "minItems": 3,
         "maxItems": 3,
@@ -207,7 +207,7 @@
       },
       "nightSkyColor": {
         "type": [ "string", "array" ],
-        "description": "Color the night sky (zenith and horizon) is tinted toward as the moon rises, in sRGB, as a hex color code or an array in the range 0-255. This allows the night sky color be set independently of the moon disk. When omitted, falls back to the `moonColor`.",
+        "description": "Night-sky tint color in sRGB, specified as a hex color code or an array in the range 0-255. Defaults to `moonColor`.",
         "pattern": "^#[A-Fa-f0-9]{6}$",
         "minItems": 3,
         "maxItems": 3,
@@ -217,7 +217,7 @@
       },
       "nightSkyColorStrength": {
         "type": "number",
-        "description": "How strongly `nightSkyColor` tints the night sky. 1 (default) preserves the original subtle tint; higher values push the sky harder toward `nightSkyColor` for areas where the default is too weak to read. The resulting blend is clamped so large values can't overshoot past the night-sky color.",
+        "description": "Strength of the `nightSkyColor` tint. Defaults to 1. Higher values increase the tint without overshooting the target color.",
         "minimum": 0
       },
       "sunAngles": {
@@ -240,7 +240,7 @@
       },
       "fixedSunAngles": {
         "type": "array",
-        "description": "Locks the sun disk and its shadow direction to a fixed altitude and azimuth (in degrees) while any fixed cycle mode is active, overriding the astronomically derived position. Altitude is from the ground up (negative places the sun below the horizon), azimuth is clockwise from north. Unused in DYNAMIC mode.",
+        "description": "Fixed sun altitude and azimuth in degrees for fixed cycle modes. Overrides the astronomical position for the sun disk and shadows. Altitude is above the ground (negative is below the horizon); azimuth is clockwise from north. Unused in DYNAMIC mode.",
         "minItems": 2,
         "maxItems": 2,
         "prefixItems": [
@@ -258,7 +258,7 @@
       },
       "fixedMoonAngles": {
         "type": "array",
-        "description": "Locks the moon disk and its shadow direction to a fixed altitude and azimuth (in degrees) while a fixed cycle mode is active, overriding the default fixed-night moon position. Altitude is from the ground up, azimuth is clockwise from north. Unused in DYNAMIC mode.",
+        "description": "Fixed moon altitude and azimuth in degrees for fixed cycle modes. Overrides the default fixed-night position for the moon disk and shadows. Altitude is above the ground; azimuth is clockwise from north. Unused in DYNAMIC mode.",
         "minItems": 2,
         "maxItems": 2,
         "prefixItems": [
@@ -318,48 +318,48 @@
       },
       "sunStrength": {
         "type": "number",
-        "description": "How strongly the procedural sun is allowed to color this area's sky (0 to 1). 1 = full procedural sky (default). Lower values pull a dark area's sky away from the procedural sunrise/sunset colors, toward the area's own `fogColor` by day and toward the night sky after dusk. Unlike `sunriseSunsetStrength`, which only holds the twilight window, this suppresses the procedural sky and sun glow at all times of day. Only affects the sky gradient, not the scene's directional light - use `sunlightStrength` for that.",
+        "description": "Procedural sun strength for the sky gradient (0 to 1). Defaults to 1. Lower values favor `fogColor` by day and the night sky after dusk, and suppress the sun glow. Does not affect directional light; use `sunlightStrength` for that.",
         "minimum": 0,
         "maximum": 1
       },
       "starVisibility": {
         "type": "number",
-        "description": "Star visibility multiplier for this area (0 to 1). 1 (default) shows the full starfield at night; 0 hides stars entirely, e.g. for areas with a permanently overcast or magically-lit sky. Also acts as the fallback for `auroraVisibility` when that is left unset. Stars still only appear at night and fade with the daylight; this scales how visible they are when they do.",
+        "description": "Star visibility multiplier for this area (0 to 1). Defaults to 1. Also defaults `auroraVisibility`. Stars still appear only at night and fade with daylight.",
         "minimum": 0,
         "maximum": 1
       },
       "moonVisibility": {
         "type": "number",
-        "description": "Moon visibility multiplier for this area (0 to 1). 1 (default) shows the moon normally; 0 hides the moon disk entirely. Independent of `forceMoonActive`, which controls whether the moon is shown at all when the player's 'Moon' toggle is off - this scales how visible it is once shown.",
+        "description": "Moon visibility multiplier for this area (0 to 1). Defaults to 1. Independent of `forceMoonActive`, which controls whether the moon is shown when the player's 'Moon' option is off.",
         "minimum": 0,
         "maximum": 1
       },
       "sunriseSunsetStrength": {
         "type": "number",
-        "description": "How strongly the procedural day & night sunrise/sunset is allowed to paint this area's sky (0 to 1). 1 = full procedural sunrise/sunset (default). Lower values hold the sky at the area's own regional (fogColor) color through the twilight window and fade the procedural sun glow, so a vividly-colored area (e.g. a blood-red sky) doesn't turn orange/blue at sunrise/sunset. Independent of sunStrength; affects only the sky gradient and sun glow, not daytime or nighttime colors.",
+        "description": "Procedural sunrise/sunset strength for the sky gradient (0 to 1). Defaults to 1. Lower values retain `fogColor` through twilight and fade the sun glow. Does not affect directional light.",
         "minimum": 0,
         "maximum": 1
       },
       "skyColorTakeoverAngle": {
         "type": "number",
-        "description": "Sun altitude in degrees at which this area's own sky color (fogColor) has fully taken over from the procedural sunrise/sunset gradient as the sun climbs. Lower values pull the area color in earlier in the morning (and hold it later in the evening), compressing the procedural twilight; higher values let the procedural gradient persist further up the sky. 0 means the area color takes over immediately at the horizon (no procedural sunrise/sunset gradient during the day). Applies to all areas regardless of sunriseSunsetStrength. Defaults to 40.",
+        "description": "Sun altitude in degrees where `fogColor` fully replaces the procedural sky gradient. Lower values shorten the procedural twilight; 0 replaces it at the horizon. Defaults to 40.",
         "minimum": 0,
         "maximum": 90
       },
       "auroraVisibility": {
         "type": "number",
-        "description": "Aurora visibility multiplier for this area (0 to 1), controllable independently of starVisibility. Auroras still only appear on the randomly-selected aurora nights and fade with the night; this scales how visible they are when they do. When omitted it falls back to starVisibility (the original behavior, where hiding stars also hides auroras). Set it explicitly to decouple: 0 hides auroras while keeping stars, 1 shows full auroras even where stars are dimmed.",
+        "description": "Aurora visibility multiplier for this area (0 to 1). Defaults to `starVisibility`; set explicitly to control auroras independently. Auroras still appear only on aurora nights and fade with daylight.",
         "minimum": 0,
         "maximum": 1
       },
       "moonSizeMult": {
         "type": "number",
-        "description": "Moon size multiplier for this area. Scales the moon disk together with its glow and the star-occlusion mask around it. 1 (default) is the normal size; values above 1 make the moon larger, below 1 smaller.",
+        "description": "Moon size multiplier for this area. Scales the disk, glow and star-occlusion mask. Defaults to 1.",
         "minimum": 0
       },
       "starHorizonHeight": {
         "type": "number",
-        "description": "Vertical position of the night sky's horizon line - the band where stars, nebulas, shooting stars and the moon fade out toward the ground so the sky converges to the plain gradient/fog color and the world edge stays hidden. 1 (default) keeps the line just above the true horizon. 0 pushes the fade band below the entire sky, so there is no horizon line at all and the starfield and nebulas wrap the full sphere - use this for void-like set pieces such as the Fragment of Seren arena. Values between 0 and 1 lower the line, values above 1 raise it (2 puts it at the zenith, hiding the night sky entirely). Only controls where the night sky is masked, not how bright it is - use starVisibility and moonVisibility for that.",
+        "description": "Night-sky horizon height, where stars, nebulas, shooting stars and the moon fade into fog. 1 (default) is just above the horizon; 0 removes the horizon line; 2 hides the night sky at the zenith. Does not affect brightness.",
         "minimum": 0,
         "maximum": 2
       }

@@ -72,11 +72,11 @@
       },
       "subsurface": {
         "type": "number",
-        "description": "Strength of fake subsurface scattering, letting light bleed through thin geometry from behind (e.g. leaves, sails & glass). Defaults to 0."
+        "description": "Strength of fake subsurface scattering through thin geometry, such as leaves, sails and glass. Defaults to 0."
       },
       "subsurfaceGlow": {
         "type": "number",
-        "description": "Strength of the tight 'sun through the material' hotspot seen when looking toward the light source through the surface. Defaults to 0."
+        "description": "Strength of the 'sun through the material' hotspot when viewed toward the light source. Defaults to 0."
       },
       "displacementScale": {
         "type": "number",
