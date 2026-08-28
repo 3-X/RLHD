@@ -190,7 +190,6 @@ public class ZoneRenderer implements Renderer {
 	private float effectiveDirectionalStrength;
 	// Scratch, reused each frame to keep the render loop allocation-free.
 	private final float[] directionalAngles = new float[2];
-	private final DayNightLighting.Lighting lighting = new DayNightLighting.Lighting();
 
 	public final RenderState renderState = new RenderState();
 	public final CommandBuffer sceneCmd = new CommandBuffer("Scene");
@@ -704,11 +703,11 @@ public class ZoneRenderer implements Renderer {
 
 		// Seed this frame's lighting from the environment, then let the day & night cycle
 		// override whatever it drives.
-		lighting.seedFrom(environmentManager);
+		dayNightLighting.seedFromEnvironment();
 
 		if (dayNightLighting.isActive()) {
 			shouldRenderSky = true;
-			dayNightLighting.computeLighting(lighting);
+			dayNightLighting.computeLighting();
 		} else if (shouldRenderSky) {
 			// Cycle just turned off, so restore the non-cycle sky defaults. The scene clear
 			// falls back to the environment's fog color while shouldRenderSky is false.
@@ -717,12 +716,12 @@ public class ZoneRenderer implements Renderer {
 		}
 		plugin.uboSkybox.upload();
 
-		float[] directionalColor = lighting.directionalColor;
-		float directionalStrength = lighting.directionalStrength;
-		float[] ambientColor = lighting.ambientColor;
-		float ambientStrength = lighting.ambientStrength;
-		float[] fogColor = lighting.fogColorSrgb;
-		float[] waterColor = lighting.waterColor;
+		float[] directionalColor = dayNightLighting.directionalColor;
+		float directionalStrength = dayNightLighting.directionalStrength;
+		float[] ambientColor = dayNightLighting.ambientColor;
+		float ambientStrength = dayNightLighting.ambientStrength;
+		float[] fogColor = dayNightLighting.fogColorSrgb;
+		float[] waterColor = dayNightLighting.waterColor;
 
 		// Hide the game's own skybox models so the cycle's sky shows in their place. Needs
 		// all three: the gradient sky must actually be rendering (otherwise hiding leaves a
@@ -1011,7 +1010,7 @@ public class ZoneRenderer implements Renderer {
 			// Use the cycle's fog color if it's driving this frame, otherwise the environment's
 			float[] fogColor = { 0, 0, 0 };
 			if (!shouldRenderVanillaSkybox)
-				fogColor = shouldRenderSky ? lighting.fogColorSrgb : ColorUtils.linearToSrgb(environmentManager.currentFogColor);
+				fogColor = shouldRenderSky ? dayNightLighting.fogColorSrgb : ColorUtils.linearToSrgb(environmentManager.currentFogColor);
 
 			float[] gammaCorrectedFogColor = pow(fogColor, plugin.getGammaCorrection());
 			glClearColor(

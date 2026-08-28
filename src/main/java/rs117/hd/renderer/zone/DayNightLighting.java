@@ -91,32 +91,30 @@ public class DayNightLighting {
 	@Inject
 	private TimeOfDay timeOfDay;
 
-	// The lighting values a frame is built from. Seeded from the environment via seedFrom, then
-	// computeLighting overwrites whatever the cycle drives. Colors are linear except
+	// The lighting values a frame is built from. Seeded from the environment via
+	// seedFromEnvironment, then computeLighting overwrites whatever the cycle drives. Colors are linear except
 	// fogColorSrgb, which is sRGB to match the skybox.
 	//
-	// The color arrays are owned by this object and reused every frame, so a frame allocates
+	// The color arrays are owned by this service and reused every frame, so a frame allocates
 	// nothing and, more importantly, nothing here ever aliases EnvironmentManager's arrays.
 	// Writing through one of those would silently corrupt the environment's own state, and the
 	// damage would surface somewhere unrelated. Copying on seed makes that impossible rather
 	// than merely unlikely, so callers are free to modify these in place.
-	public static class Lighting {
-		public final float[] directionalColor = new float[3];
-		public final float[] ambientColor = new float[3];
-		public final float[] fogColorSrgb = new float[3];
-		public final float[] waterColor = new float[3];
-		public float directionalStrength;
-		public float ambientStrength;
+	public final float[] directionalColor = new float[3];
+	public final float[] ambientColor = new float[3];
+	public final float[] fogColorSrgb = new float[3];
+	public final float[] waterColor = new float[3];
+	public float directionalStrength;
+	public float ambientStrength;
 
-		// Copy the environment's current lighting in as this frame's starting point
-		public void seedFrom(EnvironmentManager env) {
-			copyTo(directionalColor, env.currentDirectionalColor);
-			copyTo(ambientColor, env.currentAmbientColor);
-			copyTo(waterColor, env.currentWaterColor);
-			copyTo(fogColorSrgb, ColorUtils.linearToSrgb(env.currentFogColor));
-			directionalStrength = env.currentDirectionalStrength;
-			ambientStrength = env.currentAmbientStrength;
-		}
+	// Copy the environment's current lighting in as this frame's starting point
+	public void seedFromEnvironment() {
+		copyTo(directionalColor, environmentManager.currentDirectionalColor);
+		copyTo(ambientColor, environmentManager.currentAmbientColor);
+		copyTo(waterColor, environmentManager.currentWaterColor);
+		copyTo(fogColorSrgb, ColorUtils.linearToSrgb(environmentManager.currentFogColor));
+		directionalStrength = environmentManager.currentDirectionalStrength;
+		ambientStrength = environmentManager.currentAmbientStrength;
 	}
 
 	// Whether the cycle is driving this frame: enabled in config, and in an area that opts in.
@@ -161,20 +159,20 @@ public class DayNightLighting {
 	}
 
 	// Derives the frame's lighting from the current sun and moon and uploads the skybox UBO.
-	// The caller seeds lighting from the environment first; this modifies it in place. On
-	// return, lighting.fogColorSrgb holds the sky horizon color, which doubles as the fog color.
-	public void computeLighting(Lighting lighting) {
+	// seedFromEnvironment must run first. On return, fogColorSrgb holds the sky horizon color,
+	// which doubles as the fog color.
+	public void computeLighting() {
 		DaylightCycle daylightCycle = timeOfDay.getCurrentCycleMode();
 
-		copyTo(lighting.directionalColor, timeOfDay.getRegionalDirectionalLight(environmentManager.currentDirectionalColor));
-		copyTo(lighting.ambientColor, timeOfDay.getRegionalAmbientLight(environmentManager.currentAmbientColor));
+		copyTo(directionalColor, timeOfDay.getRegionalDirectionalLight(environmentManager.currentDirectionalColor));
+		copyTo(ambientColor, timeOfDay.getRegionalAmbientLight(environmentManager.currentAmbientColor));
 
 		float brightnessMultiplier = timeOfDay.getDynamicBrightnessMultiplier(plugin.configMinimumBrightness);
 		float baseDirectionalStrength = environmentManager.currentDirectionalStrength;
 		// Deliberately ignore the environment's ambientStrength (e.g. WINTER=3.5, AUTUMN=0.3)
 		// while the cycle is active, so the cycle's own brightness multiplier alone controls
 		// how dark nights get. Seasonal values would otherwise fight it.
-		lighting.ambientStrength = brightnessMultiplier;
+		ambientStrength = brightnessMultiplier;
 
 		double sunAltDeg = Math.toDegrees(altitudeOf(timeOfDay.getSunAngles()));
 		double moonAltDeg = timeOfDay.getMoonAltitudeDegrees();
@@ -182,7 +180,7 @@ public class DayNightLighting {
 
 		// Sky gradient as { zenith, horizon, sunGlow }, in sRGB
 		float[][] sky = timeOfDay.getSkyGradientColors(
-			lighting.fogColorSrgb,
+			fogColorSrgb,
 			environmentManager.currentSunStrength,
 			environmentManager.currentSunriseSunsetStrength,
 			environmentManager.currentSkyColorTakeoverAngle
@@ -203,7 +201,7 @@ public class DayNightLighting {
 			// Tint the directional light toward moonlight
 			float[] moonLightColor = environmentManager.currentMoonLightColor;
 			for (int i = 0; i < 3; i++)
-				lighting.directionalColor[i] = mix(lighting.directionalColor[i], moonLightColor[i], moonInfluence);
+				directionalColor[i] = mix(directionalColor[i], moonLightColor[i], moonInfluence);
 
 			tintNightSky(sky, moonInfluence);
 
@@ -221,14 +219,14 @@ public class DayNightLighting {
 			);
 		}
 
-		lighting.directionalStrength = baseDirectionalStrength
+		directionalStrength = baseDirectionalStrength
 			* brightnessMultiplier
 			* environmentManager.currentSunlightStrength;
 
 		// The horizon color doubles as fog, so geometry fading into fog meets the skybox
 		// seamlessly at the horizon.
-		copyTo(lighting.fogColorSrgb, sky[1]);
-		copyTo(lighting.waterColor, ColorUtils.srgbToLinear(sky[1]));
+		copyTo(fogColorSrgb, sky[1]);
+		copyTo(waterColor, ColorUtils.srgbToLinear(sky[1]));
 
 		// Raise the ambient floor to stand in for the moonlight that isn't there, scaling the
 		// boost by how much moonlight is actually missing so the two never stack into an
@@ -253,7 +251,7 @@ public class DayNightLighting {
 			* (1 - moonPresence(moonAltDeg, moonIllumination));
 		float boostedFloor = (plugin.configMinimumBrightness / 100.0f)
 			* (1 + environmentManager.currentMinBrightnessBoost * boostFraction);
-		lighting.ambientStrength = Math.max(lighting.ambientStrength, boostedFloor);
+		ambientStrength = Math.max(ambientStrength, boostedFloor);
 
 		// Fold some of the unshadowed directional light into ambient to stand in for sky-fill
 		// in shadows. Physically this is strongest at night and twilight, where soft moon and
@@ -261,8 +259,8 @@ public class DayNightLighting {
 		// shadows crisp. Fading it out as the sun climbs keeps high-noon shadows as dark as
 		// they are with the cycle off, while preserving the soft look near the horizon.
 		float skyFill = 1 - smoothstep(0, SKY_FILL_FADE_END_DEG, (float) sunAltDeg);
-		add(lighting.ambientColor, lighting.ambientColor, multiply(lighting.directionalColor, (1 - shadowVisibility) * skyFill));
-		lighting.directionalStrength *= shadowVisibility;
+		add(ambientColor, ambientColor, multiply(directionalColor, (1 - shadowVisibility) * skyFill));
+		directionalStrength *= shadowVisibility;
 	}
 
 	// Restore the non-cycle defaults, for when the cycle stops driving the frame

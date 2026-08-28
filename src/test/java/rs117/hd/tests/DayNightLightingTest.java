@@ -24,7 +24,7 @@ public class DayNightLightingTest {
 	// into the environment's state. It was safe only because the one mutating path happened to
 	// be handed a fresh array first - a coincidence, not a guarantee.
 	@Test
-	public void lightingMustNotAliasEnvironmentColors() {
+	public void lightingMustNotAliasEnvironmentColors() throws NoSuchFieldException, IllegalAccessException {
 		EnvironmentManager env = new EnvironmentManager();
 		env.currentDirectionalColor = new float[] { .1f, .2f, .3f };
 		env.currentAmbientColor = new float[] { .4f, .5f, .6f };
@@ -33,8 +33,11 @@ public class DayNightLightingTest {
 		env.currentDirectionalStrength = 2.5f;
 		env.currentAmbientStrength = 1.5f;
 
-		var lighting = new DayNightLighting.Lighting();
-		lighting.seedFrom(env);
+		var lighting = new DayNightLighting();
+		var environmentManagerField = DayNightLighting.class.getDeclaredField("environmentManager");
+		environmentManagerField.setAccessible(true);
+		environmentManagerField.set(lighting, env);
+		lighting.seedFromEnvironment();
 
 		assertNotSame("directionalColor must be a copy", env.currentDirectionalColor, lighting.directionalColor);
 		assertNotSame("ambientColor must be a copy", env.currentAmbientColor, lighting.ambientColor);
