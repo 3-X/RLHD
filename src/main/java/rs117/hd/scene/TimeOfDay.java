@@ -146,26 +146,8 @@ public class TimeOfDay {
 	private static final long SOLSTICE_EPOCH_MS = 1749513600000L;
 
 	/** An hour-of-day in [0, 24) as a millisecond offset from the start of that day. */
-	private static long hoursToMillis(double hourOfDay) {
+	private static long hoursToMillis(float hourOfDay) {
 		return (long) (hourOfDay * HOUR_MS);
-	}
-
-	/**
-	 * Smoothstep over [edge0, edge1], clamped outside it. Every ramp in this file is a
-	 * smoothstep on sun altitude; going through here keeps them readable and consistent.
-	 * Handles a descending range (edge0 &gt; edge1) so ramps that fade out as the sun
-	 * climbs read in their natural direction.
-	 *
-	 * <p>A degenerate range (edge0 == edge1) collapses to 0 rather than a step. The
-	 * takeover-angle ramps below can be given a zero-width range when an area sets
-	 * skyColorTakeoverAngle to 0, and 0 is the value that makes those windows vanish -
-	 * i.e. the regional color takes over immediately at the horizon.
-	 */
-	private static float smoothstep(double edge0, double edge1, double x) {
-		if (edge0 == edge1)
-			return 0;
-		float t = (float) clamp((x - edge0) / (edge1 - edge0), 0, 1);
-		return t * t * (3f - 2f * t);
 	}
 
 	/** In-place {@code dst = mix(dst, src, t)} over the first 3 components. */
@@ -186,16 +168,16 @@ public class TimeOfDay {
 	 * tapering to almost none at night so the cycle's own night colors take over.
 	 * Shared by the directional and ambient blends so they stay in step.
 	 */
-	private static float regionalBlendFactor(double sunAltitudeDegrees) {
+	private static float regionalBlendFactor(float sunAltitudeDegrees) {
 		if (sunAltitudeDegrees >= 30)
 			return 1; // High sun - pure regional, matching the cycle-disabled look
 		if (sunAltitudeDegrees >= 15)
-			return (float) (0.75 + (sunAltitudeDegrees - 15) / 15 * 0.25); // Strong regional
+			return .75f + (sunAltitudeDegrees - 15) / 15 * .25f; // Strong regional
 		if (sunAltitudeDegrees >= 5)
-			return (float) (0.50 + (sunAltitudeDegrees - 5) / 10 * 0.25); // Sunset/late sunrise
+			return .5f + (sunAltitudeDegrees - 5) / 10 * .25f; // Sunset/late sunrise
 		if (sunAltitudeDegrees >= 0)
-			return (float) (0.30 + sunAltitudeDegrees / 5 * 0.20); // Low sun
-		return (float) Math.max(0, 0.30 + sunAltitudeDegrees / 10 * 0.30); // Night/twilight
+			return .3f + sunAltitudeDegrees / 5 * .2f; // Low sun
+		return max(0, .3f + sunAltitudeDegrees / 10 * .3f); // Night/twilight
 	}
 
 	/** Linear blend of two colors: {@code mix(a, b, t)}, as a fresh array. */
@@ -208,11 +190,11 @@ public class TimeOfDay {
 
 	// The natural (unwarped) cycle position where daytime ends and night begins.
 	// 0.0-0.70 maps to 5am-7pm (day, incl. twilight), 0.70-1.0 maps to 7pm-5am (night).
-	private static final double NATURAL_DAY_BOUNDARY = 0.70;
+	private static final float NATURAL_DAY_BOUNDARY = .7f;
 
 	// Probability that any given simulated night is an "aurora night", in
 	// environments flagged aurora-eligible. Rolled deterministically per night.
-	private static final double AURORA_NIGHT_CHANCE = 0.02;
+	private static final float AURORA_NIGHT_CHANCE = .02f;
 
 	// Fixed Night's moon: locked to a prominent spot in the south-east sky and always
 	// rendered full. Uses the same { altitude, azimuth } order as environment fixed angles.
@@ -246,13 +228,13 @@ public class TimeOfDay {
 	// early - the moon is still lighting and shadowing the scene between -10 and 0, so a phase
 	// change there is visible as a brightness jump. Kept here rather than imported so this
 	// class stays independent of the renderer; if that constant moves, this must follow.
-	private static final double MOON_PHASE_ADVANCE_ALTITUDE_RAD = -10 * DEG_TO_RAD;
+	private static final float MOON_PHASE_ADVANCE_ALTITUDE_RAD = -10 * DEG_TO_RAD;
 
 	// Simulated-clock state, preserved across config changes.
 	private long lastUpdateTime = 0;
 	// Start the dynamic cycle at midday. cyclePosition 0.35 maps to 12:00pm
 	// in cyclePositionToHour()'s afternoon range (0.35-0.55 -> 12pm-5pm).
-	private double accumulatedCycleTime = 0.35;
+	private float accumulatedCycleTime = .35f;
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
 	// Player-configured defaults are updated by HdPlugin.updateCachedConfigs().
@@ -305,7 +287,7 @@ public class TimeOfDay {
 	private float[] frameSunDirectionForSky;
 	private float[] frameMoonDirectionForSky;
 	private Float frameMoonIllumination;
-	private Double frameMoonAltitudeDegrees;
+	private Float frameMoonAltitudeDegrees;
 
 	// ===== Per-frame state =======================================================
 
@@ -392,7 +374,7 @@ public class TimeOfDay {
 	// Convert an environment-order fixed angle to the internal {azimuth, altitude} convention.
 	// The half turn preserves the fixed-angle orientation under the corrected sky transform.
 	private static float[] fixedToAstronomicalAngles(float[] fixedAngles) {
-		return new float[] { fixedAngles[1] + (float) Math.PI, fixedAngles[0] };
+		return new float[] { fixedAngles[1] + PI, fixedAngles[0] };
 	}
 
 	/**
@@ -443,13 +425,13 @@ public class TimeOfDay {
 		// (z) component is negated on top of that: without it the season rendered
 		// inverted (equatorial June sun appeared south instead of north). x (east/west)
 		// is left untouched so the correct sunrise-east direction is preserved.
-		double yaw = Math.PI + azimuth;
+		float yaw = PI + azimuth;
 
-		float x = (float) (Math.sin(yaw) * Math.cos(altitude));
-		float y = (float) Math.sin(altitude);
-		float z = (float) (Math.cos(yaw) * Math.cos(altitude));
+		float x = sin(yaw) * cos(altitude);
+		float y = sin(altitude);
+		float z = cos(yaw) * cos(altitude);
 
-		float length = (float) Math.sqrt(x * x + y * y + z * z);
+		float length = sqrt(x * x + y * y + z * z);
 		if (length > 0.0001f) {
 			x /= length;
 			y /= length;
@@ -469,10 +451,10 @@ public class TimeOfDay {
 	 * while the other period is fast-forwarded, and a full cycle still takes
 	 * exactly cycleDurationMinutes.
 	 */
-	private double applyDayLengthWarp(double cyclePosition) {
-		double dayFraction = currentDayLength.dayFraction;
+	private float applyDayLengthWarp(float cyclePosition) {
+		float dayFraction = (float) currentDayLength.dayFraction;
 		// STANDARD (and any config matching the natural split) is the identity map.
-		if (Math.abs(dayFraction - NATURAL_DAY_BOUNDARY) < 1e-6)
+		if (abs(dayFraction - NATURAL_DAY_BOUNDARY) < 1e-6f)
 			return cyclePosition;
 
 		if (cyclePosition < dayFraction) {
@@ -480,8 +462,8 @@ public class TimeOfDay {
 			return (cyclePosition / dayFraction) * NATURAL_DAY_BOUNDARY;
 		} else {
 			// Within the (re-sized) night: scale into the natural night segment.
-			double nightProgress = (cyclePosition - dayFraction) / (1.0 - dayFraction);
-			return NATURAL_DAY_BOUNDARY + nightProgress * (1.0 - NATURAL_DAY_BOUNDARY);
+			float nightProgress = (cyclePosition - dayFraction) / (1 - dayFraction);
+			return NATURAL_DAY_BOUNDARY + nightProgress * (1 - NATURAL_DAY_BOUNDARY);
 		}
 	}
 
@@ -490,7 +472,7 @@ public class TimeOfDay {
 	 * {@link DaylightCycle#usesDayLengthForMoon}: their sun ignores Day Length, while an unlocked
 	 * moon still follows the resized day/night periods.
 	 */
-	private double getMoonCyclePosition() {
+	private float getMoonCyclePosition() {
 		return currentCycleMode.usesDayLengthForMoon
 			? applyDayLengthWarp(accumulatedCycleTime)
 			: accumulatedCycleTime;
@@ -570,18 +552,18 @@ public class TimeOfDay {
 		float sunriseSunsetStrength,
 		float skyColorTakeoverAngle
 	) {
-		double sunAltitude = getSunAngles()[1] * RAD_TO_DEG;
+		float sunAltitude = getSunAngles()[1] * RAD_TO_DEG;
 
 		// Sun altitude at which the area's own color has fully taken over from the
 		// procedural sunrise/sunset gradient. Shared by the sunrise/sunset suppression
 		// window and the daytime regional blend so they stay in sync. Clamped to >= 0;
 		// 0 means the regional color takes over immediately at the horizon.
-		float takeover = Math.max(0, skyColorTakeoverAngle);
+		float takeover = max(0, skyColorTakeoverAngle);
 		float[] regionalLin = regionalFogColor != null ? srgbToLinear(regionalFogColor) : null;
 
-		float[] zenith = AtmosphereUtils.interpolateSrgb((float) sunAltitude, ZENITH_KEYFRAMES);
-		float[] horizon = AtmosphereUtils.interpolateSrgb((float) sunAltitude, HORIZON_KEYFRAMES);
-		float[] sunGlow = AtmosphereUtils.interpolateSrgb((float) sunAltitude, SUN_GLOW_KEYFRAMES);
+		float[] zenith = AtmosphereUtils.interpolateSrgb(sunAltitude, ZENITH_KEYFRAMES);
+		float[] horizon = AtmosphereUtils.interpolateSrgb(sunAltitude, HORIZON_KEYFRAMES);
+		float[] sunGlow = AtmosphereUtils.interpolateSrgb(sunAltitude, SUN_GLOW_KEYFRAMES);
 
 		// 1. sunStrength: suppress the procedural sunset colors for dark environments.
 		// Full suppression above the horizon (the regional blend below takes over from
@@ -616,9 +598,15 @@ public class TimeOfDay {
 		// are strongly blue at mid-high sun (the +15° zenith keyframe is 0x6496C8). That gap
 		// was the "sky goes blue after sunrise before settling into the area's color" bug.
 		if (regionalLin != null && sunriseSunsetStrength < 1) {
-			float window = sunAltitude < 0
-				? smoothstep(-15, 0, sunAltitude)  // ramp in over deep night -> horizon
-				: smoothstep(takeover, 0, sunAltitude); // ramp out from horizon -> takeover
+			float window;
+			if (sunAltitude < 0) {
+				window = smoothstep(-15, 0, sunAltitude); // Ramp in over deep night -> horizon
+			} else if (takeover == 0) {
+				// A zero-width takeover window must vanish rather than become a step.
+				window = 0;
+			} else {
+				window = smoothstep(takeover, 0, sunAltitude); // Ramp out from horizon -> takeover
+			}
 			float suppression = (1 - sunriseSunsetStrength) * window;
 			if (suppression > 0) {
 				blendTowards(zenith, regionalLin, suppression);
@@ -665,7 +653,7 @@ public class TimeOfDay {
 		if (regionalFogColor != null)
 			return regionalFogColor;
 
-		float[] horizonLinear = AtmosphereUtils.interpolateSrgb(90f, HORIZON_KEYFRAMES);
+		float[] horizonLinear = AtmosphereUtils.interpolateSrgb(90, HORIZON_KEYFRAMES);
 		return linearToSrgb(horizonLinear);
 	}
 
@@ -773,13 +761,13 @@ public class TimeOfDay {
 	/**
 	 * Get the moon altitude in degrees, respecting moon behavior mode.
 	 */
-	public double getMoonAltitudeDegrees() {
+	public float getMoonAltitudeDegrees() {
 		if (frameMoonAltitudeDegrees == null)
 			frameMoonAltitudeDegrees = computeMoonAltitudeDegrees();
 		return frameMoonAltitudeDegrees;
 	}
 
-	private double computeMoonAltitudeDegrees() {
+	private float computeMoonAltitudeDegrees() {
 		return getMoonAngles()[1] * RAD_TO_DEG;
 	}
 
@@ -800,8 +788,7 @@ public class TimeOfDay {
 	private boolean isAuroraNight() {
 		// Continuous simulated-day time, with the integer boundary shifted to
 		// midday (cycle pos 0.35) so a night and its index never straddle a flip.
-		double continuousTime = completedCycles + accumulatedCycleTime;
-		int nightIndex = max(1, (int)Math.floor(continuousTime - 0.35) + 1);
+		int nightIndex = max(1, (int) completedCycles + floor(accumulatedCycleTime - .35f) + 1);
 
 		// Cheap integer hash (splitmix64-style finalizer) -> uniform 53-bit mantissa.
 		long h = nightIndex * 0x9E3779B97F4A7C15L;
@@ -831,31 +818,29 @@ public class TimeOfDay {
 	 */
 	public float getAuroraStrength() {
 		if (!isAuroraNight())
-			return 0f;
+			return 0;
 
 		if (!currentCycleMode.isPermanentNight())
-			return 1f;
+			return 1;
 
 		// Position within the current cycle. The night index flips at 0.35 (midday),
 		// so re-center the envelope on that boundary: auroras are absent right after a
 		// flip, swell to full a bit past mid-cycle, then fade back out before the next
 		// flip. phase in [0,1) measured from the 0.35 flip point.
-		double phase = accumulatedCycleTime - 0.35;
-		phase -= Math.floor(phase); // wrap into [0, 1)
+		float phase = accumulatedCycleTime - .35f;
+		phase -= floor(phase); // wrap into [0, 1)
 
 		// Smooth bump: only visible over a fraction of the cycle. Ramp in over
 		// [0.15, 0.40], hold near full through mid-cycle, ramp out over [0.60, 0.85].
 		float env;
-		if (phase < 0.15 || phase > 0.85) {
-			env = 0f;
-		} else if (phase < 0.40) {
-			float t = (float) ((phase - 0.15) / 0.25);
-			env = t * t * (3.0f - 2.0f * t);
-		} else if (phase <= 0.60) {
-			env = 1f;
+		if (phase < .15f || phase > .85f) {
+			env = 0;
+		} else if (phase < .4f) {
+			env = smoothstep(.15f, .4f, phase);
+		} else if (phase <= .6f) {
+			env = 1;
 		} else {
-			float t = (float) ((0.85 - phase) / 0.25);
-			env = t * t * (3.0f - 2.0f * t);
+			env = smoothstep(.85f, .6f, phase);
 		}
 		return env;
 	}
@@ -884,7 +869,7 @@ public class TimeOfDay {
 		// would follow Cycle Duration while the sky follows the real clock.
 		if (currentCycleMode.usesLocalTime) {
 			double[] sa = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
-			return new float[] { (float) (sa[0] + Math.PI), (float) -sa[1] };
+			return new float[] { (float) sa[0] + PI, (float) -sa[1] };
 		}
 
 		// Synced Days: derive the moon's mirror position and phase purely from the
@@ -892,12 +877,12 @@ public class TimeOfDay {
 		// the UTC-synced sun. Stateless - bypasses the pending-increment machinery.
 		if (currentCycleMode.usesUtcSyncedTime) {
 			double[] sa = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
-			return new float[] { (float) (sa[0] + Math.PI), (float) -sa[1] };
+			return new float[] { (float) sa[0] + PI, (float) -sa[1] };
 		}
 
 		// Warp identically to the sun so the night-synced moon stays aligned with
 		// the (now re-sized) day & night periods - moonrise still tracks visual sunset.
-		double cyclePosition = getMoonCyclePosition();
+		float cyclePosition = getMoonCyclePosition();
 
 		// Use a uniform linear mapping: cycle 0→1 maps to a full 24-hour day.
 		// This gives the moon constant angular speed across its whole arc,
@@ -907,8 +892,8 @@ public class TimeOfDay {
 		// at cycle position ~0.65, matching when the piecewise sun visually
 		// reaches the horizon. This keeps moonrise aligned with visual sunset.
 		// 19 = start + 0.65 * 24  =>  start ≈ 3.4
-		double mappedHour = 3.4 + cyclePosition * 24.0;
-		if (mappedHour >= 24.0) mappedHour -= 24.0;
+		float mappedHour = 3.4f + cyclePosition * 24;
+		if (mappedHour >= 24) mappedHour -= 24;
 
 		// Detect newly completed cycles and queue them as pending
 		long newCycles = completedCycles - lastNightSyncedCycles;
@@ -921,7 +906,7 @@ public class TimeOfDay {
 			+ hoursToMillis(mappedHour);
 
 		double[] sunAngles = AtmosphereUtils.getSunAngles(fixedMillis, currentLatLong);
-		double moonAltitude = -sunAngles[1];
+		float moonAltitude = (float) -sunAngles[1];
 
 		// Apply pending day increments only once the moon is far enough down that its light
 		// no longer reaches the scene. A whole simulated day of phase lands at once, which
@@ -938,7 +923,7 @@ public class TimeOfDay {
 			pendingDayIncrements = 0;
 		}
 
-		return new float[] { (float) (sunAngles[0] + Math.PI), (float) moonAltitude };
+		return new float[] { (float) sunAngles[0] + PI, moonAltitude };
 	}
 
 	// Maps the local calendar date and wall-clock time to UTC because the cycle uses longitude
@@ -953,25 +938,25 @@ public class TimeOfDay {
 	 * night). Shared by the Dynamic cycle and Synced Days so both share the same
 	 * sun arc shape.
 	 */
-	private double cyclePositionToHour(double cyclePosition) {
+	private float cyclePositionToHour(float cyclePosition) {
 		// 0.0-0.15  dawn/sunrise twilight -> 5am-7am
 		// 0.15-0.35 morning               -> 7am-12pm
 		// 0.35-0.55 afternoon             -> 12pm-5pm
 		// 0.55-0.70 sunset twilight       -> 5pm-7pm
 		// 0.70-0.85 early night           -> 7pm-12am
 		// 0.85-1.0  late night/pre-dawn   -> 12am-5am
-		if (cyclePosition < 0.15) {
-			return 5.0 + (cyclePosition / 0.15) * 2.0;
-		} else if (cyclePosition < 0.35) {
-			return 7.0 + ((cyclePosition - 0.15) / 0.20) * 5.0;
-		} else if (cyclePosition < 0.55) {
-			return 12.0 + ((cyclePosition - 0.35) / 0.20) * 5.0;
-		} else if (cyclePosition < 0.70) {
-			return 17.0 + ((cyclePosition - 0.55) / 0.15) * 2.0;
-		} else if (cyclePosition < 0.85) {
-			return 19.0 + ((cyclePosition - 0.70) / 0.15) * 5.0;
+		if (cyclePosition < .15f) {
+			return 5 + cyclePosition / .15f * 2;
+		} else if (cyclePosition < .35f) {
+			return 7 + (cyclePosition - .15f) / .2f * 5;
+		} else if (cyclePosition < .55f) {
+			return 12 + (cyclePosition - .35f) / .2f * 5;
+		} else if (cyclePosition < .7f) {
+			return 17 + (cyclePosition - .55f) / .15f * 2;
+		} else if (cyclePosition < .85f) {
+			return 19 + (cyclePosition - .7f) / .15f * 5;
 		} else {
-			return ((cyclePosition - 0.85) / 0.15) * 5.0;
+			return (cyclePosition - .85f) / .15f * 5;
 		}
 	}
 
@@ -979,8 +964,8 @@ public class TimeOfDay {
 	 * Synced Days cycle position in [0, 1): where we are within the current UTC
 	 * hour. Stateless and identical for every player at a given UTC instant.
 	 */
-	private double getSyncedDaysCyclePosition(long currentTimeMillis) {
-		return (currentTimeMillis % SYNCED_DAYS_PERIOD_MS) / (double) SYNCED_DAYS_PERIOD_MS;
+	private float getSyncedDaysCyclePosition(long currentTimeMillis) {
+		return (float) (currentTimeMillis % SYNCED_DAYS_PERIOD_MS) / SYNCED_DAYS_PERIOD_MS;
 	}
 
 	// ===== Simulated clock =======================================================
@@ -1014,17 +999,17 @@ public class TimeOfDay {
 		long realTimeElapsed = currentTimeMillis - lastUpdateTime;
 
 		// Convert cycle duration from minutes to milliseconds for the full cycle
-		double cycleDurationMillis = currentCycleDuration * 60.0 * 1000.0; // minutes to milliseconds
+		float cycleDurationMillis = currentCycleDuration * 60 * 1000; // minutes to milliseconds
 
 		// Calculate how much cycle time has progressed based on current day length
-		double cycleTimeElapsed = realTimeElapsed / cycleDurationMillis;
+		float cycleTimeElapsed = (float) realTimeElapsed / cycleDurationMillis;
 
 		// Add to accumulated cycle time to maintain continuity
 		accumulatedCycleTime += cycleTimeElapsed;
 
 		// Track completed cycles (each = one simulated day) for moon phase progression
-		while (accumulatedCycleTime >= 1.0) {
-			accumulatedCycleTime -= 1.0;
+		while (accumulatedCycleTime >= 1) {
+			accumulatedCycleTime -= 1;
 			completedCycles++;
 		}
 
@@ -1039,7 +1024,7 @@ public class TimeOfDay {
 			case SYNCED_DAYS:
 				// A full day & night per real UTC hour. The resulting sky is identical for all
 				// players and independent of Cycle Duration.
-				double syncedCyclePosition = getSyncedDaysCyclePosition(currentTimeMillis);
+				float syncedCyclePosition = getSyncedDaysCyclePosition(currentTimeMillis);
 				long syncedDay = currentTimeMillis / SYNCED_DAYS_PERIOD_MS;
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
 				currentInstant = syncedStartOfDay.plusMillis(hoursToMillis(cyclePositionToHour(syncedCyclePosition)));
@@ -1053,13 +1038,13 @@ public class TimeOfDay {
 				// Cycle tracking above continues for moon calculations, but the sun's instant
 				// remains at this mode's authored time of day.
 				long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-				currentInstant = Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
+				currentInstant = Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis((float) currentCycleMode.getFixedHour()));
 				break;
 			case DYNAMIC:
 				// Warp the linear cycle clock so day and night occupy the configured share,
 				// then feed it through the twilight-weighted sun mapping.
-				double cyclePosition = applyDayLengthWarp(accumulatedCycleTime);
-				double mappedHour = cyclePositionToHour(cyclePosition);
+				float cyclePosition = applyDayLengthWarp(accumulatedCycleTime);
+				float mappedHour = cyclePositionToHour(cyclePosition);
 				Instant startOfDay = currentInstant.truncatedTo(ChronoUnit.DAYS)
 					.plus(completedCycles, ChronoUnit.DAYS);
 				currentInstant = startOfDay.plusMillis(hoursToMillis(mappedHour));
@@ -1094,30 +1079,28 @@ public class TimeOfDay {
 		// Warp only the within-cycle fraction so the realistic moon's position tracks
 		// the re-sized day & night, while whole completed cycles still advance the lunar
 		// phase linearly (preventing phase jitter from the warp).
-		double totalSimulatedDays = completedCycles + getMoonCyclePosition();
-		long totalOffsetMillis = (long) (totalSimulatedDays * DAY_MS);
+		long totalOffsetMillis = completedCycles * DAY_MS + (long) (getMoonCyclePosition() * DAY_MS);
 
 		return startOfDay.plusMillis(totalOffsetMillis);
 	}
 
 	public boolean isNight(float[] angles) {
-		double angleFromZenith = Math.abs(angles[1] - Math.PI / 2);
-		return angleFromZenith > Math.PI / 2;
+		float angleFromZenith = abs(angles[1] - HALF_PI);
+		return angleFromZenith > HALF_PI;
 	}
 
 	public float getNightLightFactor() {
 		// Fixed Twilight/Sunset should contribute the same partial night factor as a
 		// moving sky at that altitude; fixed modes already return their authored sun angle.
 		float[] sunAngles = getSunAngles();
-		double sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
+		float sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
 
 		if (sunAltitudeDegrees >= 5)
-			return 0f;
+			return 0;
 		if (sunAltitudeDegrees <= -18)
-			return 1f;
+			return 1;
 
-		float t = (float) ((5.0 - sunAltitudeDegrees) / 23.0);
-		return t * t * (3.0f - 2.0f * t);
+		return smoothstep(5, -18, sunAltitudeDegrees);
 	}
 
 	public float getDynamicBrightnessMultiplier(int minimumBrightness) {
@@ -1126,7 +1109,7 @@ public class TimeOfDay {
 		float[] sunAngles = getSunAngles();
 
 		// Calculate sun altitude in degrees (-90 to 90, where 90 is directly overhead)
-		double sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
+		float sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
 
 		// Convert minimum brightness from percentage to decimal
 		float minBrightness = minimumBrightness / 100.0f;
@@ -1139,16 +1122,14 @@ public class TimeOfDay {
 			// Night: smoothstep from minBrightness at -18° to twilightBrightness at -5°
 			// twilightBrightness is partway between min and horizon
 			float twilightBrightness = minBrightness + 0.07f;
-			float t = (float) ((sunAltitudeDegrees + 18.0) / 13.0); // 0 at -18°, 1 at -5°
-			float s = t * t * (3.0f - 2.0f * t);
+			float s = smoothstep(-18, -5, sunAltitudeDegrees);
 			return minBrightness + (twilightBrightness - minBrightness) * s;
 		} else if (sunAltitudeDegrees <= 5) {
 			// Horizon transition: smoothstep from twilightBrightness at -5° to earlyDayBrightness at +5°
 			// This zone spans the critical 0° boundary with a single smooth curve
 			float twilightBrightness = minBrightness + 0.07f;
 			float earlyDayBrightness = horizonBrightness + 0.05f;
-			float t = (float) ((sunAltitudeDegrees + 5.0) / 10.0); // 0 at -5°, 1 at +5°
-			float s = t * t * (3.0f - 2.0f * t);
+			float s = smoothstep(-5, 5, sunAltitudeDegrees);
 			return twilightBrightness + (earlyDayBrightness - twilightBrightness) * s;
 		} else {
 			// Daytime: sine curve from earlyDayBrightness at +5° to peak at 90°.
@@ -1156,12 +1137,11 @@ public class TimeOfDay {
 			// base strengths (i.e. how the world looks with the cycle disabled).
 			float earlyDayBrightness = horizonBrightness + 0.05f;
 			float peakBrightness = 1.2f;
-			double sineFactor = Math.sin(sunAltitudeDegrees * DEG_TO_RAD);
+			float sineFactor = sin(sunAltitudeDegrees * DEG_TO_RAD);
 			// Scale so that at 5°, we match earlyDayBrightness
-			double sineAt5 = Math.sin(5.0 * DEG_TO_RAD);
-			double normalizedSine = (sineFactor - sineAt5) / (1.0 - sineAt5);
-			normalizedSine = Math.max(0, normalizedSine);
-			return (float) (earlyDayBrightness + (peakBrightness - earlyDayBrightness) * normalizedSine);
+			float sineAt5 = sin(5 * DEG_TO_RAD);
+			float normalizedSine = max(0, (sineFactor - sineAt5) / (1 - sineAt5));
+			return earlyDayBrightness + (peakBrightness - earlyDayBrightness) * normalizedSine;
 		}
 	}
 }
