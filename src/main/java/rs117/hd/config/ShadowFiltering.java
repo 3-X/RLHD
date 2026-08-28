@@ -4,14 +4,19 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum ShadowFiltering {
-	NEAREST(0, 1),
-	SMOOTH_LOW(0, 2),
-	SMOOTH_HIGH(0, 3),
-	DITHERED_LOW(1, 1),
-	DITHERED_HIGH(1, 2),
-	PIXELATED(2, 2);
+	NEAREST(Mode.PCF, 1),
+	SMOOTH_LOW(Mode.PCF, 2),
+	SMOOTH_HIGH(Mode.PCF, 3),
+	DITHERED_LOW(Mode.DITHER, 1),
+	DITHERED_HIGH(Mode.DITHER, 2),
+	PIXELATED(Mode.AVERAGE, 2);
 
-	// 0 = Smoothed, 1 = Dithered, 2 = Pixelated
-	public final int filtering;
+	public final Mode filtering;
 	public final int kernalSize;
+
+	public enum Mode {
+		PCF,
+		DITHER,
+		AVERAGE,
+	}
 }
