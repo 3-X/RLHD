@@ -762,7 +762,7 @@ public class EnvironmentManager {
 	}
 
 	/**
-	 * The fixed sun angles {azimuth, altitude} in radians forced by the current
+	 * The fixed sun angles [altitude, azimuth] in radians from the current
 	 * environment, or null for none. Read directly (not blended) so the locked
 	 * sun snaps to the new environment rather than swinging across the sky during
 	 * a transition - matching how {@link #getForcedCycleMode()} is handled.
@@ -773,7 +773,7 @@ public class EnvironmentManager {
 	}
 
 	/**
-	 * The fixed moon angles {azimuth, altitude} in radians forced by the current
+	 * The fixed moon angles [altitude, azimuth] in radians from the current
 	 * environment, or null for none. See {@link #getForcedFixedSunAngles()}.
 	 */
 	@Nullable

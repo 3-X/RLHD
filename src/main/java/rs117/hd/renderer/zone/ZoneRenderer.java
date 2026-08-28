@@ -106,7 +106,7 @@ public class ZoneRenderer implements Renderer {
 	private static int UNIFORM_BLOCK_COUNT = HdPlugin.UNIFORM_BLOCK_COUNT;
 	public static final int UNIFORM_BLOCK_WORLD_VIEWS = UNIFORM_BLOCK_COUNT++;
 
-	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = (float) Math.toRadians(0.25);
+	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = 0.25f * DEG_TO_RAD;
 
 	@Inject
 	private Injector injector;

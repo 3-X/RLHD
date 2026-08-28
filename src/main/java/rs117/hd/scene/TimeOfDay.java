@@ -1,7 +1,9 @@
 package rs117.hd.scene;
 
 import java.time.Instant;
-import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -17,6 +19,7 @@ import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
 import rs117.hd.utils.AtmosphereUtils;
+import rs117.hd.utils.HDUtils;
 
 import static rs117.hd.utils.ColorUtils.linearToSrgb;
 import static rs117.hd.utils.ColorUtils.rgb;
@@ -45,9 +48,9 @@ import static rs117.hd.utils.MathUtils.*;
  *   <li><b>Internal / astronomical:</b> {@code {azimuth, altitude}} in radians. Returned by
  *       {@link AtmosphereUtils#getSunAngles} and {@link AtmosphereUtils#getMoonPosition},
  *       and used by every method on this class.</li>
- *   <li><b>Environment-file:</b> {@code {altitude, azimuth}} in radians, matching
- *       {@code Environment.sunAngles}. Only crosses the boundary in
- *       {@link #setFixedAngleOverrides}, which flips it to the internal order.</li>
+ *   <li><b>Fixed-angle data:</b> {@code {altitude, azimuth}} in radians, matching
+ *       {@code Environment.fixedSunAngles} and {@code Environment.fixedMoonAngles}.
+ *       This is retained until a fixed angle enters the astronomical calculations.</li>
  * </ul>
  *
  * <h2>Cycle modes</h2>
@@ -58,7 +61,7 @@ import static rs117.hd.utils.MathUtils.*;
  *       and maps to an hour of day via {@link #cyclePositionToHour}.</li>
  *   <li><b>REAL_TIME / SYNCED_DAYS</b> - stateless: the instant is derived directly from the
  *       player's local clock, or from the UTC clock so all players see the same sky.</li>
- *   <li><b>The fixed modes</b> ({@link #isFixedMode}) - the sun sits at a constant angle,
+ *   <li><b>The fixed modes</b> ({@link DaylightCycle#isFixed}) - the sun sits at a constant angle,
  *       bypassing the clock entirely. See {@link #getFixedModeSunAngles}.</li>
  * </ul>
  */
@@ -212,10 +215,8 @@ public class TimeOfDay {
 	private static final double AURORA_NIGHT_CHANCE = 0.02;
 
 	// Fixed Night's moon: locked to a prominent spot in the south-east sky and always
-	// rendered full. An environment may override this per-area via fixedMoonAngles.
-	// 135° south-east plus the same 180° pre-rotation documented on DaylightCycle.
-	private static final double FIXED_NIGHT_MOON_AZIMUTH = Math.toRadians(135 + 180);
-	private static final double FIXED_NIGHT_MOON_ALTITUDE = Math.toRadians(25); // low in the sky
+	// rendered full. Uses the same { altitude, azimuth } order as environment fixed angles.
+	private static final float[] FIXED_NIGHT_MOON_ANGLES = HDUtils.sunAngles(25, 135);
 
 	// Latitudes used for the seasonal-hemisphere-based sun/moon arc: New York City
 	// (northern) and Rio de Janeiro (southern). Only latitude affects the sun's
@@ -224,12 +225,12 @@ public class TimeOfDay {
 	private static final double[] NORTHERN_LAT_LONG = { 40.7128, 0.0 };  // New York City
 	private static final double[] SOUTHERN_LAT_LONG = { -22.9068, 0.0 }; // Rio de Janeiro
 
-	// Per-environment fixed-angle overrides {azimuth, altitude} in radians, or
+	// Per-environment fixed-angle overrides {altitude, azimuth} in radians, or
 	// null to use astronomical/default angles. Set once per frame by the renderer
 	// from the current environment. Only consulted while a fixed cycle mode is
-	// active (see isFixedMode) - the dynamic cycle always computes angles.
-	private double[] fixedSunAnglesOverride = null;
-	private double[] fixedMoonAnglesOverride = null;
+	// active - the dynamic cycle always computes angles.
+	private float[] fixedSunAnglesOverride = null;
+	private float[] fixedMoonAnglesOverride = null;
 
 	// Night Synced mode: day offset advances only once the moon is low enough that its light
 	// no longer reaches the scene, so phase changes are never visible. We track pending
@@ -245,7 +246,7 @@ public class TimeOfDay {
 	// early - the moon is still lighting and shadowing the scene between -10 and 0, so a phase
 	// change there is visible as a brightness jump. Kept here rather than imported so this
 	// class stays independent of the renderer; if that constant moves, this must follow.
-	private static final double MOON_PHASE_ADVANCE_ALTITUDE_RAD = Math.toRadians(-10);
+	private static final double MOON_PHASE_ADVANCE_ALTITUDE_RAD = -10 * DEG_TO_RAD;
 
 	// Simulated-clock state, preserved across config changes.
 	private long lastUpdateTime = 0;
@@ -288,12 +289,19 @@ public class TimeOfDay {
 	@Getter
 	private Instant currentInstant;
 
+	// The single wall-clock sample for this frame. currentInstant is often remapped to a
+	// simulated time, so retain the original separately for real-time moon phases and dates.
+	private long frameWallClockMillis;
+	private Instant frameWallClockInstant;
+	private ZonedDateTime frameLocalTime;
+
 	// Per-frame astronomy snapshot. update() already pins the wall-clock instant
 	// once per frame; these cache the ephemeris solves derived from it, so the
 	// ~12 getter calls per frame share one solve instead of re-deriving.
 	// Callers must treat the returned arrays as read-only - they are shared.
-	private double[] frameSunAngles;
-	private double[] frameNightSyncedMoonAngles;
+	private float[] frameSunAngles;
+	private float[] frameMoonAngles;
+	private float[] frameNightSyncedMoonAngles;
 	private float[] frameSunDirectionForSky;
 	private float[] frameMoonDirectionForSky;
 	private Float frameMoonIllumination;
@@ -307,6 +315,7 @@ public class TimeOfDay {
 	 */
 	public void beginFrame() {
 		frameSunAngles = null;
+		frameMoonAngles = null;
 		frameNightSyncedMoonAngles = null;
 		frameSunDirectionForSky = null;
 		frameMoonDirectionForSky = null;
@@ -328,27 +337,25 @@ public class TimeOfDay {
 	/**
 	 * Set the per-environment fixed sun/moon angle overrides for this frame.
 	 * <p>
-	 * Inputs are in the environment-file convention {altitude, azimuth} in radians
-	 * (the same order as Environment.sunAngles), or null for no override. They are
-	 * stored internally as {azimuth, altitude} to match the convention returned by
-	 * AtmosphereUtils.getSunAngles()/getMoonPosition() and consumed by the rest of
-	 * this class.
+	 * Inputs use the environment convention {altitude, azimuth} in radians, or null for no
+	 * override. Fixed-angle APIs retain that order; conversion happens only when an angle enters
+	 * the astronomical calculations.
 	 * <p>
 	 * Applied from {@link #update()}. Only takes effect under a fixed cycle
 	 * mode; the dynamic cycle ignores these.
 	 */
 	private void setFixedAngleOverrides(@Nullable float[] sunAngles, @Nullable float[] moonAngles) {
-		// sunAngles/moonAngles are {altitude, azimuth}; store {azimuth, altitude}.
-		// Add PI to the azimuth: anglesToSkyDirection was changed (PI - az -> PI + az,
+		// Keep {altitude, azimuth}. Add PI only when converting to the internal astronomical
+		// representation: anglesToSkyDirection was changed (PI - az -> PI + az,
 		// with the north/south component negated) to correct the real astronomical sun,
 		// which rotates any fixed angle 180° in azimuth. These overrides were hand-
-		// authored to look right under the old transform, so we rotate them back 180°
-		// here - a single point that feeds both the disk and its shadow - so every
+		// authored to look right under the old transform, so the conversion rotates them back
+		// 180° at the single boundary that feeds both the disk and its shadow, so every
 		// existing fixedSunAngles/fixedMoonAngles renders exactly as before.
-		double[] newSun = sunAngles == null ? null :
-			new double[] { sunAngles[1] + Math.PI, sunAngles[0] };
-		double[] newMoon = moonAngles == null ? null :
-			new double[] { moonAngles[1] + Math.PI, moonAngles[0] };
+		float[] newSun = sunAngles == null ? null :
+			new float[] { sunAngles[0], sunAngles[1] };
+		float[] newMoon = moonAngles == null ? null :
+			new float[] { moonAngles[0], moonAngles[1] };
 		fixedSunAnglesOverride = newSun;
 		fixedMoonAnglesOverride = newMoon;
 	}
@@ -370,29 +377,35 @@ public class TimeOfDay {
 	}
 
 	/**
-	 * Resolve the fixed sun angles {azimuth, altitude} (radians, internal convention)
+	 * Resolve the fixed sun angles {altitude, azimuth} in radians
 	 * for the active fixed cycle mode: the environment's fixedSunAngles override when
 	 * present, otherwise the built-in per-mode constant. Only valid for a fixed cycle mode.
 	 * Drives everything sun-related in fixed modes (disk, shadow, sky colors, brightness)
 	 * so those modes no longer depend on incremented time.
 	 */
-	public double[] getFixedModeSunAngles() {
+	public float[] getFixedModeSunAngles() {
 		if (fixedSunAnglesOverride != null)
-			return new double[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
+			return new float[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
 		return currentCycleMode.getFixedSunAngles();
 	}
 
+	// Convert an environment-order fixed angle to the internal {azimuth, altitude} convention.
+	// The half turn preserves the fixed-angle orientation under the corrected sky transform.
+	private static float[] fixedToAstronomicalAngles(float[] fixedAngles) {
+		return new float[] { fixedAngles[1] + (float) Math.PI, fixedAngles[0] };
+	}
+
 	/**
-	 * Fixed moon angles {azimuth, altitude} in radians for the current fixed
+	 * Fixed moon angles {altitude, azimuth} in radians for the current fixed
 	 * mode. Returns the environment's fixedMoonAngles override when set,
 	 * otherwise the default Fixed Night position. Used both for the sky moon
 	 * direction and the shadow-casting light direction so the moon disk and the
 	 * shadows it casts stay locked together.
 	 */
-	public double[] getFixedNightMoonAngles() {
+	public float[] getFixedNightMoonAngles() {
 		if (fixedMoonAnglesOverride != null)
-			return new double[] { fixedMoonAnglesOverride[0], fixedMoonAnglesOverride[1] };
-		return new double[] { FIXED_NIGHT_MOON_AZIMUTH, FIXED_NIGHT_MOON_ALTITUDE };
+			return new float[] { fixedMoonAnglesOverride[0], fixedMoonAnglesOverride[1] };
+		return new float[] { FIXED_NIGHT_MOON_ANGLES[0], FIXED_NIGHT_MOON_ANGLES[1] };
 	}
 
 	/**
@@ -411,9 +424,11 @@ public class TimeOfDay {
 		return currentCycleMode.isFixed && fixedMoonAnglesOverride != null;
 	}
 
-	/** The fixed sun angles {azimuth, altitude} in radians. Only valid when {@link #hasFixedSunOverride()}. */
-	public double[] getFixedSunAngles() {
-		return new double[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
+	/**
+	 * The fixed sun angles {altitude, azimuth} in radians. Only valid when {@link #hasFixedSunOverride()}.
+	 */
+	public float[] getFixedSunAngles() {
+		return new float[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
 	}
 
 	/**
@@ -422,7 +437,7 @@ public class TimeOfDay {
 	 * (pitch = altitude, yaw = PI - azimuth). Shared by the sun/moon sky
 	 * direction getters.
 	 */
-	private float[] anglesToSkyDirection(double azimuth, double altitude) {
+	private float[] anglesToSkyDirection(float azimuth, float altitude) {
 		// yaw = PI + azimuth maps the (now real, non-reversed) astronomical azimuth to
 		// the renderer's sky direction so the sun/moon rise in the east. The north/south
 		// (z) component is negated on top of that: without it the season rendered
@@ -489,19 +504,20 @@ public class TimeOfDay {
 	 *
 	 * @see <a href="https://en.wikipedia.org/wiki/Horizontal_coordinate_system">Horizontal coordinate system</a>
 	 */
-	public double[] getSunAngles() {
+	public float[] getSunAngles() {
 		if (frameSunAngles == null)
 			frameSunAngles = computeSunAngles();
 		return frameSunAngles;
 	}
 
-	private double[] computeSunAngles() {
+	private float[] computeSunAngles() {
 		// Fixed modes return their fixed angle directly, bypassing the time machinery.
 		// Every sun-position-dependent value (sky gradient colors, brightness, blend
 		// factors) reads this, so they all use the fixed position automatically.
 		if (currentCycleMode.isFixed)
-			return getFixedModeSunAngles();
-		return AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+			return fixedToAstronomicalAngles(getFixedModeSunAngles());
+		double[] angles = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+		return new float[] { (float) angles[0], (float) angles[1] };
 	}
 
 	/**
@@ -510,9 +526,9 @@ public class TimeOfDay {
 	 * Both inputs and the result are in linear space.
 	 */
 	public float[] getRegionalDirectionalLight(float[] regionalDirectionalColor) {
-		double[] sunAngles = getSunAngles();
+		float[] sunAngles = getSunAngles();
 		float[] dynamicLight = AtmosphereUtils.getDirectionalLightForAngles(this, sunAngles);
-		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(Math.toDegrees(sunAngles[1])));
+		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
 	}
 
 	/**
@@ -520,9 +536,9 @@ public class TimeOfDay {
 	 * its blend factor so ambient and directional light stay consistent with the skybox.
 	 */
 	public float[] getRegionalAmbientLight(float[] regionalAmbientColor) {
-		double[] sunAngles = getSunAngles();
+		float[] sunAngles = getSunAngles();
 		float[] dynamicAmbient = AtmosphereUtils.getAmbientColorForAngles(sunAngles);
-		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(Math.toDegrees(sunAngles[1])));
+		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
 	}
 
 	/**
@@ -554,7 +570,7 @@ public class TimeOfDay {
 		float sunriseSunsetStrength,
 		float skyColorTakeoverAngle
 	) {
-		double sunAltitude = Math.toDegrees(getSunAngles()[1]);
+		double sunAltitude = getSunAngles()[1] * RAD_TO_DEG;
 
 		// Sun altitude at which the area's own color has fully taken over from the
 		// procedural sunrise/sunset gradient. Shared by the sunrise/sunset suppression
@@ -668,7 +684,7 @@ public class TimeOfDay {
 		// getSunAngles() already handles the fixed modes (per-environment override or
 		// the built-in per-mode constant) and shares the per-frame snapshot, so the
 		// sun disk direction is derived from the same solve as everything else.
-		double[] sunAngles = getSunAngles();
+		float[] sunAngles = getSunAngles();
 
 		// sunAngles[0] = azimuth, sunAngles[1] = altitude
 		// The renderers use: pitch = altitude, yaw = PI - azimuth
@@ -688,23 +704,31 @@ public class TimeOfDay {
 	}
 
 	private float[] computeMoonDirectionForSky() {
-		// A fixed-mode moon override (or the default Fixed Night position) locks
-		// the moon disk to a fixed point regardless of moon behavior. ALWAYS_NIGHT is
-		// deliberately excluded: it keeps a permanent night but the moon still moves
-		// and cycles phases like the dynamic moon (only the sun stays down).
-		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride()) {
-			double[] angles = getFixedNightMoonAngles();
-			return anglesToSkyDirection(angles[0], angles[1]);
-		}
-		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED) {
-			double[] angles = getNightSyncedMoonAngles();
-			return anglesToSkyDirection(angles[0], angles[1]);
-		}
-
-		Instant moonDate = getMoonDate();
-		double[] moonAngles = AtmosphereUtils.getMoonPosition(moonDate.toEpochMilli(), currentLatLong);
-		// moonAngles[0] = azimuth, moonAngles[1] = altitude
+		float[] moonAngles = getMoonAngles();
 		return anglesToSkyDirection(moonAngles[0], moonAngles[1]);
+	}
+
+	/**
+	 * The moon's {azimuth, altitude} in radians for this frame. Fixed modes return the
+	 * fixed moon position; otherwise the selected moon behavior determines its position.
+	 * The result is cached with the rest of the frame's astronomy snapshot.
+	 */
+	public float[] getMoonAngles() {
+		if (frameMoonAngles == null)
+			frameMoonAngles = computeMoonAngles();
+		return frameMoonAngles;
+	}
+
+	private float[] computeMoonAngles() {
+		// A fixed-mode moon override (or the default Fixed Night position) locks the moon
+		// regardless of moon behavior. ALWAYS_NIGHT is excluded so its moon keeps moving.
+		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride())
+			return fixedToAstronomicalAngles(getFixedNightMoonAngles());
+		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED)
+			return getNightSyncedMoonAngles();
+
+		double[] angles = AtmosphereUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong);
+		return new float[] { (float) angles[0], (float) angles[1] };
 	}
 
 	/**
@@ -729,14 +753,14 @@ public class TimeOfDay {
 		// behavior, so it matches the moon you'd see outside. getMoonIllumination now
 		// uses real (non-reversed) time, so this is simply today's phase.
 		if (currentCycleMode.usesLocalTime) {
-			return (float) AtmosphereUtils.getMoonIllumination(System.currentTimeMillis())[0];
+			return (float) AtmosphereUtils.getMoonIllumination(frameWallClockMillis)[0];
 		}
 		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED) {
 
 			// Synced Days: advance the phase by the UTC-synced day count so the phase
 			// is identical for all players; otherwise use the stateful night offset.
 			long phaseDay = currentCycleMode.usesUtcSyncedTime
-				? System.currentTimeMillis() / SYNCED_DAYS_PERIOD_MS
+				? frameWallClockMillis / SYNCED_DAYS_PERIOD_MS
 				: nightSyncedDayOffset;
 			long phaseMillis = EQUINOX_EPOCH_MS + phaseDay * DAY_MS;
 			return (float) AtmosphereUtils.getMoonIllumination(phaseMillis)[0];
@@ -756,20 +780,7 @@ public class TimeOfDay {
 	}
 
 	private double computeMoonAltitudeDegrees() {
-		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride()) {
-			// getFixedNightMoonAngles() returns {azimuth, altitude}; use the override
-			// altitude when present so shadow visibility tracks the locked moon.
-			// ALWAYS_NIGHT is excluded - its moon keeps moving (dynamic altitude).
-			return Math.toDegrees(getFixedNightMoonAngles()[1]);
-		}
-		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED) {
-			double[] angles = getNightSyncedMoonAngles();
-			return Math.toDegrees(angles[1]);
-		}
-
-		Instant moonDate = getMoonDate();
-		double[] moonAngles = AtmosphereUtils.getMoonPosition(moonDate.toEpochMilli(), currentLatLong);
-		return Math.toDegrees(moonAngles[1]);
+		return getMoonAngles()[1] * RAD_TO_DEG;
 	}
 
 	/**
@@ -859,42 +870,29 @@ public class TimeOfDay {
 	 * changes cycle-to-cycle, but the shift is never visible because it
 	 * only happens when the moon can't be seen.
 	 */
-	public double[] getNightSyncedMoonAngles() {
+	public float[] getNightSyncedMoonAngles() {
 		if (frameNightSyncedMoonAngles == null)
 			frameNightSyncedMoonAngles = computeNightSyncedMoonAngles();
 		return frameNightSyncedMoonAngles;
 	}
 
-	private double[] computeNightSyncedMoonAngles() {
-
-
+	private float[] computeNightSyncedMoonAngles() {
 		// Real Time: mirror the sun computed from the player's real local clock -
 		// the same instant the REAL_TIME sun/realistic-moon use - so moonrise tracks
 		// the real sunset and the moon spans the real night's length. Bypasses the
 		// cycle-duration accumulator entirely; without this, the night-synced moon
 		// would follow Cycle Duration while the sky follows the real clock.
 		if (currentCycleMode.usesLocalTime) {
-			double localHour = getLocalHourOfDay();
-			Instant startOfDay = Instant.ofEpochMilli(System.currentTimeMillis())
-				.truncatedTo(ChronoUnit.DAYS);
-			long fixedMillis = startOfDay.toEpochMilli() + hoursToMillis(localHour);
-			double[] sa = AtmosphereUtils.getSunAngles(fixedMillis, currentLatLong);
-			return new double[] { sa[0] + Math.PI, -sa[1] };
+			double[] sa = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+			return new float[] { (float) (sa[0] + Math.PI), (float) -sa[1] };
 		}
 
 		// Synced Days: derive the moon's mirror position and phase purely from the
 		// UTC clock so the night-synced moon is identical for every player, matching
 		// the UTC-synced sun. Stateless - bypasses the pending-increment machinery.
 		if (currentCycleMode.usesUtcSyncedTime) {
-			long currentTimeMillis = System.currentTimeMillis();
-			double cyclePosition = getSyncedDaysCyclePosition(currentTimeMillis);
-			double mappedHour = 3.4 + cyclePosition * 24.0;
-			if (mappedHour >= 24.0) mappedHour -= 24.0;
-			long syncedDay = currentTimeMillis / SYNCED_DAYS_PERIOD_MS;
-			long fixedMillis = EQUINOX_EPOCH_MS + syncedDay * DAY_MS
-				+ hoursToMillis(mappedHour);
-			double[] sa = AtmosphereUtils.getSunAngles(fixedMillis, currentLatLong);
-			return new double[] { sa[0] + Math.PI, -sa[1] };
+			double[] sa = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+			return new float[] { (float) (sa[0] + Math.PI), (float) -sa[1] };
 		}
 
 		// Warp identically to the sun so the night-synced moon stays aligned with
@@ -940,20 +938,13 @@ public class TimeOfDay {
 			pendingDayIncrements = 0;
 		}
 
-		return new double[] { sunAngles[0] + Math.PI, moonAltitude };
+		return new float[] { (float) (sunAngles[0] + Math.PI), (float) moonAltitude };
 	}
 
-	/**
-	 * The player's local wall-clock time as a fractional hour in [0, 24).
-	 * Uses the system default time zone so REAL_TIME mode matches the clock on
-	 * the player's machine (noon on their clock -> sun at its peak in-game).
-	 */
-	private double getLocalHourOfDay() {
-		LocalTime now = LocalTime.now();
-		return now.getHour()
-			+ now.getMinute() / 60.0
-			+ now.getSecond() / 3600.0
-			+ now.getNano() / 3.6e12;
+	// Maps the local calendar date and wall-clock time to UTC because the cycle uses longitude
+	// zero. This makes local noon map to in-game noon without changing the local season/date.
+	private Instant getLocalClockInstant() {
+		return frameLocalTime.toLocalDateTime().toInstant(ZoneOffset.UTC);
 	}
 
 	/**
@@ -1009,8 +1000,11 @@ public class TimeOfDay {
 		beginFrame();
 		updateSeasonalHemisphere();
 
-		long currentTimeMillis = System.currentTimeMillis();
-		currentInstant = Instant.ofEpochMilli(currentTimeMillis);
+		frameWallClockMillis = System.currentTimeMillis();
+		frameWallClockInstant = Instant.ofEpochMilli(frameWallClockMillis);
+		frameLocalTime = frameWallClockInstant.atZone(ZoneId.systemDefault());
+		long currentTimeMillis = frameWallClockMillis;
+		currentInstant = frameWallClockInstant;
 
 		// Initialize on first call
 		if (lastUpdateTime == 0)
@@ -1038,12 +1032,10 @@ public class TimeOfDay {
 
 		switch (currentCycleMode) {
 			case REAL_TIME:
-				// Map the player's local clock onto today's UTC start-of-day, so noon on the
-				// player's clock puts the sun at its peak in-game.
-				Instant localStartOfDay = currentInstant.truncatedTo(ChronoUnit.DAYS);
-				currentInstant = localStartOfDay.plusMillis(hoursToMillis(getLocalHourOfDay()));
-				return;
-
+				// Map the player's local calendar date/time to longitude zero, so local noon
+				// puts the sun at its peak in-game without shifting the season at midnight.
+				currentInstant = getLocalClockInstant();
+				break;
 			case SYNCED_DAYS:
 				// A full day & night per real UTC hour. The resulting sky is identical for all
 				// players and independent of Cycle Duration.
@@ -1051,8 +1043,7 @@ public class TimeOfDay {
 				long syncedDay = currentTimeMillis / SYNCED_DAYS_PERIOD_MS;
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
 				currentInstant = syncedStartOfDay.plusMillis(hoursToMillis(cyclePositionToHour(syncedCyclePosition)));
-				return;
-
+				break;
 			case FIXED_DAWN:
 			case FIXED_MIDDAY:
 			case FIXED_SUNSET:
@@ -1063,8 +1054,7 @@ public class TimeOfDay {
 				// remains at this mode's authored time of day.
 				long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
 				currentInstant = Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
-				return;
-
+				break;
 			case DYNAMIC:
 				// Warp the linear cycle clock so day and night occupy the configured share,
 				// then feed it through the twilight-weighted sun mapping.
@@ -1073,7 +1063,7 @@ public class TimeOfDay {
 				Instant startOfDay = currentInstant.truncatedTo(ChronoUnit.DAYS)
 					.plus(completedCycles, ChronoUnit.DAYS);
 				currentInstant = startOfDay.plusMillis(hoursToMillis(mappedHour));
-				return;
+				break;
 		}
 	}
 
@@ -1085,26 +1075,19 @@ public class TimeOfDay {
 	 * without discrete jumps at cycle boundaries.
 	 */
 	public Instant getMoonDate() {
-		Instant currentInstant = Instant.ofEpochMilli(System.currentTimeMillis());
-		Instant startOfDay = currentInstant.truncatedTo(ChronoUnit.DAYS);
+		Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS);
 
 		// Real Time mode: the moon's phase and position are astronomically real for
 		// today at the player's local hour, matching the real-clock sun.
 		if (currentCycleMode.usesLocalTime) {
-			double localHour = getLocalHourOfDay();
-			return startOfDay.plusMillis(hoursToMillis(localHour));
+			return currentInstant;
 		}
 
 		// Synced Days mode: use the same UTC-derived instant as the sun so the moon
 		// stays coherent with it and is identical for every player. One simulated
 		// day advances per completed UTC hour.
 		if (currentCycleMode.usesUtcSyncedTime) {
-			long currentTimeMillis = System.currentTimeMillis();
-			double cyclePosition = getSyncedDaysCyclePosition(currentTimeMillis);
-			double mappedHour = cyclePositionToHour(cyclePosition);
-			long syncedDay = currentTimeMillis / SYNCED_DAYS_PERIOD_MS;
-			Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
-			return syncedStartOfDay.plusMillis(hoursToMillis(mappedHour));
+			return currentInstant;
 		}
 
 		// Total simulated days elapsed = completed whole cycles + current cycle progress.
@@ -1117,19 +1100,16 @@ public class TimeOfDay {
 		return startOfDay.plusMillis(totalOffsetMillis);
 	}
 
-	public boolean isNight(double[] angles) {
+	public boolean isNight(float[] angles) {
 		double angleFromZenith = Math.abs(angles[1] - Math.PI / 2);
 		return angleFromZenith > Math.PI / 2;
 	}
 
 	public float getNightLightFactor() {
-		if (currentCycleMode.isFixed)
-			return currentCycleMode.isPermanentNight() ? 1f : 0f;
-
-		// All fixed modes returned above, so getSunAngles() takes the dynamic path
-		// here and shares the per-frame snapshot instead of re-solving.
-		double[] sunAngles = getSunAngles();
-		double sunAltitudeDegrees = Math.toDegrees(sunAngles[1]);
+		// Fixed Twilight/Sunset should contribute the same partial night factor as a
+		// moving sky at that altitude; fixed modes already return their authored sun angle.
+		float[] sunAngles = getSunAngles();
+		double sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
 
 		if (sunAltitudeDegrees >= 5)
 			return 0f;
@@ -1143,10 +1123,10 @@ public class TimeOfDay {
 	public float getDynamicBrightnessMultiplier(int minimumBrightness) {
 		// getSunAngles() returns the fixed angle in fixed modes, so brightness tracks the
 		// fixed sun altitude there instead of an incremented-time position.
-		double[] sunAngles = getSunAngles();
+		float[] sunAngles = getSunAngles();
 
 		// Calculate sun altitude in degrees (-90 to 90, where 90 is directly overhead)
-		double sunAltitudeDegrees = Math.toDegrees(sunAngles[1]);
+		double sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
 
 		// Convert minimum brightness from percentage to decimal
 		float minBrightness = minimumBrightness / 100.0f;
@@ -1176,9 +1156,9 @@ public class TimeOfDay {
 			// base strengths (i.e. how the world looks with the cycle disabled).
 			float earlyDayBrightness = horizonBrightness + 0.05f;
 			float peakBrightness = 1.2f;
-			double sineFactor = Math.sin(Math.toRadians(sunAltitudeDegrees));
+			double sineFactor = Math.sin(sunAltitudeDegrees * DEG_TO_RAD);
 			// Scale so that at 5°, we match earlyDayBrightness
-			double sineAt5 = Math.sin(Math.toRadians(5.0));
+			double sineAt5 = Math.sin(5.0 * DEG_TO_RAD);
 			double normalizedSine = (sineFactor - sineAt5) / (1.0 - sineAt5);
 			normalizedSine = Math.max(0, normalizedSine);
 			return (float) (earlyDayBrightness + (peakBrightness - earlyDayBrightness) * normalizedSine);

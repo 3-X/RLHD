@@ -6,11 +6,9 @@ import javax.inject.Singleton;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DaylightCycle;
-import rs117.hd.config.MoonBehavior;
 import rs117.hd.opengl.uniforms.UBOSkybox;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.TimeOfDay;
-import rs117.hd.utils.AtmosphereUtils;
 import rs117.hd.utils.ColorUtils;
 
 import static rs117.hd.utils.MathUtils.*;
@@ -27,9 +25,8 @@ import static rs117.hd.utils.MathUtils.*;
 // while anglesToSkyDirection renders the sun/moon disk at PI + azimuth with north/south negated.
 // A raw astronomical azimuth fed straight into that shadow line would point shadows toward the
 // disk, so adding PI cancels it out and shadows fall away from the light. Every astronomical
-// angle here therefore goes through shadowYaw. Fixed-angle overrides from an environment already
-// carry the half turn, since setFixedAngleOverrides bakes it into the stored azimuth, so those
-// are used verbatim.
+// angle here therefore goes through shadowYaw. Fixed angles remain in the environment convention
+// {altitude, azimuth}; their equivalent shadow yaw is the raw azimuth, so they are used directly.
 @Singleton
 public class DayNightLighting {
 	// Sun altitude below which sun shadows are gone and the moon takes over
@@ -132,26 +129,23 @@ public class DayNightLighting {
 	public float[] resolveDirectionalAngles(float[] out) {
 		DaylightCycle daylightCycle = timeOfDay.getCurrentCycleMode();
 
-		double[] sunAngles = timeOfDay.getSunAngles();
+		float[] sunAngles = timeOfDay.getSunAngles();
 
 		if (timeOfDay.hasFixedSunOverride()) {
-			// The half turn shadowYaw would add is already baked into the stored azimuth
-			double[] fixedSun = timeOfDay.getFixedSunAngles();
-			return setAngles(out, altitudeOf(fixedSun), (float) azimuthOf(fixedSun));
+			float[] fixedSun = timeOfDay.getFixedSunAngles();
+			return setAngles(out, fixedSun[0], fixedSun[1] + (float) Math.PI);
 		}
 
 		if (daylightCycle.isLocksMoonPosition() || timeOfDay.hasFixedMoonOverride()) {
-			double[] moonAngles = timeOfDay.getFixedNightMoonAngles();
-			return setAngles(out, altitudeOf(moonAngles), shadowYaw(azimuthOf(moonAngles)));
+			float[] moonAngles = timeOfDay.getFixedNightMoonAngles();
+			return setAngles(out, moonAngles[0], moonAngles[1]);
 		}
 
 		// Below the cutoff sun shadows have faded out. Switch to the moon early so the shadow
 		// map is already oriented by the time moon shadows fade in, avoiding a brightness pop.
-		if (Math.toDegrees(altitudeOf(sunAngles)) < SUN_SHADOW_CUTOFF_DEG
+		if (altitudeOf(sunAngles) * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
 			&& timeOfDay.getMoonAltitudeDegrees() > MOON_HORIZON_CUTOFF_DEG) {
-			double[] moonAngles = timeOfDay.getCurrentMoonBehavior() == MoonBehavior.NIGHT_SYNCED
-				? timeOfDay.getNightSyncedMoonAngles()
-				: AtmosphereUtils.getMoonPosition(timeOfDay.getMoonDate().toEpochMilli(), timeOfDay.getCurrentLatLong());
+			float[] moonAngles = timeOfDay.getMoonAngles();
 			return setAngles(out, altitudeOf(moonAngles), shadowYaw(azimuthOf(moonAngles)));
 		}
 
@@ -174,7 +168,7 @@ public class DayNightLighting {
 		// how dark nights get. Seasonal values would otherwise fight it.
 		ambientStrength = brightnessMultiplier;
 
-		double sunAltDeg = Math.toDegrees(altitudeOf(timeOfDay.getSunAngles()));
+		double sunAltDeg = altitudeOf(timeOfDay.getSunAngles()) * RAD_TO_DEG;
 		double moonAltDeg = timeOfDay.getMoonAltitudeDegrees();
 		float moonIllumination = timeOfDay.getMoonIlluminationFraction();
 
@@ -278,7 +272,7 @@ public class DayNightLighting {
 				return (float) ((sunAltDeg - 2) / 10.0 * 0.6);
 			if (sunAltDeg <= 15)
 				return (float) (0.6 + ((sunAltDeg - 12) / 3.0) * 0.3);
-			return clamp(Math.sin(Math.toRadians(sunAltDeg)), 0.9f, 1);
+			return clamp(sin((float) sunAltDeg * DEG_TO_RAD), 0.9f, 1);
 		}
 
 		// Phase goes through MOON_SHADOW_PHASE_EXPONENT rather than scaling shadows linearly,
@@ -412,21 +406,21 @@ public class DayNightLighting {
 	// EnvironmentManager.currentSunAngles uses the opposite order, { pitch, yaw }, so a bare
 	// [0]/[1] means different things depending on where the array came from. Always go through
 	// these, so a mix-up is visible instead of silent.
-	private static double azimuthOf(double[] angles) {
+	private static float azimuthOf(float[] angles) {
 		return angles[0];
 	}
 
-	private static double altitudeOf(double[] angles) {
+	private static float altitudeOf(float[] angles) {
 		return angles[1];
 	}
 
 	// See the note on the shadow azimuth convention at the top of this file
-	private static float shadowYaw(double azimuth) {
-		return (float) (azimuth + PI);
+	private static float shadowYaw(float azimuth) {
+		return azimuth + PI;
 	}
 
-	private static float[] setAngles(float[] out, double pitch, float yaw) {
-		out[0] = (float) pitch;
+	private static float[] setAngles(float[] out, float pitch, float yaw) {
+		out[0] = pitch;
 		out[1] = yaw;
 		return out;
 	}

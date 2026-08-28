@@ -5,6 +5,7 @@ import rs117.hd.scene.TimeOfDay;
 import rs117.hd.utils.AtmosphereUtils;
 
 import static org.junit.Assert.assertArrayEquals;
+import static rs117.hd.utils.MathUtils.*;
 
 /**
  * Characterization tests locking in the output of the atmosphere color functions.
@@ -13,7 +14,7 @@ import static org.junit.Assert.assertArrayEquals;
  */
 public class AtmosphereUtilsTest {
 	private static double[] angles(double altitudeDegrees) {
-		return new double[] { 0, Math.toRadians(altitudeDegrees) };
+		return new double[] { 0, altitudeDegrees * DEG_TO_RAD };
 	}
 
 	@Test

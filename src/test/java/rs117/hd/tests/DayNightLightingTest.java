@@ -13,6 +13,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static rs117.hd.utils.MathUtils.*;
 
 /**
  * Regression tests for the two bugs found while extracting DayNightLighting out of ZoneRenderer.
@@ -263,7 +264,7 @@ public class DayNightLightingTest {
 	// below the altitude where moonlight has fully faded out.
 	@Test
 	public void moonPhaseAdvancesOnlyWhereMoonlightHasFadedOut() {
-		double phaseAdvanceAltitudeDeg = Math.toDegrees(Math.toRadians(-10)); // TimeOfDay's guard
+		double phaseAdvanceAltitudeDeg = -10 * DEG_TO_RAD * RAD_TO_DEG; // TimeOfDay's guard
 		float moonlightGoneBelowDeg = -10; // DayNightLighting's fade start / horizon cutoff
 
 		assertTrue(

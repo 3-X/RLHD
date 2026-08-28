@@ -708,7 +708,7 @@ public class LightManager {
 
 		float[] lightColor = Arrays.copyOf(sky.horizonLinear, 3);
 
-		double sunAltDeg = Math.toDegrees(timeOfDay.getSunAngles()[1]);
+		double sunAltDeg = timeOfDay.getSunAngles()[1] * RAD_TO_DEG;
 
 		// At night, blend the dark sky horizon toward moonColor: reduces the blue cast
 		// and adds silver moonlight filtering through tunnel openings.
@@ -722,7 +722,7 @@ public class LightManager {
 			DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
 			DaylightCycle effectiveCycle = forcedMode != null ? forcedMode : config.daylightCycle();
 			double moonAltDeg = effectiveCycle.isUsesFixedMoonAltitudeForLighting()
-				? Math.toDegrees(timeOfDay.getFixedNightMoonAngles()[1])
+				? timeOfDay.getFixedNightMoonAngles()[0] * RAD_TO_DEG
 				: timeOfDay.getMoonAltitudeDegrees();
 			float moonIllumFrac = timeOfDay.getMoonIlluminationFraction();
 			if (moonAltDeg > -5 && moonIllumFrac > 0.01f) {

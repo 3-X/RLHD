@@ -130,8 +130,9 @@ public class AtmosphereUtils
 			0.1f
 		);
 
-		if (!timeOfDay.isNight(angles)) {
-			float temperature = interpolate((float) Math.toDegrees(angles[1]), ALTITUDE_TEMPERATURE_RANGE);
+		// Check if the sun is above the horizon
+		if (angles[1] >= 0) {
+			float temperature = interpolate((float) (angles[1] * RAD_TO_DEG), ALTITUDE_TEMPERATURE_RANGE);
 			float strength = (float) sin(angles[1]);
 			strength *= strength;
 			strength *= 3;
@@ -143,13 +144,38 @@ public class AtmosphereUtils
 		return rgb;
 	}
 
+	/**
+	 * Float-angle variant for the renderer-side time-of-day snapshot.
+	 */
+	public static float[] getDirectionalLightForAngles(TimeOfDay timeOfDay, float[] angles) {
+		float[] rgb = multiply(ColorUtils.colorTemperatureToLinearRgb(4100), 0.1f);
+
+		// Check if the sun is above the horizon
+		if (angles[1] >= 0) {
+			float temperature = interpolate(angles[1] * RAD_TO_DEG, ALTITUDE_TEMPERATURE_RANGE);
+			float strength = (float) sin(angles[1]);
+			strength *= strength;
+			strength *= 3;
+			add(rgb, rgb, multiply(ColorUtils.colorTemperatureToLinearRgb(temperature), strength));
+		}
+
+		return rgb;
+	}
+
 	public static float[] getAmbientColor(long millis, double[] latLong) {
 		return getAmbientColorForAngles(getSunAngles(millis, latLong));
 	}
 
 	/** Ambient color from pre-computed sun {azimuth, altitude}. See getDirectionalLightForAngles. */
 	public static float[] getAmbientColorForAngles(double[] angles) {
-		return interpolateLinear((float) Math.toDegrees(angles[1]), AMBIENT_COLOR_RANGE);
+		return interpolateLinear((float) (angles[1] * RAD_TO_DEG), AMBIENT_COLOR_RANGE);
+	}
+
+	/**
+	 * Float-angle variant for the renderer-side time-of-day snapshot.
+	 */
+	public static float[] getAmbientColorForAngles(float[] angles) {
+		return interpolateLinear(angles[1] * RAD_TO_DEG, AMBIENT_COLOR_RANGE);
 	}
 
 	public static float[] getSkyColor(long millis, double[] latLong) {
@@ -158,7 +184,7 @@ public class AtmosphereUtils
 
 	/** Sky color from pre-computed sun {azimuth, altitude}. See getDirectionalLightForAngles. */
 	public static float[] getSkyColorForAngles(double[] angles) {
-		var rgb = interpolateLinear((float) Math.toDegrees(angles[1]), SKY_COLOR_RANGE);
+		var rgb = interpolateLinear((float) (angles[1] * RAD_TO_DEG), SKY_COLOR_RANGE);
 		return ColorUtils.linearToSrgb(rgb);
 	}
 
