@@ -2,6 +2,7 @@ package rs117.hd.utils;
 
 import java.awt.event.KeyEvent;
 import javax.inject.Inject;
+import javax.inject.Named;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -37,6 +38,10 @@ public class DeveloperTools implements KeyListener {
 	private static final Keybind KEY_TOGGLE_ORTHOGRAPHIC = new Keybind(KeyEvent.VK_TAB, SHIFT_DOWN_MASK);
 	private static final Keybind KEY_TOGGLE_HIDE_UI = new Keybind(KeyEvent.VK_H, CTRL_DOWN_MASK);
 	private static final Keybind KEY_RELOAD_SCENE = new Keybind(KeyEvent.VK_R, CTRL_DOWN_MASK);
+
+	@Inject
+	@Named("developerMode")
+	private boolean developerMode;
 
 	@Inject
 	private ClientThread clientThread;
@@ -121,15 +126,27 @@ public class DeveloperTools implements KeyListener {
 	}
 
 	@Subscribe
+	public void onGameStateChanged(GameStateChanged gameStateChanged) {
+		switch (gameStateChanged.getGameState()) {
+			case LOGIN_SCREEN:
+			case HOPPING:
+				environmentManager.clearVarOverrides();
+				break;
+		}
+	}
+
+	@Subscribe
 	public void onCommandExecuted(CommandExecuted commandExecuted) {
 		String command = commandExecuted.getCommand();
-		if (command.equalsIgnoreCase("varbit") || command.equalsIgnoreCase("queryvarbit")) {
-			handleVarCommand("varbit", command.equalsIgnoreCase("queryvarbit"), commandExecuted.getArguments());
-			return;
-		}
-		if (command.equalsIgnoreCase("varp") || command.equalsIgnoreCase("queryvarp")) {
-			handleVarCommand("varp", command.equalsIgnoreCase("queryvarp"), commandExecuted.getArguments());
-			return;
+		if (developerMode) {
+			if (command.equalsIgnoreCase("varbit") || command.equalsIgnoreCase("queryvarbit")) {
+				handleVarCommand("varbit", command.equalsIgnoreCase("queryvarbit"), commandExecuted.getArguments());
+				return;
+			}
+			if (command.equalsIgnoreCase("varp") || command.equalsIgnoreCase("queryvarp")) {
+				handleVarCommand("varp", command.equalsIgnoreCase("queryvarp"), commandExecuted.getArguments());
+				return;
+			}
 		}
 
 		if (!command.equalsIgnoreCase("117hd"))
