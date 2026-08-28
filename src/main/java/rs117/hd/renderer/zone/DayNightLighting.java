@@ -168,7 +168,7 @@ public class DayNightLighting {
 			return setAngles(out, altitudeOf(fixedSun), (float) azimuthOf(fixedSun));
 		}
 
-		if (daylightCycle == DaylightCycle.FIXED_NIGHT || timeOfDay.hasFixedMoonOverride()) {
+		if (daylightCycle.isLocksMoonPosition() || timeOfDay.hasFixedMoonOverride()) {
 			double[] moonAngles = timeOfDay.getFixedNightMoonAngles();
 			return setAngles(out, altitudeOf(moonAngles), shadowYaw(azimuthOf(moonAngles)));
 		}
@@ -394,7 +394,7 @@ public class DayNightLighting {
 		// The daytime fixed modes still hide it either way - a moon has no place in a locked
 		// daylit sky - so forcing only bypasses the config gate.
 		boolean moonEnabled = config.enableMoon() || environmentManager.forceMoonActive();
-		ubo.moonVisibility.set(!hidesMoon(daylightCycle) && moonEnabled ? environmentManager.currentMoonVisibility : 0);
+		ubo.moonVisibility.set(!daylightCycle.isHidesMoon() && moonEnabled ? environmentManager.currentMoonVisibility : 0);
 		ubo.moonSizeMult.set(environmentManager.currentMoonSizeMult);
 		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);
 
@@ -411,19 +411,6 @@ public class DayNightLighting {
 		// come and go rather than blazing for the whole cycle. The per-environment visibility
 		// scales how strong they are when they do appear, independently of starVisibility.
 		ubo.auroraVisibility.set(timeOfDay.getAuroraStrength() * environmentManager.currentAuroraVisibility);
-	}
-
-	// Daytime fixed modes hide the moon, since it has no place in a locked daylit sky
-	private static boolean hidesMoon(DaylightCycle daylightCycle) {
-		switch (daylightCycle) {
-			case FIXED_DAWN:
-			case FIXED_MIDDAY:
-			case FIXED_SUNSET:
-			case FIXED_TWILIGHT:
-				return true;
-			default:
-				return false;
-		}
 	}
 
 	// Whether the moon is up and lit enough to contribute light or shadows

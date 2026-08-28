@@ -732,7 +732,7 @@ public class LightManager {
 			// position that FIXED_NIGHT uses so moonlight is always visible in both modes.
 			DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
 			DaylightCycle effectiveCycle = forcedMode != null ? forcedMode : config.daylightCycle();
-			double moonAltDeg = (effectiveCycle == DaylightCycle.ALWAYS_NIGHT)
+			double moonAltDeg = effectiveCycle.isUsesFixedMoonAltitudeForLighting()
 				? Math.toDegrees(timeOfDay.getFixedNightMoonAngles()[1])
 				: timeOfDay.getMoonAltitudeDegrees();
 			float moonIllumFrac = timeOfDay.getMoonIlluminationFraction();
