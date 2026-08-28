@@ -48,17 +48,7 @@ public class Environment {
 	public boolean allowRoofShadows = true;
 	public boolean lightningEffects = false;
 	public boolean instantTransition = false;
-	// When true, the game's built-in skybox models (e.g. the one added for Blood Moon
-	// Rises) are hidden in this area so the day & night cycle's own sky is shown instead.
-	// This only takes effect while the "Override Vanilla Skyboxes" config toggle is on
-	// (its default); turning that toggle off forces vanilla skyboxes back on everywhere,
-	// including areas that set this flag.
 	public boolean hideVanillaSkyboxes = false;
-	// When true, the procedural nebula clouds are hidden in this area even if the player has the
-	// "Nebulas" config toggle on, leaving the night sky as stars over the plain gradient. Intended
-	// for areas whose sky should read as clear or overcast rather than deep-space. Fades in/out
-	// over the normal environment transition rather than popping. Turning the config toggle off
-	// still hides nebulas everywhere; this flag can only take them away, never force them on.
 	public boolean forceHideNebulas = false;
 	@Nullable
 	@JsonAdapter(ExpressionParser.PredicateAdapter.class)
@@ -66,22 +56,10 @@ public class Environment {
 	@Nullable
 	@JsonAdapter(ExpressionParser.PredicateAdapter.class)
 	public ExpressionPredicate varpCondition;
-	// When set, forces the day & night cycle mode for this environment, overriding
-	// the player's config setting. Null = use the configured mode.
 	@Nullable
 	public DaylightCycle cycleMode = null;
-	// When set, forces the moon phase for this environment, overriding the player's config
-	// setting. Values match the config dropdown: DYNAMIC, FULL_MOON, GIBBOUS, HALF_MOON,
-	// CRESCENT, NEW_MOON. Null = use the configured phase. Note that DYNAMIC is a real
-	// override that forces a naturally-advancing phase even when the player has locked one;
-	// omit the field entirely to defer to the config instead.
 	@Nullable
 	public MoonPhase forceMoonPhase = null;
-	// When true, the moon is shown in this environment even if the player has turned the "Moon"
-	// config toggle off. Intended for cutscenes and set pieces that require the moon to be
-	// present. Does not override the daytime fixed cycle modes (FIXED_DAWN, FIXED_MIDDAY,
-	// FIXED_SUNSET, FIXED_TWILIGHT), which still hide the moon, and does not change
-	// moonVisibility - use that to scale how visible the moon is once it is shown.
 	public boolean forceMoonActive = false;
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] ambientColor = rgb("#ffffff");
@@ -89,25 +67,8 @@ public class Environment {
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] directionalColor = rgb("#ffffff");
 	public float directionalStrength = .25f;
-	// Directional light strength used while the moon is lighting the scene. When unset
-	// (sentinel -1), falls back to directionalStrength so the moon is as strong as the sun
-	// (the original behavior, where one value drove both). Set this to let an area dim or
-	// brighten moonlight independently of sunlight. Resolved to a concrete value in
-	// normalize(). Only meaningful while the day & night cycle is driving the frame.
 	public float moonDirectionalStrength = -1;
-	// How much of the moon's light casts shadows, as a multiplier on the moon's shadow
-	// visibility. 1 (default) is the original behavior. The light this scales out of the
-	// directional term is folded into ambient as sky-fill rather than lost, so raising this
-	// deepens moonlit shadows without brightening the scene, and lowering it flattens them
-	// without darkening it. Pair with moonDirectionalStrength to control total moonlight and
-	// shadow contrast independently: a dim moon with crisp shadows is moonDirectionalStrength
-	// low and moonShadowStrength high. Only meaningful while the day & night cycle is active.
 	public float moonShadowStrength = 1;
-	// Floor on the moon's illumination fraction for LIGHTING purposes only - the visible moon
-	// disk still renders at its true phase. 0 (default) is the original behavior, where a new
-	// moon casts no light and no shadows at all. Raise it so even a new moon keeps some
-	// directional moonlight, for areas whose fiction wants a permanently moonlit night rather
-	// than a pitch-dark one. In [0, 1].
 	public float minMoonIllumination = 0;
 	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
@@ -121,34 +82,17 @@ public class Environment {
 	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] moonColor;
-	// Color of the light the moon casts on the scene (moonlight). When unset,
-	// falls back to moonColor so the cast light matches the moon disk (current
-	// behavior). Set this to give moonlight a different tint than the visible moon.
 	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] moonLightColor;
-	// Color the night sky (zenith/horizon) is tinted toward as the moon rises.
-	// When unset, falls back to moonColor so the sky color matches the moon disk
-	// (current behavior). Set this to color the night sky independently of the moon.
 	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] nightSkyColor;
-	// How strongly nightSkyColor tints the night sky. 1 (default) preserves the
-	// original subtle tint; higher values push the sky harder toward nightSkyColor for
-	// areas where the default is too weak to read.
 	public float nightSkyColorStrength = 1;
 	@Nullable
 	@JsonAdapter(DegreesToRadians.class)
 	public float[] sunAngles; // horizontal coordinate system, in radians
-	// When set, and the active day & night cycle is a fixed mode (FIXED_DAWN,
-	// FIXED_MIDDAY, FIXED_SUNSET, FIXED_TWILIGHT, FIXED_NIGHT, ALWAYS_NIGHT), these lock the
-	// sun/moon disk and their shadow directions to a fixed point in the sky,
-	// overriding the astronomically-derived angles. {altitude, azimuth} in
-	// degrees (converted to radians), same order as sunAngles above and as the
-	// environments schema. Null = astronomical.
-	// NOTE: this is the opposite order from AtmosphereUtils.getSunAngles()/
-	// getMoonPosition(), which return {azimuth, altitude}. TimeOfDay
-	// applies these during its per-frame update.
+	// Unlike AtmosphereUtils, fixed angle arrays are { altitude, azimuth }.
 	@Nullable
 	@JsonAdapter(DegreesToRadians.class)
 	public float[] fixedSunAngles;
@@ -169,51 +113,13 @@ public class Environment {
 	public float windCeiling = 1280.0f;
 	public float starVisibility = 1;
 	public float moonVisibility = 1;
-	// Aurora visibility multiplier for this area, controllable independently of
-	// starVisibility. Auroras still only appear on the randomly-selected aurora
-	// nights and fade with the night; this just scales how visible they are when they
-	// do. When left unset (sentinel -1), it falls back to starVisibility - the
-	// original behavior, where hiding stars also hid auroras. Set it explicitly to
-	// decouple: e.g. 0 hides auroras while keeping stars, 1 shows full auroras even
-	// where stars are dimmed. Resolved to a concrete value in normalize().
 	public float auroraVisibility = -1;
-	// Moon size multiplier for this area. Scales the moon disk AND its glow and the
-	// star-occlusion mask around it, together. 1 (default) = normal size; >1 larger,
-	// <1 smaller.
 	public float moonSizeMult = 1;
-	// Vertical position of the night sky's horizon line - the band where stars, nebulas and
-	// the moon fade out toward the ground so the sky converges to the plain gradient/fog
-	// color and the world edge stays hidden. 1 (default) keeps the line just above the true
-	// horizon, the original behavior. 0 pushes the fade band below the entire sky, so there
-	// is no horizon line at all and the starfield/nebulas wrap the full sphere - use this for
-	// void-like set pieces (e.g. the Fragment of Seren arena). Values between 0 and 1 lower
-	// the line, values above 1 raise it (2 puts it at the zenith, hiding the night sky
-	// entirely). Only affects where the night sky is masked, not how bright it is - use
-	// starVisibility/moonVisibility for that.
 	public float starHorizonHeight = 1;
 	public float sunStrength = 1;
-	// How strongly the procedural day & night sunrise/sunset is allowed to paint this
-	// area's sky, in [0, 1]. 1 = full procedural sunrise/sunset (default). Lower
-	// values hold the sky at the area's own regional (fogColor) color through the
-	// twilight window instead, and fade the procedural sun glow. Use this for areas
-	// with a vivid intended sky (e.g. Tolna's blood-red #290000) that shouldn't turn
-	// orange/blue at sunrise/sunset. Independent of sunStrength; only affects the
-	// sky gradient + sun glow, not daytime or nighttime colors.
 	public float sunriseSunsetStrength = 1;
-	// Sun altitude (degrees) at which this area's own sky color has FULLY taken over
-	// from the procedural sunrise/sunset gradient as the sun climbs. Lower values pull
-	// the area color in earlier in the morning (and hold it later in the evening),
-	// compressing the procedural twilight window; higher values let the procedural
-	// gradient persist further up. 0 means the area color takes over immediately at
-	// the horizon (no procedural daytime gradient at all). Governs the daytime
-	// regional blend for ALL areas, independent of sunriseSunsetStrength. Default 40
-	// preserves prior behavior.
 	public float skyColorTakeoverAngle = 40;
 	public float sunlightStrength = 1;
-	// How far this area's night-time ambient floor is raised to stand in for absent moonlight.
-	// Scaled by how much moonlight is missing, so it's at full strength on a new moon and on a
-	// night when the moon has set, tapers off as the moon waxes and climbs, and contributes
-	// nothing under a full moon overhead. 0 (default) disables it.
 	public float minBrightnessBoost = 0;
 
 	public Environment normalize() {
