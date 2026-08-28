@@ -21,19 +21,15 @@ import static rs117.hd.utils.MathUtils.*;
 //      from the sun, the moon, or a fixed override
 //   3. computeLighting - derive sky/fog/light colors and strengths, and upload the skybox UBO
 //
-// Shadow azimuth convention: the renderer drives the directional camera with yaw = PI - azimuth,
-// while anglesToSkyDirection renders the sun/moon disk at PI + azimuth with north/south negated.
-// A raw astronomical azimuth fed straight into that shadow line would point shadows toward the
-// disk, so adding PI cancels it out and shadows fall away from the light. Every astronomical
-// angle here therefore goes through shadowYaw. Fixed angles remain in the environment convention
-// {altitude, azimuth}; their equivalent shadow yaw is the raw azimuth, so they are used directly.
+// TimeOfDay resolves fixed and astronomical coordinates into the {pitch, yaw} convention used by
+// the directional camera, so this class only decides whether the sun or moon casts shadows.
 @Singleton
 public class DayNightLighting {
 	// Sun altitude below which sun shadows are gone and the moon takes over
-	private static final double SUN_SHADOW_CUTOFF_DEG = 2;
+	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
 
 	// Moon altitude below which the moon neither casts light nor shadows
-	private static final double MOON_HORIZON_CUTOFF_DEG = -10;
+	private static final float MOON_HORIZON_CUTOFF_DEG = -10;
 
 	// Moon illumination below which the moon is treated as dark (new moon)
 	private static final float MIN_MOON_ILLUMINATION = 0.01f;
@@ -129,27 +125,22 @@ public class DayNightLighting {
 	public float[] resolveDirectionalAngles(float[] out) {
 		DaylightCycle daylightCycle = timeOfDay.getCurrentCycleMode();
 
-		float[] sunAngles = timeOfDay.getSunAngles();
-
 		if (timeOfDay.hasFixedSunOverride()) {
-			float[] fixedSun = timeOfDay.getFixedSunAngles();
-			return setAngles(out, fixedSun[0], fixedSun[1] + (float) Math.PI);
+			return timeOfDay.getSunShadowAngles(out);
 		}
 
 		if (daylightCycle.isLocksMoonPosition() || timeOfDay.hasFixedMoonOverride()) {
-			float[] moonAngles = timeOfDay.getFixedNightMoonAngles();
-			return setAngles(out, moonAngles[0], moonAngles[1]);
+			return timeOfDay.getMoonShadowAngles(out);
 		}
 
 		// Below the cutoff sun shadows have faded out. Switch to the moon early so the shadow
 		// map is already oriented by the time moon shadows fade in, avoiding a brightness pop.
-		if (altitudeOf(sunAngles) * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
+		if (timeOfDay.getSunAngles()[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
 			&& timeOfDay.getMoonAltitudeDegrees() > MOON_HORIZON_CUTOFF_DEG) {
-			float[] moonAngles = timeOfDay.getMoonAngles();
-			return setAngles(out, altitudeOf(moonAngles), shadowYaw(azimuthOf(moonAngles)));
+			return timeOfDay.getMoonShadowAngles(out);
 		}
 
-		return setAngles(out, altitudeOf(sunAngles), shadowYaw(azimuthOf(sunAngles)));
+		return timeOfDay.getSunShadowAngles(out);
 	}
 
 	// Derives the frame's lighting from the current sun and moon and uploads the skybox UBO.
@@ -168,8 +159,8 @@ public class DayNightLighting {
 		// how dark nights get. Seasonal values would otherwise fight it.
 		ambientStrength = brightnessMultiplier;
 
-		double sunAltDeg = altitudeOf(timeOfDay.getSunAngles()) * RAD_TO_DEG;
-		double moonAltDeg = timeOfDay.getMoonAltitudeDegrees();
+		float sunAltDeg = timeOfDay.getSunAngles()[1] * RAD_TO_DEG;
+		float moonAltDeg = timeOfDay.getMoonAltitudeDegrees();
 		float moonIllumination = timeOfDay.getMoonIlluminationFraction();
 
 		// Sky gradient as { zenith, horizon, sunGlow }, in sRGB
@@ -180,48 +171,49 @@ public class DayNightLighting {
 			environmentManager.currentSkyColorTakeoverAngle
 		);
 
-		// The disk renders at its true phase, so this uses the unfloored illumination
-		uploadSkyUniforms(sky, daylightCycle, moonIllumination);
-
 		// Everything below lights the scene rather than drawing the moon, so it uses the
 		// floored value: an environment can keep some moonlight on a new moon without the
 		// visible moon being lit to match.
-		float litMoonIllumination = Math.max(moonIllumination, environmentManager.currentMinMoonIllumination);
+		float litMoonIllumination = max(moonIllumination, environmentManager.currentMinMoonIllumination);
 
 		float shadowVisibility = computeShadowVisibility(sunAltDeg, moonAltDeg, litMoonIllumination);
 		float moonInfluence = computeMoonInfluence(sunAltDeg, moonAltDeg, litMoonIllumination);
 
-		if (moonInfluence > 0) {
-			// Tint the directional light toward moonlight
-			float[] moonLightColor = environmentManager.currentMoonLightColor;
-			for (int i = 0; i < 3; i++)
-				directionalColor[i] = mix(directionalColor[i], moonLightColor[i], moonInfluence);
+		baseDirectionalStrength = applyMoonLighting(sky, moonInfluence, baseDirectionalStrength);
 
-			tintNightSky(sky, moonInfluence);
-
-			// Crossfade the base strength toward the moon's own, on the same schedule as the
-			// color, so tint and intensity hand off together. moonInfluence is capped at
-			// MAX_MOON_COLOR_INFLUENCE for the color blend, which would leave the strength
-			// permanently short of the moon value; rescaling by that cap lets a full-strength
-			// night reach moonDirectionalStrength exactly. When the environment doesn't set
-			// moonDirectionalStrength it equals directionalStrength, so this mix is a no-op.
-			float strengthBlend = Math.min(1, moonInfluence / MAX_MOON_COLOR_INFLUENCE);
-			baseDirectionalStrength = mix(
-				baseDirectionalStrength,
-				environmentManager.currentMoonDirectionalStrength,
-				strengthBlend
-			);
-		}
-
-		directionalStrength = baseDirectionalStrength
-			* brightnessMultiplier
-			* environmentManager.currentSunlightStrength;
+		directionalStrength =
+			baseDirectionalStrength *
+			brightnessMultiplier *
+			environmentManager.currentSunlightStrength;
 
 		// The horizon color doubles as fog, so geometry fading into fog meets the skybox
 		// seamlessly at the horizon.
 		copyTo(fogColorSrgb, sky[1]);
 		copyTo(waterColor, ColorUtils.srgbToLinear(sky[1]));
 
+		applyAmbientFloor(moonAltDeg, moonIllumination);
+		applySkyFill(sunAltDeg, shadowVisibility);
+
+		// The disk renders at its true phase, so this uses the unfloored illumination.
+		// sky is complete before upload, so each UBO field is written once per frame.
+		uploadSkyUniforms(sky, daylightCycle, moonIllumination);
+	}
+
+	private float applyMoonLighting(float[][] sky, float moonInfluence, float baseDirectionalStrength) {
+		if (moonInfluence == 0)
+			return baseDirectionalStrength;
+
+		float[] moonLightColor = environmentManager.currentMoonLightColor;
+		mix(directionalColor, moonLightColor, moonInfluence);
+		tintNightSky(sky, moonInfluence);
+
+		// moonInfluence is capped for the color blend, so rescale it for the strength blend:
+		// a fully active moon can still reach moonDirectionalStrength.
+		float strengthBlend = min(1, moonInfluence / MAX_MOON_COLOR_INFLUENCE);
+		return mix(baseDirectionalStrength, environmentManager.currentMoonDirectionalStrength, strengthBlend);
+	}
+
+	private void applyAmbientFloor(float moonAltDeg, float moonIllumination) {
 		// Raise the ambient floor to stand in for the moonlight that isn't there, scaling the
 		// boost by how much moonlight is actually missing so the two never stack into an
 		// over-bright night. Full boost on a new moon, down to MIN_BRIGHTNESS_BOOST_RESIDUAL
@@ -241,18 +233,20 @@ public class DayNightLighting {
 		// case it exists for, and the two knobs would silently cancel.
 		// Remapped into [MIN_BRIGHTNESS_BOOST_RESIDUAL, 1] rather than used raw, so the falloff
 		// with moonlight keeps its shape and only the floor moves.
-		float boostFraction = MIN_BRIGHTNESS_BOOST_RESIDUAL + (1 - MIN_BRIGHTNESS_BOOST_RESIDUAL)
-			* (1 - moonPresence(moonAltDeg, moonIllumination));
-		float boostedFloor = (plugin.configMinimumBrightness / 100.0f)
-			* (1 + environmentManager.currentMinBrightnessBoost * boostFraction);
-		ambientStrength = Math.max(ambientStrength, boostedFloor);
+		float boostFraction =
+			MIN_BRIGHTNESS_BOOST_RESIDUAL +
+			(1 - MIN_BRIGHTNESS_BOOST_RESIDUAL) * (1 - moonPresence(moonAltDeg, moonIllumination));
+		float boostedFloor = plugin.configMinimumBrightness / 100.0f * (1 + environmentManager.currentMinBrightnessBoost * boostFraction);
+		ambientStrength = max(ambientStrength, boostedFloor);
+	}
 
+	private void applySkyFill(float sunAltDeg, float shadowVisibility) {
 		// Fold some of the unshadowed directional light into ambient to stand in for sky-fill
 		// in shadows. Physically this is strongest at night and twilight, where soft moon and
 		// sky light fill shadows, and minimal under a high sun, where light is harsh and
 		// shadows crisp. Fading it out as the sun climbs keeps high-noon shadows as dark as
 		// they are with the cycle off, while preserving the soft look near the horizon.
-		float skyFill = 1 - smoothstep(0, SKY_FILL_FADE_END_DEG, (float) sunAltDeg);
+		float skyFill = 1 - smoothstep(0, SKY_FILL_FADE_END_DEG, sunAltDeg);
 		add(ambientColor, ambientColor, multiply(directionalColor, (1 - shadowVisibility) * skyFill));
 		directionalStrength *= shadowVisibility;
 	}
@@ -266,13 +260,13 @@ public class DayNightLighting {
 	// height, ramping in from SUN_SHADOW_CUTOFF_DEG so shadows don't snap on at sunrise. At night
 	// the moon takes over at a fraction of the strength, scaled by phase and its own altitude.
 	// Both ends use smoothstep so there's no visible pop as one hands off to the other.
-	private float computeShadowVisibility(double sunAltDeg, double moonAltDeg, float moonIllumination) {
+	private float computeShadowVisibility(float sunAltDeg, float moonAltDeg, float moonIllumination) {
 		if (sunAltDeg > SUN_SHADOW_CUTOFF_DEG) {
 			if (sunAltDeg <= 12)
-				return (float) ((sunAltDeg - 2) / 10.0 * 0.6);
+				return (sunAltDeg - 2) / 10 * .6f;
 			if (sunAltDeg <= 15)
-				return (float) (0.6 + ((sunAltDeg - 12) / 3.0) * 0.3);
-			return clamp(sin((float) sunAltDeg * DEG_TO_RAD), 0.9f, 1);
+				return .6f + (sunAltDeg - 12) / 3 * .3f;
+			return clamp(sin(sunAltDeg * DEG_TO_RAD), .9f, 1);
 		}
 
 		// Phase goes through MOON_SHADOW_PHASE_EXPONENT rather than scaling shadows linearly,
@@ -282,21 +276,18 @@ public class DayNightLighting {
 		// is. Only the moon branch is affected - the sun's shadows above are left alone.
 		float moonBaseShadow = 0;
 		if (isMoonLighting(moonAltDeg, moonIllumination)) {
-			moonBaseShadow = (float) Math.pow(moonIllumination, MOON_SHADOW_PHASE_EXPONENT)
-				* MOON_SHADOW_STRENGTH
-				* moonElevationFade(moonAltDeg)
-				* environmentManager.currentMoonShadowStrength;
+			moonBaseShadow =
+				pow(moonIllumination, MOON_SHADOW_PHASE_EXPONENT) *
+				MOON_SHADOW_STRENGTH *
+				moonElevationFade(moonAltDeg) *
+				environmentManager.currentMoonShadowStrength;
 		}
 
 		// Blend in over the twilight window, from the sun cutoff down to -15 degrees. Clamped
 		// because moonShadowStrength is unbounded above: callers use (1 - shadowVisibility) for
 		// the ambient floor and sky-fill, which would go negative and subtract light if a large
 		// value pushed this past 1.
-		return clamp(
-			smoothstep((float) SUN_SHADOW_CUTOFF_DEG, MOON_TINT_SUN_END_DEG, (float) sunAltDeg) * moonBaseShadow,
-			0,
-			1
-		);
+		return saturate(smoothstep(SUN_SHADOW_CUTOFF_DEG, MOON_TINT_SUN_END_DEG, sunAltDeg) * moonBaseShadow);
 	}
 
 	// How far the directional light color has crossfaded from sunlight to moonlight, in
@@ -305,20 +296,20 @@ public class DayNightLighting {
 	// Without that overlap the warm tones vanish exactly as the cool ones arrive and the color
 	// visibly pops at 0 degrees. Capped below 1 so the moon tints the base night color rather
 	// than replacing it.
-	private float computeMoonInfluence(double sunAltDeg, double moonAltDeg, float moonIllumination) {
+	private float computeMoonInfluence(float sunAltDeg, float moonAltDeg, float moonIllumination) {
 		if (sunAltDeg >= MOON_TINT_SUN_START_DEG || !isMoonLighting(moonAltDeg, moonIllumination))
 			return 0;
 
 		float influence;
 		if (sunAltDeg >= 0) {
 			// Pre-horizon: a gentle ramp up to the horizon value
-			influence = smoothstep(MOON_TINT_SUN_START_DEG, 0, (float) sunAltDeg) * MOON_INFLUENCE_AT_HORIZON;
+			influence = smoothstep(MOON_TINT_SUN_START_DEG, 0, sunAltDeg) * MOON_INFLUENCE_AT_HORIZON;
 		} else {
 			// Twilight: from the horizon value up to the cap, then held there through the night
 			influence = mix(
 				MOON_INFLUENCE_AT_HORIZON,
 				MAX_MOON_COLOR_INFLUENCE,
-				smoothstep(0, MOON_TINT_SUN_END_DEG, (float) sunAltDeg)
+				smoothstep(0, MOON_TINT_SUN_END_DEG, sunAltDeg)
 			);
 		}
 
@@ -332,14 +323,11 @@ public class DayNightLighting {
 	// night-sky color itself.
 	private void tintNightSky(float[][] sky, float moonInfluence) {
 		float[] nightSkyColor = environmentManager.currentNightSkyColor;
-		float skyTint = Math.min(1, moonInfluence * NIGHT_SKY_TINT_SCALE * environmentManager.currentNightSkyColorStrength);
+		float skyTint = min(1, moonInfluence * NIGHT_SKY_TINT_SCALE * environmentManager.currentNightSkyColorStrength);
 		for (int i = 0; i < 3; i++) {
 			sky[0][i] = mix(sky[0][i], nightSkyColor[i], skyTint);
 			sky[1][i] = mix(sky[1][i], nightSkyColor[i], skyTint);
 		}
-
-		plugin.uboSkybox.skyZenithColor.set(sky[0]);
-		plugin.uboSkybox.skyHorizonColor.set(sky[1]);
 	}
 
 	// Write the sky, moon, star, nebula and aurora uniforms for this frame
@@ -380,7 +368,7 @@ public class DayNightLighting {
 	}
 
 	// Whether the moon is up and lit enough to contribute light or shadows
-	private static boolean isMoonLighting(double moonAltDeg, float moonIllumination) {
+	private static boolean isMoonLighting(float moonAltDeg, float moonIllumination) {
 		return moonAltDeg > MOON_HORIZON_CUTOFF_DEG && moonIllumination > MIN_MOON_ILLUMINATION;
 	}
 
@@ -390,7 +378,7 @@ public class DayNightLighting {
 	// moonShadowStrength, which changes how the light is split between directional and
 	// ambient, not how much of it there is; folding that in would make an area's shadow
 	// tuning quietly move its night brightness too.
-	private static float moonPresence(double moonAltDeg, float moonIllumination) {
+	private static float moonPresence(float moonAltDeg, float moonIllumination) {
 		if (!isMoonLighting(moonAltDeg, moonIllumination))
 			return 0;
 		return clamp(moonIllumination * moonElevationFade(moonAltDeg), 0, 1);
@@ -398,30 +386,7 @@ public class DayNightLighting {
 
 	// Moonlight fade with altitude, in 0..1. Smoothstep, so the onset at the horizon is C1
 	// continuous and the moon's light doesn't pop in as it rises.
-	private static float moonElevationFade(double moonAltDeg) {
-		return smoothstep(MOON_ELEVATION_FADE_START_DEG, MOON_ELEVATION_FADE_END_DEG, (float) moonAltDeg);
-	}
-
-	// TimeOfDay and AtmosphereUtils return horizontal coordinates as { azimuth, altitude }.
-	// EnvironmentManager.currentSunAngles uses the opposite order, { pitch, yaw }, so a bare
-	// [0]/[1] means different things depending on where the array came from. Always go through
-	// these, so a mix-up is visible instead of silent.
-	private static float azimuthOf(float[] angles) {
-		return angles[0];
-	}
-
-	private static float altitudeOf(float[] angles) {
-		return angles[1];
-	}
-
-	// See the note on the shadow azimuth convention at the top of this file
-	private static float shadowYaw(float azimuth) {
-		return azimuth + PI;
-	}
-
-	private static float[] setAngles(float[] out, float pitch, float yaw) {
-		out[0] = pitch;
-		out[1] = yaw;
-		return out;
+	private static float moonElevationFade(float moonAltDeg) {
+		return smoothstep(MOON_ELEVATION_FADE_START_DEG, MOON_ELEVATION_FADE_END_DEG, moonAltDeg);
 	}
 }

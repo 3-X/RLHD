@@ -668,6 +668,21 @@ public class TimeOfDay {
 		return frameSunDirectionForSky;
 	}
 
+	/**
+	 * Write the sun's shadow-camera angles as {pitch, yaw}. Astronomical angles are
+	 * {azimuth, altitude}, while fixed environment angles are authored as {altitude, azimuth}.
+	 * Both require a half-turn azimuth compensation before driving the directional camera.
+	 */
+	public float[] getSunShadowAngles(float[] out) {
+		if (hasFixedSunOverride()) {
+			float[] fixedSunAngles = getFixedSunAngles();
+			return setShadowAngles(out, fixedSunAngles[0], fixedSunAngles[1] + PI);
+		}
+
+		float[] sunAngles = getSunAngles();
+		return setShadowAngles(out, sunAngles[1], sunAngles[0] + PI);
+	}
+
 	private float[] computeSunDirectionForSky() {
 		// getSunAngles() already handles the fixed modes (per-environment override or
 		// the built-in per-mode constant) and shares the per-frame snapshot, so the
@@ -689,6 +704,26 @@ public class TimeOfDay {
 		if (frameMoonDirectionForSky == null)
 			frameMoonDirectionForSky = computeMoonDirectionForSky();
 		return frameMoonDirectionForSky;
+	}
+
+	/**
+	 * Write the moon's shadow-camera angles as {pitch, yaw}. Fixed moon positions use the
+	 * environment order directly; moving moons use the astronomical {azimuth, altitude} order.
+	 */
+	public float[] getMoonShadowAngles(float[] out) {
+		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride()) {
+			float[] fixedMoonAngles = getFixedNightMoonAngles();
+			return setShadowAngles(out, fixedMoonAngles[0], fixedMoonAngles[1]);
+		}
+
+		float[] moonAngles = getMoonAngles();
+		return setShadowAngles(out, moonAngles[1], moonAngles[0] + PI);
+	}
+
+	private static float[] setShadowAngles(float[] out, float pitch, float yaw) {
+		out[0] = pitch;
+		out[1] = yaw;
+		return out;
 	}
 
 	private float[] computeMoonDirectionForSky() {
