@@ -110,9 +110,9 @@ public class DaylightCycleLighting {
 
 	// Procedural ambient colors in { sunAltitudeDegrees, linearR, linearG, linearB }.
 	private static final float[][] AMBIENT_COLOR_KEYFRAMES = {
-		linearRow(-5, 113, 140, 180),
-		linearRow(25, 192, 185, 255),
-		linearRow(40, 185, 214, 255),
+		linearKeyframe(-5, 113, 140, 180),
+		linearKeyframe(25, 192, 185, 255),
+		linearKeyframe(40, 185, 214, 255),
 	};
 
 	@Inject
@@ -422,7 +422,7 @@ public class DaylightCycleLighting {
 		};
 	}
 
-	private static float[] linearRow(float altitudeDegrees, int red, int green, int blue) {
+	private static float[] linearKeyframe(float altitudeDegrees, int red, int green, int blue) {
 		float[] linear = rgb(new Color(red, green, blue));
 		return new float[] { altitudeDegrees, linear[0], linear[1], linear[2] };
 	}

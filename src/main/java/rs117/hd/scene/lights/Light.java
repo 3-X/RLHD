@@ -72,7 +72,7 @@ public class Light
 		fadeOutDuration = max(0, def.fadeOutDuration) / 1000f;
 		spawnDelay = max(0, def.spawnDelay) / 1000f;
 		despawnDelay = max(0, def.despawnDelay) / 1000f;
-		color = def.color.clone();
+		color = copy(def.color);
 		radius = def.radius;
 		strength = def.strength;
 		alignment = def.alignment;
