@@ -34,7 +34,7 @@ import static java.lang.Math.cos;
 import static java.lang.Math.sin;
 import static java.lang.Math.tan;
 
-public final class AtmosphereUtils {
+public final class AstronomyUtils {
 	private static final double
 		rad = PI / 180,
 		e = rad * 23.4397; // obliquity of the Earth
@@ -198,9 +198,7 @@ public final class AtmosphereUtils {
 
 	private static double astroRefraction(double h) {
 		if (h < 0) // the following formula works for positive altitudes only.
-		{
 			h = 0; // if h = -0.08901179 a div/0 would occur.
-		}
 
 		// formula 16.4 of "Astronomical Algorithms" 2nd edition by Jean Meeus (Willmann-Bell, Richmond) 1998.
 		// 1.02 / tan(h + 10.26 / (h + 5.10)) h in degrees, result in arc minutes -> converted to rad:

@@ -19,7 +19,7 @@ import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
 import rs117.hd.scene.lights.Light;
-import rs117.hd.utils.AtmosphereUtils;
+import rs117.hd.utils.AstronomyUtils;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.HDUtils;
 
@@ -48,7 +48,7 @@ import static rs117.hd.utils.MathUtils.*;
  * Two orderings are in play, and mixing them up is the classic bug here:
  * <ul>
  *   <li><b>Internal / astronomical:</b> {@code {azimuth, altitude}} in radians. Returned by
- *       {@link AtmosphereUtils#getSunAngles} and {@link AtmosphereUtils#getMoonPosition},
+ *       {@link AstronomyUtils#getSunAngles} and {@link AstronomyUtils#getMoonPosition},
  *       and used by every method on this class.</li>
  *   <li><b>Fixed-angle data:</b> {@code {altitude, azimuth}} in radians, matching
  *       {@code Environment.fixedSunAngles} and {@code Environment.fixedMoonAngles}.
@@ -540,7 +540,7 @@ public class TimeOfDay {
 		// factors) reads this, so they all use the fixed position automatically.
 		if (currentCycleMode.isFixed)
 			return fixedToAstronomicalAngles(getFixedModeSunAngles());
-		double[] angles = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+		double[] angles = AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
 		return new float[] { (float) angles[0], (float) angles[1] };
 	}
 
@@ -892,7 +892,7 @@ public class TimeOfDay {
 		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED)
 			return getNightSyncedMoonAngles();
 
-		double[] angles = AtmosphereUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong);
+		double[] angles = AstronomyUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong);
 		return new float[] { (float) angles[0], (float) angles[1] };
 	}
 
@@ -918,7 +918,7 @@ public class TimeOfDay {
 		// It advances continuously from session start, so daylight-saving changes cannot make
 		// the lunar phase jump relative to the rest of the cycle.
 		if (currentCycleMode.usesLocalTime) {
-			return (float) AtmosphereUtils.getMoonIllumination(currentInstant.toEpochMilli())[0];
+			return (float) AstronomyUtils.getMoonIllumination(currentInstant.toEpochMilli())[0];
 		}
 		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED) {
 
@@ -928,11 +928,11 @@ public class TimeOfDay {
 				? frameWallClockMillis / SYNCED_DAYS_PERIOD_MS
 				: nightSyncedDayOffset;
 			long phaseMillis = EQUINOX_EPOCH_MS + phaseDay * DAY_MS;
-			return (float) AtmosphereUtils.getMoonIllumination(phaseMillis)[0];
+			return (float) AstronomyUtils.getMoonIllumination(phaseMillis)[0];
 		}
 
 		Instant moonDate = getMoonDate();
-		return (float) AtmosphereUtils.getMoonIllumination(moonDate.toEpochMilli())[0];
+		return (float) AstronomyUtils.getMoonIllumination(moonDate.toEpochMilli())[0];
 	}
 
 	/**
@@ -1056,7 +1056,7 @@ public class TimeOfDay {
 		// cycle-duration accumulator entirely; without this, the night-synced moon
 		// would follow Cycle Duration while the sky follows the real clock.
 		if (currentCycleMode.usesLocalTime) {
-			double[] sa = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+			double[] sa = AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
 			return new float[] { (float) sa[0] + PI, (float) -sa[1] };
 		}
 
@@ -1064,7 +1064,7 @@ public class TimeOfDay {
 		// UTC clock so the night-synced moon is identical for every player, matching
 		// the UTC-synced sun. Stateless - bypasses the pending-increment machinery.
 		if (currentCycleMode.usesUtcSyncedTime) {
-			double[] sa = AtmosphereUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+			double[] sa = AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
 			return new float[] { (float) sa[0] + PI, (float) -sa[1] };
 		}
 
@@ -1093,7 +1093,7 @@ public class TimeOfDay {
 		long fixedMillis = EQUINOX_EPOCH_MS + nightSyncedDayOffset * DAY_MS
 			+ hoursToMillis(mappedHour);
 
-		double[] sunAngles = AtmosphereUtils.getSunAngles(fixedMillis, currentLatLong);
+		double[] sunAngles = AstronomyUtils.getSunAngles(fixedMillis, currentLatLong);
 		float moonAltitude = (float) -sunAngles[1];
 
 		// Apply pending day increments only once the moon is far enough down that its light
