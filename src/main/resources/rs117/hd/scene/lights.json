@@ -25677,6 +25677,7 @@
     "alignment": "CENTER",
     "radius": 375,
     "strength": 5,
+    "nightMultiplier": 1.3,
     "color": [
       0,
       255,
@@ -50781,6 +50782,330 @@
     "range": 20,
     "objectIds": [
       "LOVA_BANK_LIGHT_ON_01"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Walkway Light Small - Top",
+    "height": 370,
+    "alignment": "CENTER",
+    "radius": 500,
+    "strength": 5,
+    "nightMultiplier": 2,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "CRYSTAL_TOWER_WALKWAY_CRYSTAL_SMALL_TOP"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Walkway Light Small - Bottom",
+    "height": -100,
+    "alignment": "CENTER",
+    "radius": 400,
+    "strength": 9,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "CRYSTAL_TOWER_WALKWAY_CRYSTAL_SMALL_TOP"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Walkway Light Large - Top",
+    "height": 620,
+    "alignment": "CENTER",
+    "radius": 650,
+    "strength": 8,
+    "nightMultiplier": 2,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "CRYSTAL_TOWER_WALKWAY_CRYSTAL_LARGE_TOP"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Walkway Light Large - Bottom",
+    "height": -200,
+    "alignment": "CENTER",
+    "radius": 400,
+    "strength": 15,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "CRYSTAL_TOWER_WALKWAY_CRYSTAL_LARGE_TOP"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Spire Light",
+    "offset": [ 5, 950, -13 ],
+    "alignment": "CENTER",
+    "radius": 800,
+    "strength": 20,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_SPIRE_LIGHT"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Spire Light",
+    "offset": [ 5, 250, -13 ],
+    "alignment": "CENTER",
+    "radius": 800,
+    "strength": 10,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_SPIRE_LIGHT"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Large",
+    "height": 1025,
+    "alignment": "CENTER",
+    "radius": 2000,
+    "strength": 10,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_M"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Bottom 1",
+    "offset": [ -65, 400, -65 ],
+    "alignment": "CENTER",
+    "radius": 800,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_C"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Bottom 2",
+    "offset": [ 65, 400, -65 ],
+    "alignment": "CENTER",
+    "radius": 800,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_A"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Bottom 3",
+    "offset": [ -65, 400, 65 ],
+    "alignment": "CENTER",
+    "radius": 800,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_J"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Bottom 4",
+    "offset": [ 65, 400, 65 ],
+    "alignment": "CENTER",
+    "radius": 800,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_L"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Top 1",
+    "offset": [ -65, 520, -65 ],
+    "alignment": "CENTER",
+    "radius": 400,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_C"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Top 2",
+    "offset": [ 65, 510, -65 ],
+    "alignment": "CENTER",
+    "radius": 400,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_A"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Top 3",
+    "offset": [ -65, 525, 65 ],
+    "alignment": "CENTER",
+    "radius": 400,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_J"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Small Top 4",
+    "offset": [ 65, 510, 65 ],
+    "alignment": "CENTER",
+    "radius": 400,
+    "strength": 7,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_L"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Arches 1",
+    "offset": [ -109, 362, 0 ],
+    "alignment": "CENTER",
+    "radius": 350,
+    "strength": 10,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_TOP_ARCHES"
+    ]
+  },
+  {
+    "description": "Priffdinas Crystal Stairs Light - Arches 1",
+    "offset": [ 109, 362, 0 ],
+    "alignment": "CENTER",
+    "radius": 350,
+    "strength": 10,
+    "color": [
+      180,
+      220,
+      255
+    ],
+    "type": "STATIC",
+    "duration": 0,
+    "range": 20,
+    "visibleFromOtherPlanes": true,
+    "objectIds": [
+      "PRIF_CRYSTAL_STAIRCASE_TOP_ARCHES"
     ]
   }
 ]

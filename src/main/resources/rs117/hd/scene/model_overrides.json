@@ -87909,7 +87909,10 @@
       "PRIF_AMLODD_HOUSE_SUPPORT_NW",
       "PRIF_YEWTREE",
       "PRIF_YEWTREE_STUMP",
-      "PRIF_BENCH"
+      "PRIF_BENCH",
+      "PRIF_WALL_FALLOFF_01",
+      "PRIF_WALL_FALLOFF_02",
+      "PRIF_WALL_FALLOFF_03"
     ]
   },
   {
@@ -88422,7 +88425,8 @@
     "colorOverrides": [
       {
         "colors": "a < 255",
-        "baseMaterial": "GRAY_90"
+        "upwardsNormals": true,
+        "baseMaterial": "GRAY_70"
       },
       {
         "colors": "h == 8",
