@@ -48,19 +48,12 @@ public class Environment {
 	public boolean allowRoofShadows = true;
 	public boolean lightningEffects = false;
 	public boolean instantTransition = false;
-	public boolean hideVanillaSkyboxes = false;
-	public boolean forceHideNebulas = false;
 	@Nullable
 	@JsonAdapter(ExpressionParser.PredicateAdapter.class)
 	public ExpressionPredicate varbitCondition;
 	@Nullable
 	@JsonAdapter(ExpressionParser.PredicateAdapter.class)
 	public ExpressionPredicate varpCondition;
-	@Nullable
-	public DaylightCycle cycleMode = null;
-	@Nullable
-	public MoonPhase forceMoonPhase = null;
-	public boolean forceMoonActive = false;
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] ambientColor = rgb("#ffffff");
 	public float ambientStrength = 1;
@@ -70,6 +63,13 @@ public class Environment {
 	public float moonDirectionalStrength = -1;
 	public float moonShadowStrength = 1;
 	public float minMoonIllumination = 0;
+	@JsonAdapter(SrgbToLinearAdapter.class)
+	public float[] moonColor;
+	@JsonAdapter(SrgbToLinearAdapter.class)
+	public float[] moonLightColor;
+	@JsonAdapter(SrgbToLinearAdapter.class)
+	public float[] nightSkyColor;
+	public float nightSkyColorStrength = 1;
 	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] waterColor;
@@ -79,17 +79,9 @@ public class Environment {
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] underglowColor = rgb("#000000");
 	public float underglowStrength = 0;
-	@JsonAdapter(SrgbToLinearAdapter.class)
-	public float[] moonColor;
-	@JsonAdapter(SrgbToLinearAdapter.class)
-	public float[] moonLightColor;
-	@JsonAdapter(SrgbToLinearAdapter.class)
-	public float[] nightSkyColor;
-	public float nightSkyColorStrength = 1;
 	@Nullable
 	@JsonAdapter(DegreesToRadians.class)
 	public float[] sunAngles; // horizontal coordinate system, in radians
-	// Unlike AtmosphereUtils, fixed angle arrays are { altitude, azimuth }.
 	@Nullable
 	@JsonAdapter(DegreesToRadians.class)
 	public float[] fixedSunAngles;
@@ -108,6 +100,11 @@ public class Environment {
 	public float windSpeed = 15.0f;
 	public float windStrength = 0.0f;
 	public float windCeiling = 1280.0f;
+	@Nullable
+	public DaylightCycle cycleMode;
+	@Nullable
+	public MoonPhase forceMoonPhase;
+	public boolean forceMoonActive = false;
 	public float starVisibility = 1;
 	public float moonVisibility = 1;
 	public float auroraVisibility = -1;
@@ -118,6 +115,8 @@ public class Environment {
 	public float skyColorTakeoverAngle = 40;
 	public float sunlightStrength = 1;
 	public float minBrightnessBoost = 0;
+	public boolean hideVanillaSkyboxes = false;
+	public boolean forceHideNebulas = false;
 
 	public Environment normalize() {
 		if (area != Area.ALL && area != Area.NONE) {
