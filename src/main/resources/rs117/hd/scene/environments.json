@@ -519,8 +519,8 @@
     "directionalStrength": 0.75,
     "fogColor": "#050505",
     "sunAngles": [
-      137,
-      180
+      43,
+      0
     ],
     "fogDepth": 20
   },
