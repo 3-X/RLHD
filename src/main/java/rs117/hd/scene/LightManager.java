@@ -743,11 +743,22 @@ public class LightManager {
 				lightColor[i] = mix(lightColor[i], luma, desat);
 		}
 
-		System.arraycopy(lightColor, 0, light.color, 0, 3);
 		float horizonLuma = dot(lightColor, SKY_LUMA_WEIGHTS);
+
+		// Only around midday does the light show its authored color; at sunrise/sunset and
+		// through the night it is tinted by the sky instead. Keyed on sun altitude rather than
+		// horizon luma: above the regional takeover angle the horizon color is the noon color,
+		// so a luma ratio sits at ~1 for most of the day and would never fade the tint back in.
+		float middayFactor = smoothstep(15f, 30f, (float) sunAltDeg);
+		if (middayFactor > 0)
+			lightColor = mix(lightColor, light.def.color, middayFactor);
+
+		System.arraycopy(lightColor, 0, light.color, 0, 3);
 		float peakScale = defLuma / max(noonLuma, 1e-4f);
 		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1f) * sky.brightnessMultiplier, moonStrengthFloor);
-		light.strength *= peakScale * timeScale;
+		// Fade the sky-derived scaling out on the same curve as the color, so a light at full
+		// midday renders at exactly its authored strength rather than a sky-relative one.
+		light.strength *= mix(peakScale * timeScale, 1f, middayFactor);
 	}
 
 	/**
