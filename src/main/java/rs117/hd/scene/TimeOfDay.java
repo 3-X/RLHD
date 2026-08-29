@@ -21,6 +21,7 @@ import rs117.hd.config.SeasonalHemisphere;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.scene.lights.LightTimeOfDay;
+import rs117.hd.scene.environments.Environment;
 import rs117.hd.utils.AstronomyUtils;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.HDUtils;
@@ -340,6 +341,13 @@ public class TimeOfDay {
 	private float nightLightFactor = 1;
 	private boolean nightLightFactorRising = true;
 	private float previousNightLightFactor = -1;
+
+	// Per-frame cache for outdoor lights. The resolved environment, current frame, and minimum
+	// brightness fully determine the cycle's outdoor sky sample.
+	private OutdoorSkySample cachedOutdoorSkySample;
+	private Environment cachedOutdoorSkyEnvironment;
+	private int cachedOutdoorSkyMinBrightness;
+	private int cachedOutdoorSkyFrame = -1;
 
 	// ===== Per-frame state =======================================================
 
@@ -1496,7 +1504,7 @@ public class TimeOfDay {
 		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
 			return;
 
-		EnvironmentManager.OutdoorSkySample sky = environmentManager.sampleOutdoorSky(worldPos, minimumBrightness);
+		OutdoorSkySample sky = sampleOutdoorSky(worldPos, minimumBrightness);
 		float[] authoredColor = light.def.color;
 		float defLuma = dot(authoredColor, SKY_LUMA_WEIGHTS);
 		float noonLuma = dot(sky.noonHorizonLinear, SKY_LUMA_WEIGHTS);
@@ -1539,5 +1547,44 @@ public class TimeOfDay {
 		float peakScale = defLuma / max(noonLuma, 1e-4f);
 		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1) * sky.brightnessMultiplier, moonStrengthFloor);
 		light.strength *= mix(peakScale * timeScale, 1, middayFactor);
+	}
+
+	private OutdoorSkySample sampleOutdoorSky(int[] worldPos, int minimumBrightness) {
+		Environment environment = environmentManager.getOutdoorEnvironment(worldPos);
+		if (environment == cachedOutdoorSkyEnvironment
+			&& plugin.frame == cachedOutdoorSkyFrame
+			&& minimumBrightness == cachedOutdoorSkyMinBrightness) {
+			return cachedOutdoorSkySample;
+		}
+
+		float[] regionalFogSrgb = environmentManager.getOutdoorRegionalFogSrgb(environment);
+		float[][] skyGradient = getSkyGradientColors(
+			regionalFogSrgb,
+			environment.sunStrength,
+			environment.sunriseSunsetStrength,
+			environment.skyColorTakeoverAngle
+		);
+		OutdoorSkySample sample = new OutdoorSkySample(
+			ColorUtils.srgbToLinear(skyGradient[1]),
+			ColorUtils.srgbToLinear(getReferenceHorizonColor(regionalFogSrgb)),
+			getDynamicBrightnessMultiplier(minimumBrightness)
+		);
+		cachedOutdoorSkySample = sample;
+		cachedOutdoorSkyEnvironment = environment;
+		cachedOutdoorSkyMinBrightness = minimumBrightness;
+		cachedOutdoorSkyFrame = plugin.frame;
+		return sample;
+	}
+
+	private static final class OutdoorSkySample {
+		private final float[] horizonLinear;
+		private final float[] noonHorizonLinear;
+		private final float brightnessMultiplier;
+
+		private OutdoorSkySample(float[] horizonLinear, float[] noonHorizonLinear, float brightnessMultiplier) {
+			this.horizonLinear = horizonLinear;
+			this.noonHorizonLinear = noonHorizonLinear;
+			this.brightnessMultiplier = brightnessMultiplier;
+		}
 	}
 }

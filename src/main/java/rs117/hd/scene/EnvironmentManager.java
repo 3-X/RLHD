@@ -76,9 +76,6 @@ public class EnvironmentManager {
 	@Inject
 	private GamevalManager gamevalManager;
 
-	@Inject
-	private TimeOfDay timeOfDay;
-
 	private final Map<Integer, Integer> varbitOverrides = new HashMap<>();
 	private final Map<Integer, Integer> varpOverrides = new HashMap<>();
 	private final Map<String, Integer> varbitConditionVars = new HashMap<>();
@@ -272,13 +269,6 @@ public class EnvironmentManager {
 	@Nonnull
 	private Environment currentEnvironment = Environment.NONE;
 
-	// Per-frame cache for sampleOutdoorSky: every followDayNight light under the same
-	// resolved environment yields the same sample within a frame
-	private OutdoorSkySample cachedSkySample;
-	private Environment cachedSkySampleEnvironment;
-	private int cachedSkySampleMinBrightness;
-	private int cachedSkySampleFrame = -1;
-
 	public void startUp() {
 		fileWatcher = ENVIRONMENTS_PATH.watch((path, first) -> {
 			try (var ignored = gamevalManager.obtainHandle()) {
@@ -338,9 +328,6 @@ public class EnvironmentManager {
 	public void reset() {
 		currentEnvironment = Environment.NONE;
 		forceNextTransition = false;
-		cachedSkySample = null;
-		cachedSkySampleEnvironment = null;
-		cachedSkySampleFrame = -1;
 	}
 
 	public void reload() {
@@ -808,9 +795,9 @@ public class EnvironmentManager {
 		return currentEnvironment.hideVanillaSkyboxes;
 	}
 
-	public static final int OUTDOOR_WORLD_Y_OFFSET = 3602;
+	private static final int OUTDOOR_WORLD_Y_OFFSET = 3602;
 
-	public int[] getOutdoorWorldPos(int[] worldPos) {
+	private int[] getOutdoorWorldPos(int[] worldPos) {
 		return new int[] {
 			worldPos[0],
 			worldPos[1] - OUTDOOR_WORLD_Y_OFFSET,
@@ -819,7 +806,7 @@ public class EnvironmentManager {
 	}
 
 	@Nonnull
-	public Environment getOverworldEnvironmentForTheme() {
+	private Environment getOverworldEnvironmentForTheme() {
 		return getOverworldEnvironment();
 	}
 
@@ -829,7 +816,7 @@ public class EnvironmentManager {
 	 * otherwise the first match of any kind. Falls back to the seasonal overworld or DEFAULT.
 	 */
 	@Nonnull
-	public Environment getEnvironmentAt(int[] worldPos, boolean preferOverworld) {
+	private Environment getEnvironmentAt(int[] worldPos, boolean preferOverworld) {
 		Environment anyMatch = null;
 		Environment overworldMatch = null;
 
@@ -857,59 +844,17 @@ public class EnvironmentManager {
 		return Environment.DEFAULT;
 	}
 
-	public static final class OutdoorSkySample {
-		public final float[] horizonLinear;
-		public final float[] noonHorizonLinear;
-		public final float brightnessMultiplier;
-
-		public OutdoorSkySample(float[] horizonLinear, float[] noonHorizonLinear, float brightnessMultiplier) {
-			this.horizonLinear = horizonLinear;
-			this.noonHorizonLinear = noonHorizonLinear;
-			this.brightnessMultiplier = brightnessMultiplier;
-		}
-	}
-
-	/**
-	 * Sample outdoor sky/fog for a world position, using the overworld environment above {@code worldPos}.
-	 */
+	/** Resolve the overworld environment corresponding to a local light's world position. */
 	@Nonnull
-	public OutdoorSkySample sampleOutdoorSky(int[] worldPos, int minimumBrightness) {
-		Environment env = getEnvironmentAt(getOutdoorWorldPos(worldPos), true);
-
-		// The sky color stack below only depends on the resolved environment, the current
-		// frame's time-of-day state and the minimum brightness, so reuse the sample for
-		// every light that resolves to the same environment within a frame
-		int frame = plugin.frame;
-		if (env == cachedSkySampleEnvironment && frame == cachedSkySampleFrame && minimumBrightness == cachedSkySampleMinBrightness)
-			return cachedSkySample;
-
-		float[] regionalFogSrgb = resolveOutdoorRegionalFogSrgb(env);
-
-		float[][] skyGradientColors = timeOfDay.getSkyGradientColors(
-			regionalFogSrgb,
-			env.sunStrength,
-			env.sunriseSunsetStrength,
-			env.skyColorTakeoverAngle
-		);
-		float[] horizonLinear = ColorUtils.srgbToLinear(skyGradientColors[1]);
-		float[] noonHorizonLinear = ColorUtils.srgbToLinear(
-			timeOfDay.getReferenceHorizonColor(regionalFogSrgb)
-		);
-		float brightnessMultiplier = timeOfDay.getDynamicBrightnessMultiplier(minimumBrightness);
-
-		OutdoorSkySample sample = new OutdoorSkySample(horizonLinear, noonHorizonLinear, brightnessMultiplier);
-		cachedSkySample = sample;
-		cachedSkySampleEnvironment = env;
-		cachedSkySampleFrame = frame;
-		cachedSkySampleMinBrightness = minimumBrightness;
-		return sample;
+	public Environment getOutdoorEnvironment(int[] worldPos) {
+		return getEnvironmentAt(getOutdoorWorldPos(worldPos), true);
 	}
 
 	/**
 	 * Regional fog for outdoor sky sampling. Never uses the current indoor/cave fog -
 	 * that caused dawn to blend toward static cave colors while dusk still used procedural twilight.
 	 */
-	private float[] resolveOutdoorRegionalFogSrgb(Environment env) {
+	public float[] getOutdoorRegionalFogSrgb(Environment env) {
 		if (env.fogColor != null)
 			return ColorUtils.linearToSrgb(env.fogColor);
 

@@ -699,18 +699,18 @@ public class ZoneRenderer implements Renderer {
 		if (client.getGameState().getState() >= GameState.LOGGED_IN.getState())
 			plugin.hasLoggedIn = true;
 
-		// Seed this frame's lighting from the environment, then let the day & night cycle
-		// override whatever it drives.
-		dayNightLighting.seedFromEnvironment();
-
 		if (dayNightLighting.isActive()) {
 			shouldRenderSky = true;
 			dayNightLighting.computeLighting();
-		} else if (shouldRenderSky) {
-			// Cycle just turned off, so restore the non-cycle sky defaults. The scene clear
-			// falls back to the environment's fog color while shouldRenderSky is false.
-			shouldRenderSky = false;
-			dayNightLighting.reset();
+		} else {
+			// Without the cycle, the renderer uses the environment's interpolated lighting directly.
+			dayNightLighting.seedFromEnvironment();
+			if (shouldRenderSky) {
+				// Cycle just turned off, so restore the non-cycle sky defaults. The scene clear
+				// falls back to the environment's fog color while shouldRenderSky is false.
+				shouldRenderSky = false;
+				dayNightLighting.reset();
+			}
 		}
 		plugin.uboSkybox.upload();
 

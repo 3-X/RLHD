@@ -142,7 +142,7 @@ public class DayNightLighting {
 
 		// Sky gradient as { zenith, horizon, sunGlow }, in sRGB
 		float[][] sky = timeOfDay.getSkyGradientColors(
-			fogColorSrgb,
+			ColorUtils.linearToSrgb(environmentManager.currentFogColor),
 			environmentManager.currentSunStrength,
 			environmentManager.currentSunriseSunsetStrength,
 			environmentManager.currentSkyColorTakeoverAngle
