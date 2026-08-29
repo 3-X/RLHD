@@ -29,6 +29,7 @@ public class Light
 	public boolean parentExists;
 	public boolean withinViewingDistance = true;
 	public boolean hiddenTemporarily;
+	public boolean hiddenByPlane;
 	public boolean markedForRemoval;
 	public boolean persistent;
 	public boolean replayable;

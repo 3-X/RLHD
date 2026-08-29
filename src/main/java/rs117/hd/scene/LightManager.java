@@ -218,8 +218,6 @@ public class LightManager {
 		if (plane != currentPlane) {
 			currentPlane = plane;
 			changedPlanes = true;
-			reloadObjectLights(sceneContext);
-			reloadWorldLights(sceneContext);
 		}
 
 		for (Light light : sceneContext.lights) {
@@ -241,7 +239,11 @@ public class LightManager {
 
 			// Whatever the light is attached to is presumed to exist if it's not marked for removal yet
 			boolean parentExists = !light.markedForRemoval;
-			boolean hiddenTemporarily = light.hiddenTemporarily;
+			// Re-evaluate plane occlusion from a clean baseline. Keeping the previous plane hide
+			// here made a static light permanently hidden: the guard below then prevented the
+			// new player plane from ever being considered.
+			boolean hiddenTemporarily = light.hiddenTemporarily && !light.hiddenByPlane;
+			boolean hiddenByPlane = false;
 
 			if (light.tileObject != null) {
 				if (!light.markedForRemoval && light.animationSpecific && light.tileObject instanceof GameObject) {
@@ -424,11 +426,13 @@ public class LightManager {
 			if (!hiddenTemporarily && !light.def.visibleFromOtherPlanes) {
 				// Hide certain lights on planes lower than the player to prevent light 'leaking' through the floor
 				if (light.plane < plane && light.belowFloor)
-					hiddenTemporarily = true;
+					hiddenByPlane = true;
 				// Hide any light that is above the current plane and is above a solid floor
 				if (light.plane > plane && light.aboveFloor)
-					hiddenTemporarily = true;
+					hiddenByPlane = true;
+				hiddenTemporarily = hiddenByPlane;
 			}
+			light.hiddenByPlane = hiddenByPlane;
 
 			if (parentExists != light.parentExists) {
 				light.parentExists = parentExists;
@@ -660,40 +664,6 @@ public class LightManager {
 		}
 
 		scanSceneObjectLights(sceneContext);
-	}
-
-	/**
-	 * Rebuild tile object lights after a plane change or zone reload.
-	 * Spawn events are not fired for objects already in the scene, so we rescan manually.
-	 */
-	public void reloadObjectLights(SceneContext sceneContext) {
-		sceneContext.lights.removeIf(light -> light.tileObject != null);
-		scanSceneObjectLights(sceneContext);
-
-		for (Light light : sceneContext.lights) {
-			if (light.tileObject != null) {
-				light.fadeInDuration = 0;
-				light.hiddenTemporarily = false;
-				light.changedVisibilityAt = -1;
-				light.prevPlane = -1;
-			}
-		}
-	}
-
-	private void reloadWorldLights(SceneContext sceneContext) {
-		sceneContext.lights.removeIf(light -> light.worldPoint != null);
-		for (Light light : WORLD_LIGHTS) {
-			if (sceneContext.sceneBounds.contains(light.worldPoint))
-				addWorldLight(sceneContext, light);
-		}
-		for (Light light : sceneContext.lights) {
-			if (light.worldPoint != null) {
-				light.fadeInDuration = 0;
-				light.hiddenTemporarily = false;
-				light.changedVisibilityAt = -1;
-				light.prevPlane = -1;
-			}
-		}
 	}
 
 	private void scanSceneObjectLights(SceneContext sceneContext) {
