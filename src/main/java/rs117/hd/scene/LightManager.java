@@ -49,14 +49,12 @@ import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.entityhider.EntityHiderConfig;
 import net.runelite.client.plugins.entityhider.EntityHiderPlugin;
 import rs117.hd.HdPlugin;
-import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DynamicLights;
 import rs117.hd.data.ObjectType;
 import rs117.hd.opengl.uniforms.UBOLights;
 import rs117.hd.scene.lights.Alignment;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
-import rs117.hd.scene.lights.LightTimeOfDay;
 import rs117.hd.scene.lights.LightType;
 import rs117.hd.utils.HDUtils;
 import rs117.hd.utils.ModelHash;
@@ -73,9 +71,6 @@ import static rs117.hd.utils.collections.Util.quickSort;
 @Singleton
 @Slf4j
 public class LightManager {
-	private static final float NIGHT_RADIUS_BOOST_FRACTION = 0.25f;
-	private static final float NIGHT_STAGGER_RAMP_WIDTH = 0.08f;
-
 	private static final ResourcePath LIGHTS_PATH = Props
 		.getFile("rlhd.lights-path", () -> path(LightManager.class, "lights.json"));
 
@@ -98,13 +93,7 @@ public class LightManager {
 	private HdPlugin plugin;
 
 	@Inject
-	private HdPluginConfig config;
-
-	@Inject
 	private GamevalManager gamevalManager;
-
-	@Inject
-	private EnvironmentManager environmentManager;
 
 	@Inject
 	private ModelOverrideManager modelOverrideManager;
@@ -125,7 +114,6 @@ public class LightManager {
 	private boolean reloadLights;
 	private EntityHiderConfig entityHiderConfig;
 	private int currentPlane;
-	private float previousNightLightFactor = -1f;
 
 	public void loadConfig(Gson gson, ResourcePath path) {
 		LightDefinition[] lights;
@@ -206,17 +194,7 @@ public class LightManager {
 			});
 		}
 
-		float nightLightFactor = 1f;
-		boolean overworldDayNightActive = false;
-		boolean nightFactorRising = true;
-		if (environmentManager.isOverworld() && plugin.configEnableDayNightCycle) {
-			overworldDayNightActive = true;
-			nightLightFactor = timeOfDay.getNightLightFactor();
-			nightFactorRising = previousNightLightFactor < 0 || nightLightFactor >= previousNightLightFactor;
-			previousNightLightFactor = nightLightFactor;
-		} else {
-			previousNightLightFactor = -1f;
-		}
+		timeOfDay.updateLightState();
 
 		// These should never occur, but just in case...
 		if (sceneContext.knownProjectiles.size() > 10000) {
@@ -482,8 +460,7 @@ public class LightManager {
 			if (light.visible && light.hiddenTemporarily)
 				light.visible = light.changedVisibilityAt != -1 && light.elapsedTime - light.changedVisibilityAt < Light.VISIBILITY_FADE;
 
-			// dayNightOnly lights require the cycle setting; outside overworld they behave as static lights
-			if (light.visible && light.def.dayNightOnly && !plugin.configEnableDayNightCycle)
+			if (light.visible && !timeOfDay.isLightEnabled(light))
 				light.visible = false;
 
 			if (light.visible) {
@@ -492,14 +469,9 @@ public class LightManager {
 				float distZ = plugin.cameraFocalPoint[1] - light.pos[2];
 				light.distanceSquared = distX * distX + distZ * distZ;
 
-				float maxRadius = light.def.radius;
-				if (overworldDayNightActive) {
-					float phaseFactor = getEffectiveNightFactor(light, nightLightFactor, nightFactorRising);
-					float radiusScale = getNightRadiusScale(light.def, phaseFactor, nightLightFactor);
-					maxRadius *= radiusScale;
-					if (isTimeRestricted(light.def) && getNightStrengthScale(light.def, phaseFactor, nightLightFactor) < 0.001f)
-						light.visible = false;
-				}
+				float maxRadius = timeOfDay.getLightCullingRadius(light);
+				if (timeOfDay.isLightHiddenByDayNightCycle(light))
+					light.visible = false;
 				switch (light.def.type) {
 					case FLICKER:
 						maxRadius *= 1.5f;
@@ -584,7 +556,7 @@ public class LightManager {
 				light.radius = light.def.radius;
 			}
 
-			applyTimeOfDayColor(sceneContext, light);
+			timeOfDay.applyOutdoorLightLighting(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
 
 			// Spawn & despawn fade-in and fade-out
 			if (light.fadeInDuration > 0)
@@ -592,11 +564,7 @@ public class LightManager {
 			if (light.fadeOutDuration > 0 && light.lifetime != -1)
 				light.strength *= saturate((light.lifetime - light.elapsedTime) / light.fadeOutDuration);
 
-			if (overworldDayNightActive) {
-				float phaseFactor = getEffectiveNightFactor(light, nightLightFactor, nightFactorRising);
-				light.strength *= getNightStrengthScale(light.def, phaseFactor, nightLightFactor);
-				light.radius *= getNightRadiusScale(light.def, phaseFactor, nightLightFactor);
-			}
+			timeOfDay.applyDayNightLightScale(light);
 
 			light.applyTemporaryVisibilityFade();
 		}
@@ -617,129 +585,10 @@ public class LightManager {
 		}
 	}
 
-	/**
-	 * Remap the global dusk-to-dawn factor through per-light on/off windows.
-	 */
-	private static float getEffectiveNightFactor(Light light, float nightLightFactor, boolean rising) {
-		LightDefinition def = light.def;
-
-		LightTimeOfDay on = def.timeOfDay;
-		if (on == null)
-			return nightLightFactor;
-
-		if (rising) {
-			float[] window = getPhaseWindow(light, on, def.staggered);
-			return remapNightWindow(nightLightFactor, window[0], window[1]);
-		}
-
-		LightTimeOfDay offPhase = def.timeOfDayOff != null ? def.timeOfDayOff : on;
-		float[] window = getPhaseWindow(light, offPhase, def.staggered);
-		float offStart = window[0];
-		float offEnd = window[1];
-
-		if (nightLightFactor >= offEnd)
-			return 1f;
-		if (nightLightFactor <= offStart)
-			return 0f;
-
-		float t = (nightLightFactor - offStart) / (offEnd - offStart);
-		return t * t * (3f - 2f * t);
-	}
-
-	private static float[] getPhaseWindow(Light light, LightTimeOfDay phase, boolean staggered) {
-		if (!staggered)
-			return new float[] { phase.start, phase.end };
-
-		float phaseSpan = phase.end - phase.start;
-		float rampWidth = Math.min(NIGHT_STAGGER_RAMP_WIDTH, phaseSpan);
-		float maxOffset = Math.max(0, phaseSpan - rampWidth);
-		float offset = getNightStaggerOffset(light) * maxOffset;
-		return new float[] { phase.start + offset, phase.start + offset + rampWidth };
-	}
-
-	private static float remapNightWindow(float nightLightFactor, float start, float end) {
-		if (nightLightFactor <= start)
-			return 0f;
-		if (nightLightFactor >= end)
-			return 1f;
-
-		float t = (nightLightFactor - start) / (end - start);
-		return t * t * (3f - 2f * t);
-	}
-
-	private static float getNightStaggerOffset(Light light) {
-		int hash = Float.floatToIntBits(light.pos[0]);
-		hash ^= Float.floatToIntBits(light.pos[1]) * 374761393;
-		hash ^= Float.floatToIntBits(light.pos[2]) * 668265263;
-		hash ^= light.plane * 912271;
-		hash ^= hash >>> 16;
-		hash *= 0x85ebca6b;
-		hash ^= hash >>> 13;
-		hash *= 0xc2b2ae35;
-		hash ^= hash >>> 16;
-		return (hash & 0x7FFFFFFF) / 2147483647f;
-	}
-
-	private static boolean isTimeRestricted(LightDefinition def) {
-		return def.timeOfDay != null;
-	}
-
 	private int[] getLightWorldPos(SceneContext sceneContext, Light light) {
 		if (light.worldPoint != null)
 			return new int[] { light.worldPoint.getX(), light.worldPoint.getY(), light.worldPoint.getPlane() };
 		return sceneContext.localToWorld((int) light.pos[0], (int) light.pos[2], light.plane);
-	}
-
-	private void applyTimeOfDayColor(SceneContext sceneContext, Light light) {
-		System.arraycopy(light.def.color, 0, light.color, 0, 3);
-
-		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
-			return;
-
-		timeOfDay.applyOutdoorLightLighting(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
-	}
-
-	/**
-	 * Strength scale when the day & night cycle is active in overworld areas.
-	 * nightMultiplier is the peak-darkness target: 0 = off, 0.5 = half default, 1 = default, >1 = boosted.
-	 * Always-on lights blend from default (day) toward that target.
-	 * timeOfDay / staggered lights multiply their phase fade by the same night target curve.
-	 */
-	private static float getNightStrengthScale(LightDefinition def, float phaseFactor, float globalNightFactor) {
-		float nightScale = lerpNightScale(def.nightMultiplier, globalNightFactor);
-		if (isTimeRestricted(def))
-			return phaseFactor * nightScale;
-		return nightScale;
-	}
-
-	/**
-	 * Radius scale when the day & night cycle is active.
-	 * Values below 1 only reduce strength; radius stays at default unless the light is fully off (0).
-	 * Values above 1 grow radius by a smaller fraction than brightness.
-	 */
-	private static float getNightRadiusScale(LightDefinition def, float phaseFactor, float globalNightFactor) {
-		float multiplier = def.nightMultiplier;
-		if (isTimeRestricted(def)) {
-			if (multiplier <= 0)
-				return 0;
-			if (multiplier < 1)
-				return phaseFactor;
-			return phaseFactor * lerpNightRadiusScale(multiplier, globalNightFactor);
-		}
-		if (multiplier <= 0)
-			return lerpNightScale(0, globalNightFactor);
-		if (multiplier < 1)
-			return 1;
-		return lerpNightRadiusScale(multiplier, globalNightFactor);
-	}
-
-	private static float lerpNightScale(float multiplier, float nightLightFactor) {
-		return 1 + (multiplier - 1) * nightLightFactor;
-	}
-
-	private static float lerpNightRadiusScale(float multiplier, float nightLightFactor) {
-		float radiusFraction = multiplier > 1f ? NIGHT_RADIUS_BOOST_FRACTION : 1f;
-		return 1 + (multiplier - 1) * nightLightFactor * radiusFraction;
 	}
 
 	private boolean isActorLightVisible(@Nonnull Actor actor) {

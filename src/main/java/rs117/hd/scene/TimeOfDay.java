@@ -19,6 +19,8 @@ import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
 import rs117.hd.scene.lights.Light;
+import rs117.hd.scene.lights.LightDefinition;
+import rs117.hd.scene.lights.LightTimeOfDay;
 import rs117.hd.utils.AstronomyUtils;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.HDUtils;
@@ -80,6 +82,8 @@ public class TimeOfDay {
 	// Read-only: every consumer only reads components into fresh blend arrays.
 	private static final float[] NIGHT_SKY_LINEAR = rgb(5, 7, 15);
 	private static final float[] SKY_LUMA_WEIGHTS = { .2126f, .7152f, .0722f };
+	private static final float NIGHT_RADIUS_BOOST_FRACTION = .25f;
+	private static final float NIGHT_STAGGER_RAMP_WIDTH = .08f;
 
 	// Sky color keyframe tables, as { sunAltitudeDegrees, sRGB 0xRRGGBB }. Read-only
 	// constant data; interpolateSrgb only reads them and returns a fresh
@@ -330,6 +334,12 @@ public class TimeOfDay {
 	private float[] frameMoonDirectionForSky;
 	private Float frameMoonIllumination;
 	private Float frameMoonAltitudeDegrees;
+
+	// Per-light cycle state. Updated once by LightManager before it evaluates visibility.
+	private boolean dayNightLightsActive;
+	private float nightLightFactor = 1;
+	private boolean nightLightFactorRising = true;
+	private float previousNightLightFactor = -1;
 
 	// ===== Per-frame state =======================================================
 
@@ -1342,12 +1352,150 @@ public class TimeOfDay {
 		}
 	}
 
+	/** Update the shared day/night state used while LightManager processes the current frame. */
+	public void updateLightState() {
+		dayNightLightsActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
+		if (!dayNightLightsActive) {
+			previousNightLightFactor = -1;
+			return;
+		}
+
+		nightLightFactor = getNightLightFactor();
+		nightLightFactorRising = previousNightLightFactor < 0 || nightLightFactor >= previousNightLightFactor;
+		previousNightLightFactor = nightLightFactor;
+	}
+
+	/** Whether a light definition that requires the cycle is enabled by the player's config. */
+	public boolean isLightEnabled(Light light) {
+		return !light.def.dayNightOnly || plugin.configEnableDayNightCycle;
+	}
+
+	/** Radius to use for culling before a light's final animation and cycle scale are applied. */
+	public float getLightCullingRadius(Light light) {
+		if (!dayNightLightsActive)
+			return light.def.radius;
+
+		float phaseFactor = getEffectiveNightFactor(light);
+		return light.def.radius * getNightRadiusScale(light.def, phaseFactor);
+	}
+
+	/** Whether a time-restricted light is effectively off for the current day/night state. */
+	public boolean isLightHiddenByDayNightCycle(Light light) {
+		return dayNightLightsActive
+			&& isTimeRestricted(light.def)
+			&& getNightStrengthScale(light.def, getEffectiveNightFactor(light)) < .001f;
+	}
+
+	/** Apply the cycle's strength and radius response after LightManager's normal fades. */
+	public void applyDayNightLightScale(Light light) {
+		if (!dayNightLightsActive)
+			return;
+
+		float phaseFactor = getEffectiveNightFactor(light);
+		light.strength *= getNightStrengthScale(light.def, phaseFactor);
+		light.radius *= getNightRadiusScale(light.def, phaseFactor);
+	}
+
+	private float getEffectiveNightFactor(Light light) {
+		LightDefinition def = light.def;
+		LightTimeOfDay on = def.timeOfDay;
+		if (on == null)
+			return nightLightFactor;
+
+		if (nightLightFactorRising) {
+			float[] window = getPhaseWindow(light, on, def.staggered);
+			return remapNightWindow(nightLightFactor, window[0], window[1]);
+		}
+
+		LightTimeOfDay offPhase = def.timeOfDayOff != null ? def.timeOfDayOff : on;
+		float[] window = getPhaseWindow(light, offPhase, def.staggered);
+		if (nightLightFactor >= window[1])
+			return 1;
+		if (nightLightFactor <= window[0])
+			return 0;
+
+		float t = (nightLightFactor - window[0]) / (window[1] - window[0]);
+		return t * t * (3 - 2 * t);
+	}
+
+	private static float[] getPhaseWindow(Light light, LightTimeOfDay phase, boolean staggered) {
+		if (!staggered)
+			return new float[] { phase.start, phase.end };
+
+		float phaseSpan = phase.end - phase.start;
+		float rampWidth = min(NIGHT_STAGGER_RAMP_WIDTH, phaseSpan);
+		float maxOffset = max(0, phaseSpan - rampWidth);
+		float offset = getNightStaggerOffset(light) * maxOffset;
+		return new float[] { phase.start + offset, phase.start + offset + rampWidth };
+	}
+
+	private static float remapNightWindow(float nightLightFactor, float start, float end) {
+		if (nightLightFactor <= start)
+			return 0;
+		if (nightLightFactor >= end)
+			return 1;
+
+		float t = (nightLightFactor - start) / (end - start);
+		return t * t * (3 - 2 * t);
+	}
+
+	private static float getNightStaggerOffset(Light light) {
+		int hash = Float.floatToIntBits(light.pos[0]);
+		hash ^= Float.floatToIntBits(light.pos[1]) * 374761393;
+		hash ^= Float.floatToIntBits(light.pos[2]) * 668265263;
+		hash ^= light.plane * 912271;
+		hash ^= hash >>> 16;
+		hash *= 0x85ebca6b;
+		hash ^= hash >>> 13;
+		hash *= 0xc2b2ae35;
+		hash ^= hash >>> 16;
+		return (hash & 0x7FFFFFFF) / 2147483647f;
+	}
+
+	private static boolean isTimeRestricted(LightDefinition def) {
+		return def.timeOfDay != null;
+	}
+
+	private float getNightStrengthScale(LightDefinition def, float phaseFactor) {
+		float nightScale = lerpNightScale(def.nightMultiplier);
+		return isTimeRestricted(def) ? phaseFactor * nightScale : nightScale;
+	}
+
+	private float getNightRadiusScale(LightDefinition def, float phaseFactor) {
+		float multiplier = def.nightMultiplier;
+		if (isTimeRestricted(def)) {
+			if (multiplier <= 0)
+				return 0;
+			if (multiplier < 1)
+				return phaseFactor;
+			return phaseFactor * lerpNightRadiusScale(multiplier);
+		}
+		if (multiplier <= 0)
+			return lerpNightScale(0);
+		if (multiplier < 1)
+			return 1;
+		return lerpNightRadiusScale(multiplier);
+	}
+
+	private float lerpNightScale(float multiplier) {
+		return 1 + (multiplier - 1) * nightLightFactor;
+	}
+
+	private float lerpNightRadiusScale(float multiplier) {
+		float radiusFraction = multiplier > 1 ? NIGHT_RADIUS_BOOST_FRACTION : 1;
+		return 1 + (multiplier - 1) * nightLightFactor * radiusFraction;
+	}
+
 	/**
 	 * Apply the current sky's color and strength response to an outdoor light. Light definitions
 	 * remain the source of the authored daytime color; this only applies the day/night response
 	 * for definitions that opt in.
 	 */
 	public void applyOutdoorLightLighting(Light light, int[] worldPos, int minimumBrightness) {
+		System.arraycopy(light.def.color, 0, light.color, 0, 3);
+		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
+			return;
+
 		EnvironmentManager.OutdoorSkySample sky = environmentManager.sampleOutdoorSky(worldPos, minimumBrightness);
 		float[] authoredColor = light.def.color;
 		float defLuma = dot(authoredColor, SKY_LUMA_WEIGHTS);
