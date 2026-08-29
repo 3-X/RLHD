@@ -3,7 +3,6 @@ package rs117.hd.scene;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -146,7 +145,7 @@ public class TimeOfDay {
 	private static final long SOLSTICE_EPOCH_MS = 1749513600000L;
 
 	/** An hour-of-day in [0, 24) as a millisecond offset from the start of that day. */
-	private static long hoursToMillis(float hourOfDay) {
+	private static long hoursToMillis(double hourOfDay) {
 		return (long) (hourOfDay * HOUR_MS);
 	}
 
@@ -234,7 +233,7 @@ public class TimeOfDay {
 	private long lastUpdateTime = 0;
 	// Start the dynamic cycle at midday. cyclePosition 0.35 maps to 12:00pm
 	// in cyclePositionToHour()'s afternoon range (0.35-0.55 -> 12pm-5pm).
-	private float accumulatedCycleTime = .35f;
+	private double accumulatedCycleTime = .35;
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
 	// Player-configured defaults are updated by HdPlugin.updateCachedConfigs().
@@ -275,7 +274,12 @@ public class TimeOfDay {
 	// simulated time, so retain the original separately for real-time moon phases and dates.
 	private long frameWallClockMillis;
 	private Instant frameWallClockInstant;
-	private ZonedDateTime frameLocalTime;
+
+	// Real Time starts from the player's local calendar time, interpreted at longitude zero.
+	// Advancing this Unix timestamp directly keeps the cycle continuous through daylight-saving
+	// changes rather than reinterpreting the local clock every frame.
+	private long realTimeStartEpochMillis = Long.MIN_VALUE;
+	private long realTimeSessionStartMillis;
 
 	// Per-frame astronomy snapshot. update() already pins the wall-clock instant
 	// once per frame; these cache the ephemeris solves derived from it, so the
@@ -451,8 +455,8 @@ public class TimeOfDay {
 	 * while the other period is fast-forwarded, and a full cycle still takes
 	 * exactly cycleDurationMinutes.
 	 */
-	private float applyDayLengthWarp(float cyclePosition) {
-		float dayFraction = (float) currentDayLength.dayFraction;
+	private double applyDayLengthWarp(double cyclePosition) {
+		float dayFraction = currentDayLength.dayFraction;
 		// STANDARD (and any config matching the natural split) is the identity map.
 		if (abs(dayFraction - NATURAL_DAY_BOUNDARY) < 1e-6f)
 			return cyclePosition;
@@ -462,7 +466,7 @@ public class TimeOfDay {
 			return (cyclePosition / dayFraction) * NATURAL_DAY_BOUNDARY;
 		} else {
 			// Within the (re-sized) night: scale into the natural night segment.
-			float nightProgress = (cyclePosition - dayFraction) / (1 - dayFraction);
+			double nightProgress = (cyclePosition - dayFraction) / (1 - dayFraction);
 			return NATURAL_DAY_BOUNDARY + nightProgress * (1 - NATURAL_DAY_BOUNDARY);
 		}
 	}
@@ -472,7 +476,7 @@ public class TimeOfDay {
 	 * {@link DaylightCycle#usesDayLengthForMoon}: their sun ignores Day Length, while an unlocked
 	 * moon still follows the resized day/night periods.
 	 */
-	private float getMoonCyclePosition() {
+	private double getMoonCyclePosition() {
 		return currentCycleMode.usesDayLengthForMoon
 			? applyDayLengthWarp(accumulatedCycleTime)
 			: accumulatedCycleTime;
@@ -772,11 +776,11 @@ public class TimeOfDay {
 		if (currentCycleMode.isLocksMoonIllumination()) {
 			return 1.0f; // Always a full moon
 		}
-		// Real Time: use the actual current real-world lunar phase, regardless of moon
-		// behavior, so it matches the moon you'd see outside. getMoonIllumination now
-		// uses real (non-reversed) time, so this is simply today's phase.
+		// Real Time: use the same locally anchored timestamp as the sun and moon position.
+		// It advances continuously from session start, so daylight-saving changes cannot make
+		// the lunar phase jump relative to the rest of the cycle.
 		if (currentCycleMode.usesLocalTime) {
-			return (float) AtmosphereUtils.getMoonIllumination(frameWallClockMillis)[0];
+			return (float) AtmosphereUtils.getMoonIllumination(currentInstant.toEpochMilli())[0];
 		}
 		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED) {
 
@@ -823,7 +827,7 @@ public class TimeOfDay {
 	private boolean isAuroraNight() {
 		// Continuous simulated-day time, with the integer boundary shifted to
 		// midday (cycle pos 0.35) so a night and its index never straddle a flip.
-		int nightIndex = max(1, (int) completedCycles + floor(accumulatedCycleTime - .35f) + 1);
+		int nightIndex = max(1, (int) Math.floor(completedCycles + accumulatedCycleTime - .35) + 1);
 
 		// Cheap integer hash (splitmix64-style finalizer) -> uniform 53-bit mantissa.
 		long h = nightIndex * 0x9E3779B97F4A7C15L;
@@ -862,7 +866,7 @@ public class TimeOfDay {
 		// so re-center the envelope on that boundary: auroras are absent right after a
 		// flip, swell to full a bit past mid-cycle, then fade back out before the next
 		// flip. phase in [0,1) measured from the 0.35 flip point.
-		float phase = accumulatedCycleTime - .35f;
+		float phase = (float) accumulatedCycleTime - .35f;
 		phase -= floor(phase); // wrap into [0, 1)
 
 		// Smooth bump: only visible over a fraction of the cycle. Ramp in over
@@ -917,7 +921,7 @@ public class TimeOfDay {
 
 		// Warp identically to the sun so the night-synced moon stays aligned with
 		// the (now re-sized) day & night periods - moonrise still tracks visual sunset.
-		float cyclePosition = getMoonCyclePosition();
+		double cyclePosition = getMoonCyclePosition();
 
 		// Use a uniform linear mapping: cycle 0→1 maps to a full 24-hour day.
 		// This gives the moon constant angular speed across its whole arc,
@@ -927,7 +931,7 @@ public class TimeOfDay {
 		// at cycle position ~0.65, matching when the piecewise sun visually
 		// reaches the horizon. This keeps moonrise aligned with visual sunset.
 		// 19 = start + 0.65 * 24  =>  start ≈ 3.4
-		float mappedHour = 3.4f + cyclePosition * 24;
+		double mappedHour = 3.4 + cyclePosition * 24;
 		if (mappedHour >= 24) mappedHour -= 24;
 
 		// Detect newly completed cycles and queue them as pending
@@ -961,10 +965,24 @@ public class TimeOfDay {
 		return new float[] { (float) sunAngles[0] + PI, moonAltitude };
 	}
 
-	// Maps the local calendar date and wall-clock time to UTC because the cycle uses longitude
-	// zero. This makes local noon map to in-game noon without changing the local season/date.
-	private Instant getLocalClockInstant() {
-		return frameLocalTime.toLocalDateTime().toInstant(ZoneOffset.UTC);
+	/**
+	 * Anchor the real-time cycle to the local calendar once. Subsequent frames add elapsed Unix
+	 * time, rather than repeatedly converting the local clock and inheriting daylight-saving jumps.
+	 */
+	private void initializeRealTimeClock() {
+		if (realTimeStartEpochMillis != Long.MIN_VALUE)
+			return;
+
+		realTimeStartEpochMillis = frameWallClockInstant
+			.atZone(ZoneId.systemDefault())
+			.toLocalDateTime()
+			.toInstant(ZoneOffset.UTC)
+			.toEpochMilli();
+		realTimeSessionStartMillis = frameWallClockMillis;
+	}
+
+	private Instant getRealTimeInstant() {
+		return Instant.ofEpochMilli(realTimeStartEpochMillis + frameWallClockMillis - realTimeSessionStartMillis);
 	}
 
 	/**
@@ -973,25 +991,25 @@ public class TimeOfDay {
 	 * night). Shared by the Dynamic cycle and Synced Days so both share the same
 	 * sun arc shape.
 	 */
-	private float cyclePositionToHour(float cyclePosition) {
+	private double cyclePositionToHour(double cyclePosition) {
 		// 0.0-0.15  dawn/sunrise twilight -> 5am-7am
 		// 0.15-0.35 morning               -> 7am-12pm
 		// 0.35-0.55 afternoon             -> 12pm-5pm
 		// 0.55-0.70 sunset twilight       -> 5pm-7pm
 		// 0.70-0.85 early night           -> 7pm-12am
 		// 0.85-1.0  late night/pre-dawn   -> 12am-5am
-		if (cyclePosition < .15f) {
-			return 5 + cyclePosition / .15f * 2;
-		} else if (cyclePosition < .35f) {
-			return 7 + (cyclePosition - .15f) / .2f * 5;
-		} else if (cyclePosition < .55f) {
-			return 12 + (cyclePosition - .35f) / .2f * 5;
-		} else if (cyclePosition < .7f) {
-			return 17 + (cyclePosition - .55f) / .15f * 2;
-		} else if (cyclePosition < .85f) {
-			return 19 + (cyclePosition - .7f) / .15f * 5;
+		if (cyclePosition < .15) {
+			return 5 + cyclePosition / .15 * 2;
+		} else if (cyclePosition < .35) {
+			return 7 + (cyclePosition - .15) / .2 * 5;
+		} else if (cyclePosition < .55) {
+			return 12 + (cyclePosition - .35) / .2 * 5;
+		} else if (cyclePosition < .7) {
+			return 17 + (cyclePosition - .55) / .15 * 2;
+		} else if (cyclePosition < .85) {
+			return 19 + (cyclePosition - .7) / .15 * 5;
 		} else {
-			return (cyclePosition - .85f) / .15f * 5;
+			return (cyclePosition - .85) / .15 * 5;
 		}
 	}
 
@@ -999,8 +1017,8 @@ public class TimeOfDay {
 	 * Synced Days cycle position in [0, 1): where we are within the current UTC
 	 * hour. Stateless and identical for every player at a given UTC instant.
 	 */
-	private float getSyncedDaysCyclePosition(long currentTimeMillis) {
-		return (float) (currentTimeMillis % SYNCED_DAYS_PERIOD_MS) / SYNCED_DAYS_PERIOD_MS;
+	private double getSyncedDaysCyclePosition(long currentTimeMillis) {
+		return (currentTimeMillis % SYNCED_DAYS_PERIOD_MS) / (double) SYNCED_DAYS_PERIOD_MS;
 	}
 
 	// ===== Simulated clock =======================================================
@@ -1022,7 +1040,7 @@ public class TimeOfDay {
 
 		frameWallClockMillis = System.currentTimeMillis();
 		frameWallClockInstant = Instant.ofEpochMilli(frameWallClockMillis);
-		frameLocalTime = frameWallClockInstant.atZone(ZoneId.systemDefault());
+		initializeRealTimeClock();
 		long currentTimeMillis = frameWallClockMillis;
 		currentInstant = frameWallClockInstant;
 
@@ -1034,17 +1052,17 @@ public class TimeOfDay {
 		long realTimeElapsed = currentTimeMillis - lastUpdateTime;
 
 		// Convert cycle duration from minutes to milliseconds for the full cycle
-		float cycleDurationMillis = currentCycleDuration * 60 * 1000; // minutes to milliseconds
+		double cycleDurationMillis = currentCycleDuration * 60.0 * 1000.0; // minutes to milliseconds
 
 		// Calculate how much cycle time has progressed based on current day length
-		float cycleTimeElapsed = (float) realTimeElapsed / cycleDurationMillis;
+		double cycleTimeElapsed = realTimeElapsed / cycleDurationMillis;
 
 		// Add to accumulated cycle time to maintain continuity
 		accumulatedCycleTime += cycleTimeElapsed;
 
 		// Track completed cycles (each = one simulated day) for moon phase progression
-		while (accumulatedCycleTime >= 1) {
-			accumulatedCycleTime -= 1;
+		while (accumulatedCycleTime >= 1.0) {
+			accumulatedCycleTime -= 1.0;
 			completedCycles++;
 		}
 
@@ -1052,14 +1070,14 @@ public class TimeOfDay {
 
 		switch (currentCycleMode) {
 			case REAL_TIME:
-				// Map the player's local calendar date/time to longitude zero, so local noon
-				// puts the sun at its peak in-game without shifting the season at midnight.
-				currentInstant = getLocalClockInstant();
+				// The session-local timestamp advances in Unix time, so daylight-saving changes
+				// cannot cause a discontinuity in the sun, moon, or seasonal date.
+				currentInstant = getRealTimeInstant();
 				break;
 			case SYNCED_DAYS:
 				// A full day & night per real UTC hour. The resulting sky is identical for all
 				// players and independent of Cycle Duration.
-				float syncedCyclePosition = getSyncedDaysCyclePosition(currentTimeMillis);
+				double syncedCyclePosition = getSyncedDaysCyclePosition(currentTimeMillis);
 				long syncedDay = currentTimeMillis / SYNCED_DAYS_PERIOD_MS;
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
 				currentInstant = syncedStartOfDay.plusMillis(hoursToMillis(cyclePositionToHour(syncedCyclePosition)));
@@ -1073,13 +1091,13 @@ public class TimeOfDay {
 				// Cycle tracking above continues for moon calculations, but the sun's instant
 				// remains at this mode's authored time of day.
 				long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-				currentInstant = Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis((float) currentCycleMode.getFixedHour()));
+				currentInstant = Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
 				break;
 			case DYNAMIC:
 				// Warp the linear cycle clock so day and night occupy the configured share,
 				// then feed it through the twilight-weighted sun mapping.
-				float cyclePosition = applyDayLengthWarp(accumulatedCycleTime);
-				float mappedHour = cyclePositionToHour(cyclePosition);
+				double cyclePosition = applyDayLengthWarp(accumulatedCycleTime);
+				double mappedHour = cyclePositionToHour(cyclePosition);
 				Instant startOfDay = currentInstant.truncatedTo(ChronoUnit.DAYS)
 					.plus(completedCycles, ChronoUnit.DAYS);
 				currentInstant = startOfDay.plusMillis(hoursToMillis(mappedHour));
@@ -1114,7 +1132,7 @@ public class TimeOfDay {
 		// Warp only the within-cycle fraction so the realistic moon's position tracks
 		// the re-sized day & night, while whole completed cycles still advance the lunar
 		// phase linearly (preventing phase jitter from the warp).
-		long totalOffsetMillis = completedCycles * DAY_MS + (long) (getMoonCyclePosition() * DAY_MS);
+		long totalOffsetMillis = (long) ((completedCycles + getMoonCyclePosition()) * DAY_MS);
 
 		return startOfDay.plusMillis(totalOffsetMillis);
 	}

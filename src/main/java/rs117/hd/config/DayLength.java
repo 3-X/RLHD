@@ -14,13 +14,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum DayLength
 {
-	STANDARD("Standard", 0.70),
-	LONGER_DAYS("Longer Days", 0.85),
-	LONGER_NIGHTS("Longer Nights", 0.45),
+	STANDARD("Standard", .70f),
+	LONGER_DAYS("Longer Days", .85f),
+	LONGER_NIGHTS("Longer Nights", .45f),
 	;
 
 	private final String name;
-	public final double dayFraction;
+	public final float dayFraction;
 
 	@Override
 	public String toString() {
