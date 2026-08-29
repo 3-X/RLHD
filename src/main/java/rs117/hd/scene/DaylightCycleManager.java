@@ -7,8 +7,6 @@ import java.time.temporal.ChronoUnit;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import lombok.Getter;
-import lombok.Setter;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DayLength;
@@ -150,35 +148,27 @@ public class DaylightCycleManager {
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
 	// Player-configured defaults are updated by HdPlugin.updateCachedConfigs().
-	@Setter
 	private DaylightCycle configuredCycleMode = DaylightCycle.DYNAMIC;
 
-	@Getter
 	private DaylightCycle currentCycleMode = DaylightCycle.DYNAMIC;
 
 	// Current day length skew - set once per frame alongside the cycle mode.
 	// Warps the linear cycle clock so day & night occupy different shares of the
 	// fixed total cycle time (see applyDayLengthWarp).
-	@Setter
 	private DayLength currentDayLength = DayLength.STANDARD;
 
 	// Current moon phase lock - set once per frame. DYNAMIC = phase advances
 	// naturally; any other value locks the moon's illumination fraction.
-	@Setter
 	private MoonPhase configuredMoonPhase = MoonPhase.DYNAMIC;
 
 	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
 
-	@Setter
 	private MoonBehavior currentMoonBehavior = MoonBehavior.NIGHT_SYNCED;
 
-	@Getter
-	@Setter
-	private float currentCycleDuration = 700;
+	public float currentCycleDuration = 700;
 
 	private final double[] currentLatLong = { 0, 0 };
 
-	@Getter
 	private Instant currentInstant;
 
 	// The single wall-clock sample for this frame. currentInstant is often remapped to a
@@ -328,13 +318,6 @@ public class DaylightCycleManager {
 	}
 
 	/**
-	 * The fixed sun angles {altitude, azimuth} in radians. Only valid when {@link #hasFixedSunOverride()}.
-	 */
-	private float[] getFixedSunAngles() {
-		return new float[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
-	}
-
-	/**
 	 * Build a normalized direction vector FROM the camera TO the given
 	 * {azimuth, altitude} sky position, using the renderer/light convention
 	 * (pitch = altitude, yaw = PI - azimuth). Shared by the sun/moon sky
@@ -445,8 +428,7 @@ public class DaylightCycleManager {
 	 */
 	private float[] getSunShadowAngles(float[] out) {
 		if (hasFixedSunOverride()) {
-			float[] fixedSunAngles = getFixedSunAngles();
-			return setShadowAngles(out, fixedSunAngles[0], fixedSunAngles[1] + PI);
+			return setShadowAngles(out, fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] + PI);
 		}
 
 		float[] sunAngles = getSunAngles();
@@ -763,10 +745,6 @@ public class DaylightCycleManager {
 		realTimeSessionStartMillis = frameWallClockMillis;
 	}
 
-	private Instant getRealTimeInstant() {
-		return Instant.ofEpochMilli(realTimeStartEpochMillis + frameWallClockMillis - realTimeSessionStartMillis);
-	}
-
 	/**
 	 * Map a normalized cycle position [0, 1) to an hour-of-day [0, 24) using the
 	 * project's twilight-weighted mapping (extended dawn/dusk, compressed deep
@@ -793,14 +771,6 @@ public class DaylightCycleManager {
 		} else {
 			return (cyclePosition - .85) / .15 * 5;
 		}
-	}
-
-	/**
-	 * Synced Days cycle position in [0, 1): where we are within the current UTC
-	 * hour. Stateless and identical for every player at a given UTC instant.
-	 */
-	private double getSyncedDaysCyclePosition(long currentTimeMillis) {
-		return (currentTimeMillis % SYNCED_DAYS_PERIOD_MS) / (double) SYNCED_DAYS_PERIOD_MS;
 	}
 
 	// ===== Simulated clock =======================================================
@@ -849,18 +819,21 @@ public class DaylightCycleManager {
 
 	/** Resolve the astronomical instant for the already-updated cycle state. */
 	private Instant resolveCurrentInstant() {
-		if (currentCycleMode.isFixed)
-			return getFixedModeInstant();
+		if (currentCycleMode.isFixed) {
+			long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
+			return Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
+		}
 
 		switch (currentCycleMode) {
 			case REAL_TIME:
 				// The session-local timestamp advances in Unix time, so daylight-saving changes
 				// cannot cause a discontinuity in the sun, moon, or seasonal date.
-				return getRealTimeInstant();
+				return Instant.ofEpochMilli(realTimeStartEpochMillis + frameWallClockMillis - realTimeSessionStartMillis);
 			case SYNCED_DAYS:
 				// A full day & night per real UTC hour. The resulting sky is identical for all
 				// players and independent of Cycle Duration.
-				double syncedCyclePosition = getSyncedDaysCyclePosition(frameWallClockMillis);
+				double syncedCyclePosition =
+					(frameWallClockMillis % SYNCED_DAYS_PERIOD_MS) / (double) SYNCED_DAYS_PERIOD_MS;
 				long syncedDay = frameWallClockMillis / SYNCED_DAYS_PERIOD_MS;
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
 				return syncedStartOfDay.plusMillis(hoursToMillis(cyclePositionToHour(syncedCyclePosition)));
@@ -874,12 +847,6 @@ public class DaylightCycleManager {
 				return startOfDay.plusMillis(hoursToMillis(mappedHour));
 		}
 		throw new IllegalStateException("Unhandled day & night cycle mode: " + currentCycleMode);
-	}
-
-	/** Fixed modes retain their moving-cycle state for moons, but pin the sun to this instant. */
-	private Instant getFixedModeInstant() {
-		long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-		return Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
 	}
 
 	/**
@@ -916,12 +883,6 @@ public class DaylightCycleManager {
 
 	// ===== Light schedule ========================================================
 
-	public float getNightFactor() {
-		// Fixed Twilight/Sunset should contribute the same partial night factor as a
-		// moving sky at that altitude; fixed modes already return their authored sun angle.
-		return smoothstep(5, -18, getSunAngles()[1] * RAD_TO_DEG);
-	}
-
 	/** Update the day/night light schedule before {@link LightManager} evaluates its lights. */
 	public void updateLightSchedule() {
 		lightScheduleActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
@@ -930,7 +891,9 @@ public class DaylightCycleManager {
 			return;
 		}
 
-		nightFactor = getNightFactor();
+		// Fixed Twilight/Sunset use their authored sun angle, producing the same partial night
+		// factor as a moving sky at that altitude.
+		nightFactor = smoothstep(5, -18, getSunAngles()[1] * RAD_TO_DEG);
 		nightFactorIncreasing = previousNightFactor < 0 || nightFactor >= previousNightFactor;
 		previousNightFactor = nightFactor;
 	}
@@ -952,7 +915,7 @@ public class DaylightCycleManager {
 	/** Whether a time-restricted light is effectively off for the current day/night state. */
 	public boolean isHiddenByLightSchedule(Light light) {
 		return lightScheduleActive
-			&& isTimeRestricted(light.def)
+			&& light.def.timeOfDay != null
 			&& getNightStrengthScale(light.def, getScheduledNightFactor(light)) < .001f;
 	}
 
@@ -999,32 +962,21 @@ public class DaylightCycleManager {
 		return (hash & 0x7FFFFFFF) / 2147483647f;
 	}
 
-	private static boolean isTimeRestricted(LightDefinition def) {
-		return def.timeOfDay != null;
-	}
-
 	private float getNightStrengthScale(LightDefinition def, float scheduledNightFactor) {
-		float nightScale = lerpNightScale(def.nightMultiplier);
-		return isTimeRestricted(def) ? scheduledNightFactor * nightScale : nightScale;
+		float nightScale = mix(1, def.nightMultiplier, nightFactor);
+		return def.timeOfDay != null ? scheduledNightFactor * nightScale : nightScale;
 	}
 
 	private float getNightRadiusScale(LightDefinition def, float scheduledNightFactor) {
 		float multiplier = def.nightMultiplier;
 		if (multiplier <= 0)
-			return isTimeRestricted(def) ? 0 : lerpNightScale(0);
+			return def.timeOfDay != null ? 0 : mix(1, 0, nightFactor);
 
 		// A scheduled light's radius follows its phase window. Unscheduled lights retain their
 		// authored radius unless explicitly boosted at night; this preserves their normal culling.
-		float scheduleScale = isTimeRestricted(def) ? scheduledNightFactor : 1;
-		return scheduleScale * (multiplier > 1 ? lerpNightRadiusScale(multiplier) : 1);
-	}
-
-	private float lerpNightScale(float multiplier) {
-		return mix(1, multiplier, nightFactor);
-	}
-
-	private float lerpNightRadiusScale(float multiplier) {
-		float radiusFraction = multiplier > 1 ? NIGHT_RADIUS_BOOST_FRACTION : 1;
-		return mix(1, multiplier, nightFactor * radiusFraction);
+		float scheduleScale = def.timeOfDay != null ? scheduledNightFactor : 1;
+		return scheduleScale * (multiplier > 1
+			? mix(1, multiplier, nightFactor * NIGHT_RADIUS_BOOST_FRACTION)
+			: 1);
 	}
 }

@@ -321,7 +321,7 @@ public class ZoneRenderer implements Renderer {
 	private void applyDirectionalAngles(float pitch, float yaw) {
 		final float previousPitch = directionalCamera.getPitch();
 		final float previousRawYaw = PI - directionalCamera.getYaw();
-		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(daylightCycleManager.getCurrentCycleDuration() / 300.0f);
+		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(daylightCycleManager.currentCycleDuration / 300.0f);
 		if (absAngleDiff(pitch, previousPitch) >= threshold || absAngleDiff(yaw, previousRawYaw) >= threshold) {
 			directionalCamera.setPitch(pitch);
 			directionalCamera.setYaw(PI - yaw);
@@ -566,7 +566,7 @@ public class ZoneRenderer implements Renderer {
 				if (starField.generateStarField() || skyboxCmd.isEmpty())
 					buildSkyboxCmd();
 
-				daylightCycleLighting.resolveDirectionalShadowAngles(directionalAngles);
+				daylightCycleManager.getDirectionalShadowAngles(directionalAngles);
 				directionalPitch = directionalAngles[0];
 				directionalYaw = directionalAngles[1];
 			}
@@ -711,7 +711,7 @@ public class ZoneRenderer implements Renderer {
 				// Cycle just turned off, so restore the non-cycle sky defaults. The scene clear
 				// falls back to the environment's fog color while shouldRenderSky is false.
 				shouldRenderSky = false;
-				daylightCycleLighting.resetSkybox();
+				plugin.uboSkybox.reset();
 			}
 		}
 		plugin.uboSkybox.upload();

@@ -159,16 +159,6 @@ public class DaylightCycleLighting {
 		return environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
 	}
 
-	/** Writes the shadow-casting directional camera's angles into out as { pitch, yaw }. */
-	public float[] resolveDirectionalShadowAngles(float[] out) {
-		return daylightCycleManager.getDirectionalShadowAngles(out);
-	}
-
-	/** Restore the non-cycle skybox defaults after the cycle stops driving the frame. */
-	public void resetSkybox() {
-		plugin.uboSkybox.reset();
-	}
-
 	/** Derive the frame's lighting from the current sun and moon, then upload the skybox UBO. */
 	public void computeCycleLighting() {
 		copyTo(directionalColor, getRegionalDirectionalLight(environmentManager.currentDirectionalColor));
@@ -236,14 +226,14 @@ public class DaylightCycleLighting {
 	}
 
 	/** The directional color from the cycle, blended toward the area's authored color by day. */
-	public float[] getRegionalDirectionalLight(float[] regionalDirectionalColor) {
+	private float[] getRegionalDirectionalLight(float[] regionalDirectionalColor) {
 		float[] sunAngles = daylightCycleManager.getSunAngles();
 		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
 		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
 	}
 
 	/** The ambient color from the cycle, using the same regional blend as directional light. */
-	public float[] getRegionalAmbientLight(float[] regionalAmbientColor) {
+	private float[] getRegionalAmbientLight(float[] regionalAmbientColor) {
 		float[] sunAngles = daylightCycleManager.getSunAngles();
 		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
 		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
@@ -254,7 +244,7 @@ public class DaylightCycleLighting {
 	 * Procedural keyframes are adjusted in sequence by regional sun suppression, regional
 	 * sunrise/sunset suppression, the daytime regional takeover, then the generic night sky.
 	 */
-	public float[][] getSkyGradientColors(
+	private float[][] getSkyGradientColors(
 		float[] regionalFogColor,
 		float sunStrength,
 		float sunriseSunsetStrength,
@@ -316,14 +306,14 @@ public class DaylightCycleLighting {
 	}
 
 	/** Reference horizon color at peak daytime, in the same sRGB space as the sky gradient. */
-	public float[] getReferenceHorizonColor(float[] regionalFogColor) {
+	private float[] getReferenceHorizonColor(float[] regionalFogColor) {
 		return regionalFogColor != null
 			? regionalFogColor
 			: linearToSrgb(interpolateSrgb(90, HORIZON_KEYFRAMES));
 	}
 
 	/** Brightness response driven by sun altitude, including the user's minimum brightness. */
-	public float getBrightnessMultiplier(int minimumBrightness) {
+	private float getBrightnessMultiplier(int minimumBrightness) {
 		float sunAltitudeDegrees = daylightCycleManager.getSunAngles()[1] * RAD_TO_DEG;
 		float minBrightness = minimumBrightness / 100f;
 		float horizonBrightness = minBrightness + .10f;
