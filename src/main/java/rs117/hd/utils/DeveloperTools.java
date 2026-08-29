@@ -44,6 +44,9 @@ public class DeveloperTools implements KeyListener {
 	private boolean developerMode;
 
 	@Inject
+	private Client client;
+
+	@Inject
 	private ClientThread clientThread;
 
 	@Inject
@@ -54,9 +57,6 @@ public class DeveloperTools implements KeyListener {
 
 	@Inject
 	private HdPlugin plugin;
-
-	@Inject
-	private Client client;
 
 	@Inject
 	private GamevalManager gamevalManager;

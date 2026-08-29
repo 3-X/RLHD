@@ -86,14 +86,11 @@ public final class HDUtils {
 		return multiply(vec(altitude, azimuth), DEG_TO_RAD);
 	}
 
-	public static float[] randomPointOnSphere(Random rng, float[] out) {
-		double z = rng.nextDouble() * 2.0 - 1.0;
-		double t = rng.nextDouble() * 2.0 * Math.PI;
-		double r = Math.sqrt(Math.max(0.0, 1.0 - z * z));
-		float x = (float) (r * Math.cos(t));
-		float y = (float) z;
-		float zc = (float) (r * Math.sin(t));
-		return vec3(out, x, y, zc);
+	public static void randomPointOnSphere(float[] out, Random rng) {
+		float z = rng.nextFloat() * 2 - 1;
+		float t = rng.nextFloat() * 2 * PI;
+		float r = sqrt(max(0, 1 - z * z));
+		vec3(out, r * cos(t), z, r * sin(t));
 	}
 
 	public static float[] ensureArrayLength(float[] array, int targetLength) {

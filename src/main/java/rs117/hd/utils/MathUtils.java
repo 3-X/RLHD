@@ -475,11 +475,8 @@ public final class MathUtils {
 		return product;
 	}
 
-	public static float angleDiff(float a, float b) {
-		float diff = (a - b) % TWO_PI;
-		if (diff < -PI) diff += TWO_PI;
-		if (diff > PI) diff -= TWO_PI;
-		return abs(diff);
+	public static float absAngleDiff(float a, float b) {
+		return abs(mod(a - b + PI, TWO_PI) - PI);
 	}
 
 	/**

@@ -61,7 +61,7 @@ public final class StarField {
 
 	private static final int NEBULA_CUBE_MAP_RESOLUTION = 512;
 
-	private static final long SEED = 0x117D511A5L;
+	private static final long SEED = 0x313137204844L;
 
 	@Inject
 	private HdPlugin plugin;
@@ -211,7 +211,7 @@ public final class StarField {
 	private void generateLayer(FloatBuffer vertexBuffer, int count, float maxBrightness, float sizeScale, float speed) {
 		final float[] center = new float[3];
 		for (int i = 0; i < count; i++) {
-			randomPointOnSphere(random, center);
+			randomPointOnSphere(center, random);
 			writeStar(vertexBuffer, center[0], center[1], center[2], maxBrightness, sizeScale, speed, 1.0f);
 		}
 	}
@@ -229,7 +229,7 @@ public final class StarField {
 			final float[] u = clusterTangentU[c];
 			final float[] v = clusterTangentV[c];
 
-			randomPointOnSphere(random, dir);
+			randomPointOnSphere(dir, random);
 
 			cross(u, dir, (Math.abs(dir[1]) < 0.99f) ? UP_VECTOR : LEFT_VECTOR);
 			normalize(u, u);

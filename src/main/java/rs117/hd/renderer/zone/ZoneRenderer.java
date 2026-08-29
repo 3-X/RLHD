@@ -79,9 +79,7 @@ import rs117.hd.utils.jobs.JobSystem;
 
 import static net.runelite.api.Constants.*;
 import static net.runelite.api.Perspective.*;
-import static org.lwjgl.opengl.GL20.GL_POINT_SPRITE;
 import static org.lwjgl.opengl.GL33C.*;
-import static org.lwjgl.opengl.GL40.GL_DRAW_INDIRECT_BUFFER;
 import static rs117.hd.HdPlugin.APPLE;
 import static rs117.hd.HdPlugin.COLOR_FILTER_FADE_DURATION;
 import static rs117.hd.HdPlugin.GL_CAPS;
@@ -323,7 +321,7 @@ public class ZoneRenderer implements Renderer {
 		final float previousPitch = directionalCamera.getPitch();
 		final float previousRawYaw = PI - directionalCamera.getYaw();
 		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(timeOfDay.getCurrentCycleDuration() / 300.0f);
-		if (angleDiff(pitch, previousPitch) >= threshold || angleDiff(yaw, previousRawYaw) >= threshold) {
+		if (absAngleDiff(pitch, previousPitch) >= threshold || absAngleDiff(yaw, previousRawYaw) >= threshold) {
 			directionalCamera.setPitch(pitch);
 			directionalCamera.setYaw(PI - yaw);
 		}
@@ -345,7 +343,7 @@ public class ZoneRenderer implements Renderer {
 			skyboxCmd.SetShader(starProgram);
 			skyboxCmd.Enable(GL_PROGRAM_POINT_SIZE);
 			if (!GL_CAPS.forwardCompatible) // GL_POINT_SPRITE is always enabled for core OpenGL >=3.0
-				skyboxCmd.Enable(GL_POINT_SPRITE);
+				skyboxCmd.Enable(GL20.GL_POINT_SPRITE);
 			skyboxCmd.Enable(GL_BLEND);
 			skyboxCmd.BlendFunc(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
 
@@ -355,7 +353,7 @@ public class ZoneRenderer implements Renderer {
 			skyboxCmd.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 			skyboxCmd.Disable(GL_BLEND);
 			if (!GL_CAPS.forwardCompatible) // GL_POINT_SPRITE is always enabled for core OpenGL >=3.0
-				skyboxCmd.Disable(GL_POINT_SPRITE);
+				skyboxCmd.Disable(GL20.GL_POINT_SPRITE);
 			skyboxCmd.Disable(GL_PROGRAM_POINT_SIZE);
 		}
 
@@ -369,7 +367,7 @@ public class ZoneRenderer implements Renderer {
 		eboAlpha.initialize(MiB);
 		eboAlphaWriter = new GLMappedBufferIntWriter(eboAlpha);
 
-		indirectDrawCmds = new GLBuffer("indirectDrawCmds", GL_DRAW_INDIRECT_BUFFER, GL_STREAM_DRAW).initialize(MiB);
+		indirectDrawCmds = new GLBuffer("indirectDrawCmds", GL40.GL_DRAW_INDIRECT_BUFFER, GL_STREAM_DRAW).initialize(MiB);
 		indirectDrawCmdsStaging = new GpuIntBuffer();
 	}
 
@@ -728,9 +726,10 @@ public class ZoneRenderer implements Renderer {
 		// flat fog-colored sky), the area must opt in, and the config acts as a master switch
 		// to force vanilla skyboxes back on everywhere. Reporting the skybox as absent lets
 		// the existing !shouldRenderRSSkybox paths do the swap.
-		boolean hideVanillaSkyboxes = shouldRenderSky
-			&& config.hideVanillaSkyboxes()
-			&& environmentManager.hideVanillaSkyboxes();
+		boolean hideVanillaSkyboxes =
+			shouldRenderSky &&
+			config.hideVanillaSkyboxes() &&
+			environmentManager.hideVanillaSkyboxes();
 		shouldRenderVanillaSkybox = scene.getSkybox() != null && !hideVanillaSkyboxes;
 
 		float fogDepth = 0;
