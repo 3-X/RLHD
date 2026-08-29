@@ -1,5 +1,6 @@
 package rs117.hd.scene;
 
+import java.awt.Color;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -17,7 +18,9 @@ import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
+import rs117.hd.scene.lights.Light;
 import rs117.hd.utils.AtmosphereUtils;
+import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.HDUtils;
 
 import static rs117.hd.utils.ColorUtils.linearToSrgb;
@@ -76,9 +79,10 @@ public class TimeOfDay {
 	// Pre-linearized deep-night sky color.
 	// Read-only: every consumer only reads components into fresh blend arrays.
 	private static final float[] NIGHT_SKY_LINEAR = rgb(5, 7, 15);
+	private static final float[] SKY_LUMA_WEIGHTS = { .2126f, .7152f, .0722f };
 
 	// Sky color keyframe tables, as { sunAltitudeDegrees, sRGB 0xRRGGBB }. Read-only
-	// constant data; AtmosphereUtils.interpolateSrgb only reads them and returns a fresh
+	// constant data; interpolateSrgb only reads them and returns a fresh
 	// linear float[] per call. Rows must stay sorted by ascending altitude.
 	private static final float[][] ZENITH_KEYFRAMES = { // top of the sky
 		srgbRow(-30, 0x010104), // Deep night - near black
@@ -120,6 +124,29 @@ public class TimeOfDay {
 		srgbRow(90,  0xFFFFFA), // Pure white
 	};
 
+	// Sun altitude in degrees mapped to color temperature in kelvin.
+	private static final float[][] DIRECTIONAL_TEMPERATURE_KEYFRAMES = {
+		{ 3, 2500 },
+		{ 5, 2600 },
+		{ 10, 3000 },
+		{ 15, 3300 },
+		{ 20, 3600 },
+		{ 30, 4000 },
+		{ 40, 4300 },
+		{ 50, 4750 },
+		{ 60, 5250 },
+		{ 70, 5500 },
+		{ 80, 5750 },
+		{ 90, 6000 }
+	};
+
+	// Procedural ambient colors in { sunAltitudeDegrees, linearR, linearG, linearB }.
+	private static final float[][] AMBIENT_COLOR_KEYFRAMES = {
+		linearRow(-5, 113, 140, 180),
+		linearRow(25, 192, 185, 255),
+		linearRow(40, 185, 214, 255),
+	};
+
 	/** Builds a keyframe row of { sunAltitudeDegrees, sRGB r, g, b } from a 0xRRGGBB literal. */
 	private static float[] srgbRow(float altitudeDegrees, int srgb) {
 		return new float[] {
@@ -128,6 +155,14 @@ public class TimeOfDay {
 			((srgb >> 8) & 0xFF) / 255f,
 			(srgb & 0xFF) / 255f
 		};
+	}
+
+	/**
+	 * Builds a pre-linearized color keyframe row from sRGB components.
+	 */
+	private static float[] linearRow(float altitudeDegrees, int red, int green, int blue) {
+		float[] linear = rgb(new Color(red, green, blue));
+		return new float[] { altitudeDegrees, linear[0], linear[1], linear[2] };
 	}
 
 	// Length of one Synced Days cycle: a full day & night every real hour, phase-locked
@@ -229,6 +264,11 @@ public class TimeOfDay {
 	// class stays independent of the renderer; if that constant moves, this must follow.
 	private static final float MOON_PHASE_ADVANCE_ALTITUDE_RAD = -10 * DEG_TO_RAD;
 
+	// Below this sun altitude, the moon takes over the shadow camera when it is still high
+	// enough to light the scene. This avoids a camera-orientation pop when moon shadows fade in.
+	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
+	private static final float MOON_SHADOW_CUTOFF_DEG = -10;
+
 	// Simulated-clock state, preserved across config changes.
 	private long lastUpdateTime = 0;
 	// Start the dynamic cycle at midday. cyclePosition 0.35 maps to 12:00pm
@@ -256,7 +296,6 @@ public class TimeOfDay {
 
 	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
 
-	@Getter
 	@Setter
 	private MoonBehavior currentMoonBehavior = MoonBehavior.NIGHT_SYNCED;
 
@@ -264,7 +303,6 @@ public class TimeOfDay {
 	@Setter
 	private float currentCycleDuration = 700;
 
-	@Getter
 	private final double[] currentLatLong = { 0, 0 };
 
 	@Getter
@@ -299,7 +337,7 @@ public class TimeOfDay {
 	 * Invalidate the per-frame astronomy snapshot. update() is the sole frame boundary:
 	 * all state must be settled before getters run.
 	 */
-	public void beginFrame() {
+	private void beginFrame() {
 		frameSunAngles = null;
 		frameMoonAngles = null;
 		frameNightSyncedMoonAngles = null;
@@ -369,7 +407,7 @@ public class TimeOfDay {
 	 * Drives everything sun-related in fixed modes (disk, shadow, sky colors, brightness)
 	 * so those modes no longer depend on incremented time.
 	 */
-	public float[] getFixedModeSunAngles() {
+	private float[] getFixedModeSunAngles() {
 		if (fixedSunAnglesOverride != null)
 			return new float[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
 		return currentCycleMode.getFixedSunAngles();
@@ -388,7 +426,7 @@ public class TimeOfDay {
 	 * direction and the shadow-casting light direction so the moon disk and the
 	 * shadows it casts stay locked together.
 	 */
-	public float[] getFixedNightMoonAngles() {
+	private float[] getFixedNightMoonAngles() {
 		if (fixedMoonAnglesOverride != null)
 			return new float[] { fixedMoonAnglesOverride[0], fixedMoonAnglesOverride[1] };
 		return new float[] { FIXED_NIGHT_MOON_ANGLES[0], FIXED_NIGHT_MOON_ANGLES[1] };
@@ -398,7 +436,7 @@ public class TimeOfDay {
 	 * Whether the current environment supplies a fixed sun-angle override that
 	 * should be honored (i.e. a fixed mode is active and an override is set).
 	 */
-	public boolean hasFixedSunOverride() {
+	private boolean hasFixedSunOverride() {
 		return currentCycleMode.isFixed && fixedSunAnglesOverride != null;
 	}
 
@@ -406,14 +444,14 @@ public class TimeOfDay {
 	 * Whether the current environment supplies a fixed moon-angle override that
 	 * should be honored (i.e. a fixed mode is active and an override is set).
 	 */
-	public boolean hasFixedMoonOverride() {
+	private boolean hasFixedMoonOverride() {
 		return currentCycleMode.isFixed && fixedMoonAnglesOverride != null;
 	}
 
 	/**
 	 * The fixed sun angles {altitude, azimuth} in radians. Only valid when {@link #hasFixedSunOverride()}.
 	 */
-	public float[] getFixedSunAngles() {
+	private float[] getFixedSunAngles() {
 		return new float[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
 	}
 
@@ -507,13 +545,86 @@ public class TimeOfDay {
 	}
 
 	/**
+	 * Procedural directional-light color for a sun angle. This is renderer policy rather than
+	 * astronomical calculation, so it stays alongside the regional blend that consumes it.
+	 */
+	private static float[] getDirectionalLightForAngles(float[] sunAngles) {
+		float[] directionalLight = multiply(ColorUtils.colorTemperatureToLinearRgb(4100), .1f);
+		if (sunAngles[1] >= 0) {
+			float temperature = interpolate(sunAngles[1] * RAD_TO_DEG, DIRECTIONAL_TEMPERATURE_KEYFRAMES);
+			float strength = sin(sunAngles[1]);
+			strength *= strength;
+			strength *= 3;
+			add(directionalLight, directionalLight, multiply(ColorUtils.colorTemperatureToLinearRgb(temperature), strength));
+		}
+		return directionalLight;
+	}
+
+	private static float[] getAmbientColorForAngles(float[] sunAngles) {
+		return interpolateLinear(sunAngles[1] * RAD_TO_DEG, AMBIENT_COLOR_KEYFRAMES);
+	}
+
+	private static float interpolate(float x, float[][] keyframesDegreesValue) {
+		int end = keyframesDegreesValue.length - 1;
+		int i = 0;
+		while (i < end && x > keyframesDegreesValue[i + 1][0])
+			i++;
+
+		if (i == end)
+			return keyframesDegreesValue[end][1];
+
+		float[] from = keyframesDegreesValue[i];
+		float[] to = keyframesDegreesValue[i + 1];
+		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
+		return mix(from[1], to[1], t);
+	}
+
+	private static float[] interpolateSrgb(float x, float[][] keyframesDegreesSrgb) {
+		int end = keyframesDegreesSrgb.length - 1;
+		int i = 0;
+		while (i < end && x > keyframesDegreesSrgb[i + 1][0])
+			i++;
+
+		float[] from = keyframesDegreesSrgb[i];
+		if (i == end)
+			return srgbToLinear(new float[] { from[1], from[2], from[3] });
+
+		float[] to = keyframesDegreesSrgb[i + 1];
+		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
+		return mix(
+			srgbToLinear(new float[] { from[1], from[2], from[3] }),
+			srgbToLinear(new float[] { to[1], to[2], to[3] }),
+			t
+		);
+	}
+
+	private static float[] interpolateLinear(float x, float[][] keyframesDegreesLinear) {
+		int end = keyframesDegreesLinear.length - 1;
+		int i = 0;
+		while (i < end && x > keyframesDegreesLinear[i + 1][0])
+			i++;
+
+		float[] from = keyframesDegreesLinear[i];
+		if (i == end)
+			return new float[] { from[1], from[2], from[3] };
+
+		float[] to = keyframesDegreesLinear[i + 1];
+		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
+		return new float[] {
+			mix(from[1], to[1], t),
+			mix(from[2], to[2], t),
+			mix(from[3], to[3], t),
+		};
+	}
+
+	/**
 	 * The scene's directional (sun/moon) light color: the cycle's own color for the current
 	 * sun altitude, blended toward the area's regional color as the sun climbs.
 	 * Both inputs and the result are in linear space.
 	 */
 	public float[] getRegionalDirectionalLight(float[] regionalDirectionalColor) {
 		float[] sunAngles = getSunAngles();
-		float[] dynamicLight = AtmosphereUtils.getDirectionalLightForAngles(this, sunAngles);
+		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
 		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
 	}
 
@@ -523,7 +634,7 @@ public class TimeOfDay {
 	 */
 	public float[] getRegionalAmbientLight(float[] regionalAmbientColor) {
 		float[] sunAngles = getSunAngles();
-		float[] dynamicAmbient = AtmosphereUtils.getAmbientColorForAngles(sunAngles);
+		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
 		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
 	}
 
@@ -565,9 +676,9 @@ public class TimeOfDay {
 		float takeover = max(0, skyColorTakeoverAngle);
 		float[] regionalLin = regionalFogColor != null ? srgbToLinear(regionalFogColor) : null;
 
-		float[] zenith = AtmosphereUtils.interpolateSrgb(sunAltitude, ZENITH_KEYFRAMES);
-		float[] horizon = AtmosphereUtils.interpolateSrgb(sunAltitude, HORIZON_KEYFRAMES);
-		float[] sunGlow = AtmosphereUtils.interpolateSrgb(sunAltitude, SUN_GLOW_KEYFRAMES);
+		float[] zenith = interpolateSrgb(sunAltitude, ZENITH_KEYFRAMES);
+		float[] horizon = interpolateSrgb(sunAltitude, HORIZON_KEYFRAMES);
+		float[] sunGlow = interpolateSrgb(sunAltitude, SUN_GLOW_KEYFRAMES);
 
 		// 1. sunStrength: suppress the procedural sunset colors for dark environments.
 		// Full suppression above the horizon (the regional blend below takes over from
@@ -657,7 +768,7 @@ public class TimeOfDay {
 		if (regionalFogColor != null)
 			return regionalFogColor;
 
-		float[] horizonLinear = AtmosphereUtils.interpolateSrgb(90, HORIZON_KEYFRAMES);
+		float[] horizonLinear = interpolateSrgb(90, HORIZON_KEYFRAMES);
 		return linearToSrgb(horizonLinear);
 	}
 
@@ -677,7 +788,7 @@ public class TimeOfDay {
 	 * {azimuth, altitude}, while fixed environment angles are authored as {altitude, azimuth}.
 	 * Both require a half-turn azimuth compensation before driving the directional camera.
 	 */
-	public float[] getSunShadowAngles(float[] out) {
+	private float[] getSunShadowAngles(float[] out) {
 		if (hasFixedSunOverride()) {
 			float[] fixedSunAngles = getFixedSunAngles();
 			return setShadowAngles(out, fixedSunAngles[0], fixedSunAngles[1] + PI);
@@ -685,6 +796,33 @@ public class TimeOfDay {
 
 		float[] sunAngles = getSunAngles();
 		return setShadowAngles(out, sunAngles[1], sunAngles[0] + PI);
+	}
+
+	/**
+	 * Write the shadow camera angles for the body currently lighting the scene. Fixed sun and
+	 * moon overrides take precedence; otherwise the moon takes over after sunset when it is
+	 * still above the lighting horizon.
+	 */
+	public float[] getDirectionalShadowAngles(float[] out) {
+		if (hasFixedSunOverride())
+			return getSunShadowAngles(out);
+
+		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride())
+			return getMoonShadowAngles(out);
+
+		if (getSunAngles()[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
+			&& getMoonAltitudeDegrees() > MOON_SHADOW_CUTOFF_DEG) {
+			return getMoonShadowAngles(out);
+		}
+
+		return getSunShadowAngles(out);
+	}
+
+	/**
+	 * Whether the active cycle mode suppresses the visible moon disk.
+	 */
+	public boolean hidesMoon() {
+		return currentCycleMode.isHidesMoon();
 	}
 
 	private float[] computeSunDirectionForSky() {
@@ -714,7 +852,7 @@ public class TimeOfDay {
 	 * Write the moon's shadow-camera angles as {pitch, yaw}. Fixed moon positions use the
 	 * environment order directly; moving moons use the astronomical {azimuth, altitude} order.
 	 */
-	public float[] getMoonShadowAngles(float[] out) {
+	private float[] getMoonShadowAngles(float[] out) {
 		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride()) {
 			float[] fixedMoonAngles = getFixedNightMoonAngles();
 			return setShadowAngles(out, fixedMoonAngles[0], fixedMoonAngles[1]);
@@ -740,7 +878,7 @@ public class TimeOfDay {
 	 * fixed moon position; otherwise the selected moon behavior determines its position.
 	 * The result is cached with the rest of the frame's astronomy snapshot.
 	 */
-	public float[] getMoonAngles() {
+	private float[] getMoonAngles() {
 		if (frameMoonAngles == null)
 			frameMoonAngles = computeMoonAngles();
 		return frameMoonAngles;
@@ -804,6 +942,17 @@ public class TimeOfDay {
 		if (frameMoonAltitudeDegrees == null)
 			frameMoonAltitudeDegrees = computeMoonAltitudeDegrees();
 		return frameMoonAltitudeDegrees;
+	}
+
+	/**
+	 * Moon altitude used by scene lighting. Fixed Night already gets its authored position from
+	 * {@link #getMoonAngles()}; Always Night uses that same altitude so its moving moon cannot
+	 * leave a permanently dark sky.
+	 */
+	public float getMoonAltitudeDegreesForLighting() {
+		return currentCycleMode.isUsesFixedMoonAltitudeForLighting()
+			? getFixedNightMoonAngles()[0] * RAD_TO_DEG
+			: getMoonAltitudeDegrees();
 	}
 
 	private float computeMoonAltitudeDegrees() {
@@ -894,7 +1043,7 @@ public class TimeOfDay {
 	 * changes cycle-to-cycle, but the shift is never visible because it
 	 * only happens when the moon can't be seen.
 	 */
-	public float[] getNightSyncedMoonAngles() {
+	private float[] getNightSyncedMoonAngles() {
 		if (frameNightSyncedMoonAngles == null)
 			frameNightSyncedMoonAngles = computeNightSyncedMoonAngles();
 		return frameNightSyncedMoonAngles;
@@ -1112,7 +1261,7 @@ public class TimeOfDay {
 	 * Each cycle = 1 simulated day, so the moon's phase and position change gradually
 	 * without discrete jumps at cycle boundaries.
 	 */
-	public Instant getMoonDate() {
+	private Instant getMoonDate() {
 		Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS);
 
 		// Real Time mode: the moon's phase and position are astronomically real for
@@ -1135,11 +1284,6 @@ public class TimeOfDay {
 		long totalOffsetMillis = (long) ((completedCycles + getMoonCyclePosition()) * DAY_MS);
 
 		return startOfDay.plusMillis(totalOffsetMillis);
-	}
-
-	public boolean isNight(float[] angles) {
-		float angleFromZenith = abs(angles[1] - HALF_PI);
-		return angleFromZenith > HALF_PI;
 	}
 
 	public float getNightLightFactor() {
@@ -1196,5 +1340,56 @@ public class TimeOfDay {
 			float normalizedSine = max(0, (sineFactor - sineAt5) / (1 - sineAt5));
 			return earlyDayBrightness + (peakBrightness - earlyDayBrightness) * normalizedSine;
 		}
+	}
+
+	/**
+	 * Apply the current sky's color and strength response to an outdoor light. Light definitions
+	 * remain the source of the authored daytime color; this only applies the day/night response
+	 * for definitions that opt in.
+	 */
+	public void applyOutdoorLightLighting(Light light, int[] worldPos, int minimumBrightness) {
+		EnvironmentManager.OutdoorSkySample sky = environmentManager.sampleOutdoorSky(worldPos, minimumBrightness);
+		float[] authoredColor = light.def.color;
+		float defLuma = dot(authoredColor, SKY_LUMA_WEIGHTS);
+		float noonLuma = dot(sky.noonHorizonLinear, SKY_LUMA_WEIGHTS);
+		float[] lightColor = copy(sky.horizonLinear);
+		double sunAltDeg = getSunAngles()[1] * RAD_TO_DEG;
+
+		// At night, blend the dark sky horizon toward moonColor: reduces the blue cast and adds
+		// silver moonlight filtering through tunnel openings. moonStrengthFloor keeps deep-night
+		// lights visibly moonlit even when the sampled sky brightness is near zero.
+		float moonStrengthFloor = 0;
+		if (sunAltDeg < 5) {
+			float moonAltDeg = getMoonAltitudeDegreesForLighting();
+			float moonIllumination = getMoonIlluminationFraction();
+			if (moonAltDeg > -5 && moonIllumination > .01f) {
+				float sunFade = (float) Math.max(0.0, Math.min(1.0, (5.0 - sunAltDeg) / 10.0));
+				float moonElevation = (float) Math.min(1.0, Math.max(0.0, (moonAltDeg + 5.0) / 25.0));
+				float moonElevationSmooth = moonElevation * moonElevation * (3 - 2 * moonElevation);
+				float moonBlend = moonIllumination * .25f * moonElevationSmooth * sunFade;
+				lightColor = mix(lightColor, environmentManager.currentMoonLightColor, moonBlend);
+				moonStrengthFloor = moonIllumination * .12f * moonElevationSmooth;
+			}
+		}
+
+		// Desaturate toward gray as the sun climbs - high sun produces whiter, more neutral light.
+		if (sunAltDeg > 0) {
+			float desaturation = smoothstep(0, 90, (float) sunAltDeg) * .75f;
+			float luma = dot(lightColor, SKY_LUMA_WEIGHTS);
+			for (int i = 0; i < 3; i++)
+				lightColor[i] = mix(lightColor[i], luma, desaturation);
+		}
+
+		float horizonLuma = dot(lightColor, SKY_LUMA_WEIGHTS);
+		// Only around midday does the light show its authored color; at sunrise/sunset and
+		// through the night it is tinted by the sky instead.
+		float middayFactor = smoothstep(15, 30, (float) sunAltDeg);
+		if (middayFactor > 0)
+			lightColor = mix(lightColor, authoredColor, middayFactor);
+
+		System.arraycopy(lightColor, 0, light.color, 0, 3);
+		float peakScale = defLuma / max(noonLuma, 1e-4f);
+		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1) * sky.brightnessMultiplier, moonStrengthFloor);
+		light.strength *= mix(peakScale * timeScale, 1, middayFactor);
 	}
 }

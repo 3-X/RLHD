@@ -50,7 +50,6 @@ import net.runelite.client.plugins.entityhider.EntityHiderConfig;
 import net.runelite.client.plugins.entityhider.EntityHiderPlugin;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
-import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.DynamicLights;
 import rs117.hd.data.ObjectType;
 import rs117.hd.opengl.uniforms.UBOLights;
@@ -74,7 +73,6 @@ import static rs117.hd.utils.collections.Util.quickSort;
 @Singleton
 @Slf4j
 public class LightManager {
-	private static final float[] SKY_LUMA_WEIGHTS = { 0.2126f, 0.7152f, 0.0722f };
 	private static final float NIGHT_RADIUS_BOOST_FRACTION = 0.25f;
 	private static final float NIGHT_STAGGER_RAMP_WIDTH = 0.08f;
 
@@ -698,67 +696,7 @@ public class LightManager {
 		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
 			return;
 
-		EnvironmentManager.OutdoorSkySample sky = environmentManager.sampleOutdoorSky(
-			getLightWorldPos(sceneContext, light),
-			plugin.configMinimumBrightness
-		);
-
-		float defLuma = dot(light.def.color, SKY_LUMA_WEIGHTS);
-		float noonLuma = dot(sky.noonHorizonLinear, SKY_LUMA_WEIGHTS);
-
-		float[] lightColor = Arrays.copyOf(sky.horizonLinear, 3);
-
-		double sunAltDeg = timeOfDay.getSunAngles()[1] * RAD_TO_DEG;
-
-		// At night, blend the dark sky horizon toward moonColor: reduces the blue cast
-		// and adds silver moonlight filtering through tunnel openings.
-		// moonStrengthFloor drives a minimum timeScale so deep-night lights are
-		// visibly lit by the moon even when brightnessMultiplier is near zero.
-		float moonStrengthFloor = 0;
-		if (sunAltDeg < 5) {
-			// ALWAYS_NIGHT freezes getModifiedDate at midnight on a fixed epoch, so getMoonDate
-			// returns a static date where the moon may be below the horizon. Use the same fixed
-			// position that FIXED_NIGHT uses so moonlight is always visible in both modes.
-			DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
-			DaylightCycle effectiveCycle = forcedMode != null ? forcedMode : config.daylightCycle();
-			double moonAltDeg = effectiveCycle.isUsesFixedMoonAltitudeForLighting()
-				? timeOfDay.getFixedNightMoonAngles()[0] * RAD_TO_DEG
-				: timeOfDay.getMoonAltitudeDegrees();
-			float moonIllumFrac = timeOfDay.getMoonIlluminationFraction();
-			if (moonAltDeg > -5 && moonIllumFrac > 0.01f) {
-				float sunFade = (float) Math.max(0.0, Math.min(1.0, (5.0 - sunAltDeg) / 10.0));
-				float moonEl = (float) Math.min(1.0, Math.max(0.0, (moonAltDeg + 5.0) / 25.0));
-				float moonElSmooth = moonEl * moonEl * (3 - 2 * moonEl);
-				float moonBlend = moonIllumFrac * 0.25f * moonElSmooth * sunFade;
-				lightColor = mix(lightColor, environmentManager.currentMoonLightColor, moonBlend);
-				moonStrengthFloor = moonIllumFrac * 0.12f * moonElSmooth;
-			}
-		}
-
-		// Desaturate toward gray as the sun climbs - high sun produces whiter, more neutral light.
-		if (sunAltDeg > 0) {
-			float desat = smoothstep(0f, 90f, (float) sunAltDeg) * 0.75f;
-			float luma = dot(lightColor, SKY_LUMA_WEIGHTS);
-			for (int i = 0; i < 3; i++)
-				lightColor[i] = mix(lightColor[i], luma, desat);
-		}
-
-		float horizonLuma = dot(lightColor, SKY_LUMA_WEIGHTS);
-
-		// Only around midday does the light show its authored color; at sunrise/sunset and
-		// through the night it is tinted by the sky instead. Keyed on sun altitude rather than
-		// horizon luma: above the regional takeover angle the horizon color is the noon color,
-		// so a luma ratio sits at ~1 for most of the day and would never fade the tint back in.
-		float middayFactor = smoothstep(15f, 30f, (float) sunAltDeg);
-		if (middayFactor > 0)
-			lightColor = mix(lightColor, light.def.color, middayFactor);
-
-		System.arraycopy(lightColor, 0, light.color, 0, 3);
-		float peakScale = defLuma / max(noonLuma, 1e-4f);
-		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1f) * sky.brightnessMultiplier, moonStrengthFloor);
-		// Fade the sky-derived scaling out on the same curve as the color, so a light at full
-		// midday renders at exactly its authored strength rather than a sky-relative one.
-		light.strength *= mix(peakScale * timeScale, 1f, middayFactor);
+		timeOfDay.applyOutdoorLightLighting(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
 	}
 
 	/**

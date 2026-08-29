@@ -5,7 +5,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
-import rs117.hd.config.DaylightCycle;
 import rs117.hd.opengl.uniforms.UBOSkybox;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.TimeOfDay;
@@ -25,7 +24,7 @@ import static rs117.hd.utils.MathUtils.*;
 // the directional camera, so this class only decides whether the sun or moon casts shadows.
 @Singleton
 public class DayNightLighting {
-	// Sun altitude below which sun shadows are gone and the moon takes over
+	// Sun altitude below which the moon begins taking over shadows and light.
 	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
 
 	// Moon altitude below which the moon neither casts light nor shadows
@@ -116,39 +115,17 @@ public class DayNightLighting {
 		return environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
 	}
 
-	// Writes the shadow-casting directional camera's angles into out as { pitch, yaw }, and
-	// returns it. Picks whichever body is lighting the scene, in priority order: a fixed sun
-	// override, a fixed moon (FIXED_NIGHT or an environment override), the moon once the sun has
-	// dropped below SUN_SHADOW_CUTOFF_DEG, otherwise the sun. Whichever is chosen, the disk and
-	// its shadows stay aligned - shadows drifting away from a stationary sun or moon are the bug
-	// this ordering prevents.
+	// Writes the shadow-casting directional camera's angles into out as { pitch, yaw }.
+	// TimeOfDay owns the fixed-angle and astronomical-coordinate conventions, so selecting the
+	// active body there keeps the disk and its shadows aligned.
 	public float[] resolveDirectionalAngles(float[] out) {
-		DaylightCycle daylightCycle = timeOfDay.getCurrentCycleMode();
-
-		if (timeOfDay.hasFixedSunOverride()) {
-			return timeOfDay.getSunShadowAngles(out);
-		}
-
-		if (daylightCycle.isLocksMoonPosition() || timeOfDay.hasFixedMoonOverride()) {
-			return timeOfDay.getMoonShadowAngles(out);
-		}
-
-		// Below the cutoff sun shadows have faded out. Switch to the moon early so the shadow
-		// map is already oriented by the time moon shadows fade in, avoiding a brightness pop.
-		if (timeOfDay.getSunAngles()[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
-			&& timeOfDay.getMoonAltitudeDegrees() > MOON_HORIZON_CUTOFF_DEG) {
-			return timeOfDay.getMoonShadowAngles(out);
-		}
-
-		return timeOfDay.getSunShadowAngles(out);
+		return timeOfDay.getDirectionalShadowAngles(out);
 	}
 
 	// Derives the frame's lighting from the current sun and moon and uploads the skybox UBO.
 	// seedFromEnvironment must run first. On return, fogColorSrgb holds the sky horizon color,
 	// which doubles as the fog color.
 	public void computeLighting() {
-		DaylightCycle daylightCycle = timeOfDay.getCurrentCycleMode();
-
 		copyTo(directionalColor, timeOfDay.getRegionalDirectionalLight(environmentManager.currentDirectionalColor));
 		copyTo(ambientColor, timeOfDay.getRegionalAmbientLight(environmentManager.currentAmbientColor));
 
@@ -196,7 +173,7 @@ public class DayNightLighting {
 
 		// The disk renders at its true phase, so this uses the unfloored illumination.
 		// sky is complete before upload, so each UBO field is written once per frame.
-		uploadSkyUniforms(sky, daylightCycle, moonIllumination);
+		uploadSkyUniforms(sky, moonIllumination);
 	}
 
 	private float applyMoonLighting(float[][] sky, float moonInfluence, float baseDirectionalStrength) {
@@ -331,7 +308,7 @@ public class DayNightLighting {
 	}
 
 	// Write the sky, moon, star, nebula and aurora uniforms for this frame
-	private void uploadSkyUniforms(float[][] sky, DaylightCycle daylightCycle, float moonIllumination) {
+	private void uploadSkyUniforms(float[][] sky, float moonIllumination) {
 		UBOSkybox ubo = plugin.uboSkybox;
 
 		ubo.skyGradientEnabled.set(1);
@@ -348,7 +325,7 @@ public class DayNightLighting {
 		// The daytime fixed modes still hide it either way - a moon has no place in a locked
 		// daylit sky - so forcing only bypasses the config gate.
 		boolean moonEnabled = config.enableMoon() || environmentManager.forceMoonActive();
-		ubo.moonVisibility.set(!daylightCycle.isHidesMoon() && moonEnabled ? environmentManager.currentMoonVisibility : 0);
+		ubo.moonVisibility.set(!timeOfDay.hidesMoon() && moonEnabled ? environmentManager.currentMoonVisibility : 0);
 		ubo.moonSizeMult.set(environmentManager.currentMoonSizeMult);
 		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);
 

@@ -26,10 +26,6 @@
  */
 package rs117.hd.utils;
 
-import java.awt.Color;
-import lombok.extern.slf4j.Slf4j;
-import rs117.hd.scene.TimeOfDay;
-
 import static java.lang.Math.PI;
 import static java.lang.Math.acos;
 import static java.lang.Math.asin;
@@ -37,60 +33,16 @@ import static java.lang.Math.atan2;
 import static java.lang.Math.cos;
 import static java.lang.Math.sin;
 import static java.lang.Math.tan;
-import static rs117.hd.utils.ColorUtils.rgb;
-import static rs117.hd.utils.MathUtils.*;
 
-@Slf4j
-public class AtmosphereUtils
-{
+public final class AtmosphereUtils {
 	private static final double
 		rad = PI / 180,
 		e = rad * 23.4397; // obliquity of the Earth
 
-	public static final long
+	private static final long
 		dayMs = 1000 * 60 * 60 * 24,
 		J1970 = 2440588,
 		J2000 = 2451545;
-
-	// Sun altitude in degrees mapped to color temperature in kelvin
-	private static final float[][] ALTITUDE_TEMPERATURE_RANGE = {
-		{ 3, 2500 },
-		{ 5, 2600 },
-		{ 10, 3000 },
-		{ 15, 3300 },
-		{ 20, 3600 },
-		{ 30, 4000 },
-		{ 40, 4300 },
-		{ 50, 4750 },
-		{ 60, 5250 },
-		{ 70, 5500 },
-		{ 80, 5750 },
-		{ 90, 6000 }
-	};
-
-	// degrees above horizon, pre-linearized RGB
-	private static final float[][] AMBIENT_COLOR_RANGE = {
-		linearRow(-5, 113, 140, 180),
-		linearRow(25, 192, 185, 255),
-		linearRow(40, 185, 214, 255),
-	};
-
-	// degrees above horizon, pre-linearized RGB
-	private static final float[][] SKY_COLOR_RANGE = {
-		linearRow(-10, 10, 10, 14),
-		linearRow(25, 153, 153, 201),
-		linearRow(40, 185, 214, 255),
-	};
-
-	/**
-	 * Builds a keyframe row of { altitude, linearR, linearG, linearB }, converting sRGB to
-	 * linear once at class-init via the exact same chain interpolateSrgb uses per call
-	 * (ColorUtils.rgb(Color) == srgbToLinear(srgb(color))).
-	 */
-	private static float[] linearRow(float altitude, int r, int g, int b) {
-		float[] lin = rgb(new Color(r, g, b));
-		return new float[] { altitude, lin[0], lin[1], lin[2] };
-	}
 
 	/**
 	 * Calculate angles for the sun's position in the sky at a given time and location.
@@ -113,156 +65,6 @@ public class AtmosphereUtils
 		double azimuth = azimuth(H, phi, c[0]);
 		double altitude = altitude(H, phi, c[0]);
 		return new double[] { azimuth, altitude };
-	}
-
-	public static float[] getDirectionalLight(TimeOfDay timeOfDay, long millis, double[] latLong) {
-		return getDirectionalLightForAngles(timeOfDay, getSunAngles(millis, latLong));
-	}
-
-	/** Directional light color from pre-computed sun {azimuth, altitude} - used so fixed
-	 * modes can derive light from their fixed angle instead of an incremented-time date. */
-	public static float[] getDirectionalLightForAngles(TimeOfDay timeOfDay, double[] angles) {
-		// Use a fixed dim nighttime base color (4100K at low intensity).
-		// Moon-phase-dependent brightness is handled in ZoneRenderer using
-		// getMoonDate() for consistent illumination values.
-		float[] rgb = multiply(
-			ColorUtils.colorTemperatureToLinearRgb(4100),
-			0.1f
-		);
-
-		// Check if the sun is above the horizon
-		if (angles[1] >= 0) {
-			float temperature = interpolate((float) (angles[1] * RAD_TO_DEG), ALTITUDE_TEMPERATURE_RANGE);
-			float strength = (float) sin(angles[1]);
-			strength *= strength;
-			strength *= 3;
-			float[] sunIllumination = ColorUtils.colorTemperatureToLinearRgb(temperature);
-			sunIllumination = multiply(sunIllumination, strength);
-			add(rgb, rgb, sunIllumination);
-		}
-
-		return rgb;
-	}
-
-	/**
-	 * Float-angle variant for the renderer-side time-of-day snapshot.
-	 */
-	public static float[] getDirectionalLightForAngles(TimeOfDay timeOfDay, float[] angles) {
-		float[] rgb = multiply(ColorUtils.colorTemperatureToLinearRgb(4100), 0.1f);
-
-		// Check if the sun is above the horizon
-		if (angles[1] >= 0) {
-			float temperature = interpolate(angles[1] * RAD_TO_DEG, ALTITUDE_TEMPERATURE_RANGE);
-			float strength = (float) sin(angles[1]);
-			strength *= strength;
-			strength *= 3;
-			add(rgb, rgb, multiply(ColorUtils.colorTemperatureToLinearRgb(temperature), strength));
-		}
-
-		return rgb;
-	}
-
-	public static float[] getAmbientColor(long millis, double[] latLong) {
-		return getAmbientColorForAngles(getSunAngles(millis, latLong));
-	}
-
-	/** Ambient color from pre-computed sun {azimuth, altitude}. See getDirectionalLightForAngles. */
-	public static float[] getAmbientColorForAngles(double[] angles) {
-		return interpolateLinear((float) (angles[1] * RAD_TO_DEG), AMBIENT_COLOR_RANGE);
-	}
-
-	/**
-	 * Float-angle variant for the renderer-side time-of-day snapshot.
-	 */
-	public static float[] getAmbientColorForAngles(float[] angles) {
-		return interpolateLinear(angles[1] * RAD_TO_DEG, AMBIENT_COLOR_RANGE);
-	}
-
-	public static float[] getSkyColor(long millis, double[] latLong) {
-		return getSkyColorForAngles(getSunAngles(millis, latLong));
-	}
-
-	/** Sky color from pre-computed sun {azimuth, altitude}. See getDirectionalLightForAngles. */
-	public static float[] getSkyColorForAngles(double[] angles) {
-		var rgb = interpolateLinear((float) (angles[1] * RAD_TO_DEG), SKY_COLOR_RANGE);
-		return ColorUtils.linearToSrgb(rgb);
-	}
-
-	public static float interpolate(float x, float[][] keyframesDegreesValue) {
-		int end = keyframesDegreesValue.length - 1;
-		int i = 0;
-		while (i < end && x > keyframesDegreesValue[i + 1][0])
-			i++;
-
-		if (i == end)
-			return keyframesDegreesValue[end][1];
-
-		var from = keyframesDegreesValue[i];
-		var to = keyframesDegreesValue[i + 1];
-		var x1 = from[0];
-		var x2 = to[0];
-
-		float t = clamp((x - x1) / (x2 - x1), 0, 1);
-		return mix(from[1], to[1], t);
-	}
-
-	/**
-	 * Interpolates between keyframes of { x, sRGB r, g, b }, converting each keyframe from
-	 * sRGB to linear RGB first, and returns the interpolated linear RGB color.
-	 * Rows must be sorted by ascending x. Always returns a fresh array.
-	 *
-	 * @param x                    interpolation value
-	 * @param keyframesDegreesSrgb values
-	 * @return interpolated linear RGB
-	 */
-	public static float[] interpolateSrgb(float x, float[][] keyframesDegreesSrgb) {
-		int end = keyframesDegreesSrgb.length - 1;
-		int i = 0;
-		while (i < end && x > keyframesDegreesSrgb[i + 1][0])
-			i++;
-
-		var from = keyframesDegreesSrgb[i];
-		if (i == end)
-			return ColorUtils.srgbToLinear(new float[] { from[1], from[2], from[3] });
-
-		var to = keyframesDegreesSrgb[i + 1];
-		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
-		return mix(
-			ColorUtils.srgbToLinear(new float[] { from[1], from[2], from[3] }),
-			ColorUtils.srgbToLinear(new float[] { to[1], to[2], to[3] }),
-			t
-		);
-	}
-
-	/**
-	 * Interpolates between pre-linearized color keyframes of { altitude, linearR, linearG, linearB }.
-	 * Same interpolation math as interpolateSrgb, minus the per-call sRGB-to-linear conversions.
-	 * Always returns a fresh array, never a reference into the keyframe table.
-	 *
-	 * @param x                      interpolation value
-	 * @param keyframesDegreesLinear values
-	 * @return interpolated linear RGB
-	 */
-	public static float[] interpolateLinear(float x, float[][] keyframesDegreesLinear) {
-		int end = keyframesDegreesLinear.length - 1;
-		int i = 0;
-		while (i < end && x > keyframesDegreesLinear[i + 1][0])
-			i++;
-
-		var from = keyframesDegreesLinear[i];
-		if (i == end)
-			return new float[] { from[1], from[2], from[3] };
-
-		var to = keyframesDegreesLinear[i + 1];
-		var x1 = from[0];
-		var x2 = to[0];
-
-		float t = clamp((x - x1) / (x2 - x1), 0, 1);
-		return new float[] {
-			mix(from[1], to[1], t),
-			mix(from[2], to[2], t),
-			mix(from[3], to[3], t),
-		};
 	}
 
 	/**
@@ -326,11 +128,11 @@ public class AtmosphereUtils
 		};
 	}
 
-	public static double toJulian(long millis) {
+	private static double toJulian(long millis) {
 		return (double) millis / (double) dayMs - .5 + J1970;
 	}
 
-	public static double toDays(long millis) {
+	private static double toDays(long millis) {
 		return toJulian(millis) - J2000;
 	}
 
