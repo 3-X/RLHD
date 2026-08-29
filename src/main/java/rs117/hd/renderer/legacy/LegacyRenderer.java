@@ -47,7 +47,7 @@ import rs117.hd.scene.FishingSpotReplacer;
 import rs117.hd.scene.LightManager;
 import rs117.hd.scene.ModelOverrideManager;
 import rs117.hd.scene.ProceduralGenerator;
-import rs117.hd.scene.TimeOfDay;
+import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.areas.Area;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
@@ -111,7 +111,7 @@ public class LegacyRenderer implements Renderer {
 	private ModelOverrideManager modelOverrideManager;
 
 	@Inject
-	private TimeOfDay timeOfDay;
+	private DaylightCycleManager daylightCycleManager;
 
 	@Inject
 	private LegacySceneUploader sceneUploader;
@@ -694,7 +694,7 @@ public class LegacyRenderer implements Renderer {
 
 						// Environment resolution supplies the effective per-area overrides.
 						// Synchronize those before update() establishes this frame's snapshot.
-						timeOfDay.update();
+						daylightCycleManager.update();
 
 						frameTimer.begin(Timer.UPDATE_LIGHTS);
 						lightManager.update(sceneContext, plugin.cameraShift, plugin.cameraFrustum);

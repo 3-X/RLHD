@@ -1,6 +1,6 @@
 package rs117.hd.opengl.uniforms;
 
-import rs117.hd.scene.StarField;
+import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.utils.buffer.GLBuffer;
 
 import static org.lwjgl.opengl.GL33C.*;

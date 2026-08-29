@@ -2,23 +2,23 @@ package rs117.hd.tests;
 
 import java.lang.reflect.Method;
 import org.junit.Test;
-import rs117.hd.scene.TimeOfDay;
+import rs117.hd.scene.daylight_cycle.DaylightCycleLighting;
 
 import static org.junit.Assert.assertArrayEquals;
 import static rs117.hd.utils.MathUtils.*;
 
 /**
- * Characterization tests locking in TimeOfDay's procedural lighting colors.
+ * Characterization tests locking in DaylightCycleLighting's procedural lighting colors.
  * Golden values were captured from the implementation prior to pre-linearizing
  * the constant keyframe tables; any drift beyond 1e-6 indicates a behavior change.
  */
-public class TimeOfDayTest {
+public class DaylightCycleLightingTest {
 	private static float[] angles(float altitudeDegrees) {
 		return new float[] { 0, altitudeDegrees * DEG_TO_RAD };
 	}
 
 	private static float[] invokeColorHelper(String name, float altitudeDegrees) throws ReflectiveOperationException {
-		Method method = TimeOfDay.class.getDeclaredMethod(name, float[].class);
+		Method method = DaylightCycleLighting.class.getDeclaredMethod(name, float[].class);
 		method.setAccessible(true);
 		return (float[]) method.invoke(null, (Object) angles(altitudeDegrees));
 	}

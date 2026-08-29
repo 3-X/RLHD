@@ -56,12 +56,13 @@ import rs117.hd.opengl.uniforms.UBOWorldViews;
 import rs117.hd.overlays.FrameTimer;
 import rs117.hd.overlays.Timer;
 import rs117.hd.renderer.Renderer;
+import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.LightManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SceneContext;
-import rs117.hd.scene.StarField;
-import rs117.hd.scene.TimeOfDay;
+import rs117.hd.scene.daylight_cycle.DaylightCycleLighting;
+import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
 import rs117.hd.utils.Camera;
@@ -167,10 +168,10 @@ public class ZoneRenderer implements Renderer {
 	private StarField starField;
 
 	@Inject
-	private TimeOfDay timeOfDay;
+	private DaylightCycleManager daylightCycleManager;
 
 	@Inject
-	private DayNightLighting dayNightLighting;
+	private DaylightCycleLighting daylightCycleLighting;
 
 	@Inject
 	private JobSystem jobSystem;
@@ -320,7 +321,7 @@ public class ZoneRenderer implements Renderer {
 	private void applyDirectionalAngles(float pitch, float yaw) {
 		final float previousPitch = directionalCamera.getPitch();
 		final float previousRawYaw = PI - directionalCamera.getYaw();
-		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(timeOfDay.getCurrentCycleDuration() / 300.0f);
+		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(daylightCycleManager.getCurrentCycleDuration() / 300.0f);
 		if (absAngleDiff(pitch, previousPitch) >= threshold || absAngleDiff(yaw, previousRawYaw) >= threshold) {
 			directionalCamera.setPitch(pitch);
 			directionalCamera.setYaw(PI - yaw);
@@ -541,7 +542,7 @@ public class ZoneRenderer implements Renderer {
 				frameTimer.end(Timer.UPDATE_ENVIRONMENT);
 
 				frameTimer.begin(Timer.UPDATE_TIME_OF_DAY);
-				timeOfDay.update();
+				daylightCycleManager.update();
 				frameTimer.end(Timer.UPDATE_TIME_OF_DAY);
 
 				frameTimer.begin(Timer.UPDATE_LIGHTS);
@@ -557,14 +558,15 @@ public class ZoneRenderer implements Renderer {
 				return;
 			}
 
-			// The day & night cycle overrides the environment's static sun angles when active
+			// The day & night cycle overrides the environment's static sun angles when active.
+			boolean isDayNightCycleActive = daylightCycleLighting.isCycleActive();
 			float directionalPitch = environmentManager.currentSunAngles[0];
 			float directionalYaw = environmentManager.currentSunAngles[1];
-			if (dayNightLighting.isActive()) {
+			if (isDayNightCycleActive) {
 				if (starField.generateStarField() || skyboxCmd.isEmpty())
 					buildSkyboxCmd();
 
-				dayNightLighting.resolveDirectionalAngles(directionalAngles);
+				daylightCycleLighting.resolveDirectionalShadowAngles(directionalAngles);
 				directionalPitch = directionalAngles[0];
 				directionalYaw = directionalAngles[1];
 			}
@@ -699,27 +701,27 @@ public class ZoneRenderer implements Renderer {
 		if (client.getGameState().getState() >= GameState.LOGGED_IN.getState())
 			plugin.hasLoggedIn = true;
 
-		if (dayNightLighting.isActive()) {
+		if (daylightCycleLighting.isCycleActive()) {
 			shouldRenderSky = true;
-			dayNightLighting.computeLighting();
+			daylightCycleLighting.computeCycleLighting();
 		} else {
 			// Without the cycle, the renderer uses the environment's interpolated lighting directly.
-			dayNightLighting.seedFromEnvironment();
+			daylightCycleLighting.seedFromEnvironment();
 			if (shouldRenderSky) {
 				// Cycle just turned off, so restore the non-cycle sky defaults. The scene clear
 				// falls back to the environment's fog color while shouldRenderSky is false.
 				shouldRenderSky = false;
-				dayNightLighting.reset();
+				daylightCycleLighting.resetSkybox();
 			}
 		}
 		plugin.uboSkybox.upload();
 
-		float[] directionalColor = dayNightLighting.directionalColor;
-		float directionalStrength = dayNightLighting.directionalStrength;
-		float[] ambientColor = dayNightLighting.ambientColor;
-		float ambientStrength = dayNightLighting.ambientStrength;
-		float[] fogColor = dayNightLighting.fogColorSrgb;
-		float[] waterColor = dayNightLighting.waterColor;
+		float[] directionalColor = daylightCycleLighting.directionalColor;
+		float directionalStrength = daylightCycleLighting.directionalStrength;
+		float[] ambientColor = daylightCycleLighting.ambientColor;
+		float ambientStrength = daylightCycleLighting.ambientStrength;
+		float[] fogColor = daylightCycleLighting.fogColorSrgb;
+		float[] waterColor = daylightCycleLighting.waterColor;
 
 		// Hide the game's own skybox models so the cycle's sky shows in their place. Needs
 		// all three: the gradient sky must actually be rendering (otherwise hiding leaves a
@@ -1009,7 +1011,7 @@ public class ZoneRenderer implements Renderer {
 			// Use the cycle's fog color if it's driving this frame, otherwise the environment's
 			float[] fogColor = { 0, 0, 0 };
 			if (!shouldRenderVanillaSkybox)
-				fogColor = shouldRenderSky ? dayNightLighting.fogColorSrgb : ColorUtils.linearToSrgb(environmentManager.currentFogColor);
+				fogColor = shouldRenderSky ? daylightCycleLighting.fogColorSrgb : ColorUtils.linearToSrgb(environmentManager.currentFogColor);
 
 			float[] gammaCorrectedFogColor = pow(fogColor, plugin.getGammaCorrection());
 			glClearColor(

@@ -3,8 +3,8 @@ package rs117.hd.tests;
 import com.google.gson.Gson;
 import org.junit.Test;
 import rs117.hd.config.MoonPhase;
-import rs117.hd.renderer.zone.DayNightLighting;
 import rs117.hd.scene.EnvironmentManager;
+import rs117.hd.scene.daylight_cycle.DaylightCycleLighting;
 import rs117.hd.scene.environments.Environment;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -16,11 +16,11 @@ import static org.junit.Assert.assertTrue;
 import static rs117.hd.utils.MathUtils.*;
 
 /**
- * Regression tests for the two bugs found while extracting DayNightLighting out of ZoneRenderer.
+ * Regression tests for the two bugs found while extracting daylight-cycle lighting from ZoneRenderer.
  * Both were invisible to the compiler and produced wrong rendering rather than an error.
  */
-public class DayNightLightingTest {
-	// DayNightLighting.Lighting must own its color arrays. It used to be seeded by assigning
+public class ZoneDaylightCycleLightingTest {
+	// DaylightCycleLighting must own its color arrays. It used to be seeded by assigning
 	// EnvironmentManager's arrays directly, so the cycle's in-place moon tint wrote straight
 	// into the environment's state. It was safe only because the one mutating path happened to
 	// be handed a fresh array first - a coincidence, not a guarantee.
@@ -34,8 +34,8 @@ public class DayNightLightingTest {
 		env.currentDirectionalStrength = 2.5f;
 		env.currentAmbientStrength = 1.5f;
 
-		var lighting = new DayNightLighting();
-		var environmentManagerField = DayNightLighting.class.getDeclaredField("environmentManager");
+		var lighting = new DaylightCycleLighting();
+		var environmentManagerField = DaylightCycleLighting.class.getDeclaredField("environmentManager");
 		environmentManagerField.setAccessible(true);
 		environmentManagerField.set(lighting, env);
 		lighting.seedFromEnvironment();
@@ -185,7 +185,7 @@ public class DayNightLightingTest {
 	// The night ambient boost is scaled by moonPresence, which is phase times altitude fade. The
 	// property that matters, and the reason it isn't gated on shadowVisibility: a new moon and a
 	// moon that has set are both "no moonlight" and must be boosted identically, while a full
-	// moon overhead is the point of least boost. Mirrors DayNightLighting.moonPresence.
+	// moon overhead is the point of least boost. Mirrors DaylightCycleLighting.moonPresence.
 	@Test
 	public void nightBoostTreatsNewMoonAndSetMoonAlike() {
 		float newMoonHigh = moonPresence(60, 0);
@@ -213,7 +213,7 @@ public class DayNightLightingTest {
 	// a full moon overhead keeps a fifth of it instead of scaling it away entirely. Without the
 	// residual an environment's lifted night floor silently reverted to the unboosted value once
 	// a month, at exactly the phase a builder is least likely to be looking at.
-	// Mirrors the boostFraction calculation in DayNightLighting.
+	// Mirrors the boostFraction calculation in DaylightCycleLighting.
 	@Test
 	public void fullMoonKeepsPartOfTheBrightnessBoost() {
 		float newMoon = boostFraction(60, 0);
@@ -264,8 +264,8 @@ public class DayNightLightingTest {
 	// below the altitude where moonlight has fully faded out.
 	@Test
 	public void moonPhaseAdvancesOnlyWhereMoonlightHasFadedOut() {
-		double phaseAdvanceAltitudeDeg = -10 * DEG_TO_RAD * RAD_TO_DEG; // TimeOfDay's guard
-		float moonlightGoneBelowDeg = -10; // DayNightLighting's fade start / horizon cutoff
+		double phaseAdvanceAltitudeDeg = -10 * DEG_TO_RAD * RAD_TO_DEG; // DaylightCycle's guard
+		float moonlightGoneBelowDeg = -10; // DaylightCycleLighting's fade start / horizon cutoff
 
 		assertTrue(
 			"the phase may only advance once moonlight has fully faded, or the step is visible",
@@ -291,12 +291,12 @@ public class DayNightLightingTest {
 		);
 	}
 
-	// Mirrors the phase term of DayNightLighting.computeShadowVisibility
+	// Mirrors the phase term of DaylightCycleLighting.computeShadowVisibility
 	private static float phaseShadowFactor(float illumination) {
 		return (float) Math.pow(illumination, 0.5f);
 	}
 
-	// Mirrors DayNightLighting.moonPresence (private, and the class needs injected singletons)
+	// Mirrors DaylightCycleLighting.moonPresence (private, and the class needs injected singletons)
 	private static float moonPresence(double moonAltDeg, float moonIllumination) {
 		if (moonAltDeg <= -10 || moonIllumination <= 0.01f)
 			return 0;
@@ -305,7 +305,7 @@ public class DayNightLightingTest {
 		return Math.max(0, Math.min(1, moonIllumination * fade));
 	}
 
-	// Mirrors DayNightLighting's boostFraction: presence remapped into [residual, 1]
+	// Mirrors DaylightCycleLighting's boostFraction: presence remapped into [residual, 1]
 	private static float boostFraction(double moonAltDeg, float moonIllumination) {
 		float residual = 0.2f;
 		return residual + (1 - residual) * (1 - moonPresence(moonAltDeg, moonIllumination));

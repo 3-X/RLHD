@@ -1,6 +1,5 @@
 package rs117.hd.scene;
 
-import java.awt.Color;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -10,7 +9,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DayLength;
@@ -18,23 +16,19 @@ import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
+import rs117.hd.scene.daylight_cycle.DaylightCycleLighting;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.scene.lights.LightTimeOfDay;
-import rs117.hd.scene.environments.Environment;
 import rs117.hd.utils.AstronomyUtils;
-import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.HDUtils;
 
-import static rs117.hd.utils.ColorUtils.linearToSrgb;
-import static rs117.hd.utils.ColorUtils.rgb;
-import static rs117.hd.utils.ColorUtils.srgbToLinear;
 import static rs117.hd.utils.MathUtils.*;
 
 /**
  * Drives the day & night cycle: it owns the simulated clock and turns it into a sun/moon
- * position, from which every time-of-day-dependent value (sky gradient, light and ambient
- * color, brightness, moon phase, aurora) is derived.
+ * position, moon phase, aurora state, and day/night light schedule. {@link DaylightCycleLighting}
+ * turns those positions into sky colors and scene-lighting responses.
  *
  * <h2>Per-frame contract</h2>
  * The renderer calls, in this order, once per frame:
@@ -71,104 +65,15 @@ import static rs117.hd.utils.MathUtils.*;
  * </ul>
  */
 @Singleton
-@Slf4j
-public class TimeOfDay {
+public class DaylightCycleManager {
 	@Inject
 	private HdPlugin plugin;
 
 	@Inject
 	private EnvironmentManager environmentManager;
 
-	// Pre-linearized deep-night sky color.
-	// Read-only: every consumer only reads components into fresh blend arrays.
-	private static final float[] NIGHT_SKY_LINEAR = rgb(5, 7, 15);
-	private static final float[] SKY_LUMA_WEIGHTS = { .2126f, .7152f, .0722f };
 	private static final float NIGHT_RADIUS_BOOST_FRACTION = .25f;
 	private static final float NIGHT_STAGGER_RAMP_WIDTH = .08f;
-
-	// Sky color keyframe tables, as { sunAltitudeDegrees, sRGB 0xRRGGBB }. Read-only
-	// constant data; interpolateSrgb only reads them and returns a fresh
-	// linear float[] per call. Rows must stay sorted by ascending altitude.
-	private static final float[][] ZENITH_KEYFRAMES = { // top of the sky
-		srgbRow(-30, 0x010104), // Deep night - near black
-		srgbRow(-15, 0x03040A), // Late night
-		srgbRow(-8,  0x2D2346), // Early twilight - purple tint
-		srgbRow(-3,  0x503C64), // Twilight
-		srgbRow(0,   0x645078), // Horizon sun
-		srgbRow(5,   0x788CB4), // Early sunrise
-		srgbRow(15,  0x6496C8), // Morning
-		srgbRow(30,  0x5A91C8), // Mid-morning
-		srgbRow(50,  0x558CC3), // Midday
-		srgbRow(90,  0x5087BE), // High noon
-	};
-
-	private static final float[][] HORIZON_KEYFRAMES = { // sides/bottom of the sky
-		srgbRow(-30, 0x010205), // Deep night - near black
-		srgbRow(-15, 0x04050C), // Late night
-		srgbRow(-8,  0x3C2D41), // Early twilight
-		srgbRow(-3,  0x8C5046), // Twilight - orange/red
-		srgbRow(0,   0xDC8250), // Sunrise/sunset - golden
-		srgbRow(5,   0xE6AA78), // Early morning golden
-		srgbRow(10,  0xC8B4A0), // Morning warm
-		srgbRow(20,  0xAAAFB9), // Late morning
-		srgbRow(30,  0x96A5BE), // Midday haze
-		srgbRow(50,  0x8CA0BE), // Afternoon
-		srgbRow(90,  0x879BB9), // High noon
-	};
-
-	private static final float[][] SUN_GLOW_KEYFRAMES = { // halo around the sun disk
-		srgbRow(-30, 0x000000), // No glow at night
-		srgbRow(-10, 0x140A1E), // Very faint purple
-		srgbRow(-5,  0x50283C), // Purple/pink
-		srgbRow(-2,  0xB45032), // Deep orange/red
-		srgbRow(0,   0xFF9650), // Bright orange
-		srgbRow(5,   0xFFC882), // Golden yellow
-		srgbRow(15,  0xFFE6B4), // Warm white
-		srgbRow(30,  0xFFFADC), // Nearly white
-		srgbRow(50,  0xFFFFF0), // White with slight warmth
-		srgbRow(90,  0xFFFFFA), // Pure white
-	};
-
-	// Sun altitude in degrees mapped to color temperature in kelvin.
-	private static final float[][] DIRECTIONAL_TEMPERATURE_KEYFRAMES = {
-		{ 3, 2500 },
-		{ 5, 2600 },
-		{ 10, 3000 },
-		{ 15, 3300 },
-		{ 20, 3600 },
-		{ 30, 4000 },
-		{ 40, 4300 },
-		{ 50, 4750 },
-		{ 60, 5250 },
-		{ 70, 5500 },
-		{ 80, 5750 },
-		{ 90, 6000 }
-	};
-
-	// Procedural ambient colors in { sunAltitudeDegrees, linearR, linearG, linearB }.
-	private static final float[][] AMBIENT_COLOR_KEYFRAMES = {
-		linearRow(-5, 113, 140, 180),
-		linearRow(25, 192, 185, 255),
-		linearRow(40, 185, 214, 255),
-	};
-
-	/** Builds a keyframe row of { sunAltitudeDegrees, sRGB r, g, b } from a 0xRRGGBB literal. */
-	private static float[] srgbRow(float altitudeDegrees, int srgb) {
-		return new float[] {
-			altitudeDegrees,
-			((srgb >> 16) & 0xFF) / 255f,
-			((srgb >> 8) & 0xFF) / 255f,
-			(srgb & 0xFF) / 255f
-		};
-	}
-
-	/**
-	 * Builds a pre-linearized color keyframe row from sRGB components.
-	 */
-	private static float[] linearRow(float altitudeDegrees, int red, int green, int blue) {
-		float[] linear = rgb(new Color(red, green, blue));
-		return new float[] { altitudeDegrees, linear[0], linear[1], linear[2] };
-	}
 
 	// Length of one Synced Days cycle: a full day & night every real hour, phase-locked
 	// to the UTC clock so every player sees the same sun position at the same moment.
@@ -187,44 +92,6 @@ public class TimeOfDay {
 	/** An hour-of-day in [0, 24) as a millisecond offset from the start of that day. */
 	private static long hoursToMillis(double hourOfDay) {
 		return (long) (hourOfDay * HOUR_MS);
-	}
-
-	/** In-place {@code dst = mix(dst, src, t)} over the first 3 components. */
-	private static void blendTowards(float[] dst, float[] src, float t) {
-		for (int i = 0; i < 3; i++)
-			dst[i] = dst[i] * (1 - t) + src[i] * t;
-	}
-
-	/** In-place {@code dst *= 1 - t} over the first 3 components, for fading additive colors out. */
-	private static void fadeOut(float[] dst, float t) {
-		for (int i = 0; i < 3; i++)
-			dst[i] *= 1 - t;
-	}
-
-	/**
-	 * How much an area's own (regional) light color should win over the procedurally
-	 * computed one, as a function of sun altitude: fully regional with the sun high,
-	 * tapering to almost none at night so the cycle's own night colors take over.
-	 * Shared by the directional and ambient blends so they stay in step.
-	 */
-	private static float regionalBlendFactor(float sunAltitudeDegrees) {
-		if (sunAltitudeDegrees >= 30)
-			return 1; // High sun - pure regional, matching the cycle-disabled look
-		if (sunAltitudeDegrees >= 15)
-			return .75f + (sunAltitudeDegrees - 15) / 15 * .25f; // Strong regional
-		if (sunAltitudeDegrees >= 5)
-			return .5f + (sunAltitudeDegrees - 5) / 10 * .25f; // Sunset/late sunrise
-		if (sunAltitudeDegrees >= 0)
-			return .3f + sunAltitudeDegrees / 5 * .2f; // Low sun
-		return max(0, .3f + sunAltitudeDegrees / 10 * .3f); // Night/twilight
-	}
-
-	/** Linear blend of two colors: {@code mix(a, b, t)}, as a fresh array. */
-	private static float[] mixColor(float[] a, float[] b, float t) {
-		float[] result = new float[3];
-		for (int i = 0; i < 3; i++)
-			result[i] = a[i] * (1 - t) + b[i] * t;
-		return result;
 	}
 
 	// The natural (unwarped) cycle position where daytime ends and night begins.
@@ -262,12 +129,13 @@ public class TimeOfDay {
 	private long pendingDayIncrements = 0;
 
 	// Altitude the moon must fall below before a queued phase change is applied. Matches
-	// DayNightLighting's MOON_HORIZON_CUTOFF_DEG / MOON_ELEVATION_FADE_START_DEG (both -10),
+	// DaylightCycleLighting's moon horizon cutoff and elevation-fade start (both -10),
 	// the altitude at which moonlight has fully faded out. The geometric horizon (0) is too
 	// early - the moon is still lighting and shadowing the scene between -10 and 0, so a phase
 	// change there is visible as a brightness jump. Kept here rather than imported so this
-	// class stays independent of the renderer; if that constant moves, this must follow.
+	// class stays independent of the renderer; if that cutoff moves, this must follow.
 	private static final float MOON_PHASE_ADVANCE_ALTITUDE_RAD = -10 * DEG_TO_RAD;
+	private static final double NIGHT_SYNCED_MOON_START_HOUR = 3.4;
 
 	// Below this sun altitude, the moon takes over the shadow camera when it is still high
 	// enough to light the scene. This avoids a camera-orientation pop when moon shadows fade in.
@@ -337,17 +205,10 @@ public class TimeOfDay {
 	private Float frameMoonAltitudeDegrees;
 
 	// Per-light cycle state. Updated once by LightManager before it evaluates visibility.
-	private boolean dayNightLightsActive;
-	private float nightLightFactor = 1;
-	private boolean nightLightFactorRising = true;
-	private float previousNightLightFactor = -1;
-
-	// Per-frame cache for outdoor lights. The resolved environment, current frame, and minimum
-	// brightness fully determine the cycle's outdoor sky sample.
-	private OutdoorSkySample cachedOutdoorSkySample;
-	private Environment cachedOutdoorSkyEnvironment;
-	private int cachedOutdoorSkyMinBrightness;
-	private int cachedOutdoorSkyFrame = -1;
+	private boolean lightScheduleActive;
+	private float nightFactor = 1;
+	private boolean nightFactorIncreasing = true;
+	private float previousNightFactor = -1;
 
 	// ===== Per-frame state =======================================================
 
@@ -538,7 +399,7 @@ public class TimeOfDay {
 			: accumulatedCycleTime;
 	}
 
-	// ===== Sun position, light & sky colors ======================================
+	// ===== Sun and shadow directions =============================================
 
 	/**
 	 * The sun's {azimuth, altitude} in radians for this frame - the value nearly everything
@@ -558,236 +419,12 @@ public class TimeOfDay {
 		// factors) reads this, so they all use the fixed position automatically.
 		if (currentCycleMode.isFixed)
 			return fixedToAstronomicalAngles(getFixedModeSunAngles());
-		double[] angles = AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
+		return getAstronomicalSunAngles(currentInstant);
+	}
+
+	private float[] getAstronomicalSunAngles(Instant instant) {
+		double[] angles = AstronomyUtils.getSunAngles(instant.toEpochMilli(), currentLatLong);
 		return new float[] { (float) angles[0], (float) angles[1] };
-	}
-
-	/**
-	 * Procedural directional-light color for a sun angle. This is renderer policy rather than
-	 * astronomical calculation, so it stays alongside the regional blend that consumes it.
-	 */
-	private static float[] getDirectionalLightForAngles(float[] sunAngles) {
-		float[] directionalLight = multiply(ColorUtils.colorTemperatureToLinearRgb(4100), .1f);
-		if (sunAngles[1] >= 0) {
-			float temperature = interpolate(sunAngles[1] * RAD_TO_DEG, DIRECTIONAL_TEMPERATURE_KEYFRAMES);
-			float strength = sin(sunAngles[1]);
-			strength *= strength;
-			strength *= 3;
-			add(directionalLight, directionalLight, multiply(ColorUtils.colorTemperatureToLinearRgb(temperature), strength));
-		}
-		return directionalLight;
-	}
-
-	private static float[] getAmbientColorForAngles(float[] sunAngles) {
-		return interpolateLinear(sunAngles[1] * RAD_TO_DEG, AMBIENT_COLOR_KEYFRAMES);
-	}
-
-	private static float interpolate(float x, float[][] keyframesDegreesValue) {
-		int end = keyframesDegreesValue.length - 1;
-		int i = 0;
-		while (i < end && x > keyframesDegreesValue[i + 1][0])
-			i++;
-
-		if (i == end)
-			return keyframesDegreesValue[end][1];
-
-		float[] from = keyframesDegreesValue[i];
-		float[] to = keyframesDegreesValue[i + 1];
-		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
-		return mix(from[1], to[1], t);
-	}
-
-	private static float[] interpolateSrgb(float x, float[][] keyframesDegreesSrgb) {
-		int end = keyframesDegreesSrgb.length - 1;
-		int i = 0;
-		while (i < end && x > keyframesDegreesSrgb[i + 1][0])
-			i++;
-
-		float[] from = keyframesDegreesSrgb[i];
-		if (i == end)
-			return srgbToLinear(new float[] { from[1], from[2], from[3] });
-
-		float[] to = keyframesDegreesSrgb[i + 1];
-		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
-		return mix(
-			srgbToLinear(new float[] { from[1], from[2], from[3] }),
-			srgbToLinear(new float[] { to[1], to[2], to[3] }),
-			t
-		);
-	}
-
-	private static float[] interpolateLinear(float x, float[][] keyframesDegreesLinear) {
-		int end = keyframesDegreesLinear.length - 1;
-		int i = 0;
-		while (i < end && x > keyframesDegreesLinear[i + 1][0])
-			i++;
-
-		float[] from = keyframesDegreesLinear[i];
-		if (i == end)
-			return new float[] { from[1], from[2], from[3] };
-
-		float[] to = keyframesDegreesLinear[i + 1];
-		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
-		return new float[] {
-			mix(from[1], to[1], t),
-			mix(from[2], to[2], t),
-			mix(from[3], to[3], t),
-		};
-	}
-
-	/**
-	 * The scene's directional (sun/moon) light color: the cycle's own color for the current
-	 * sun altitude, blended toward the area's regional color as the sun climbs.
-	 * Both inputs and the result are in linear space.
-	 */
-	public float[] getRegionalDirectionalLight(float[] regionalDirectionalColor) {
-		float[] sunAngles = getSunAngles();
-		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
-		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
-	}
-
-	/**
-	 * The scene's ambient light color. Mirrors {@link #getRegionalDirectionalLight}, sharing
-	 * its blend factor so ambient and directional light stay consistent with the skybox.
-	 */
-	public float[] getRegionalAmbientLight(float[] regionalAmbientColor) {
-		float[] sunAngles = getSunAngles();
-		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
-		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
-	}
-
-	/**
-	 * Sky gradient colors for the current time of day, as
-	 * { zenithColor, horizonColor, sunGlowColor } in sRGB.
-	 *
-	 * <p>The base colors come from the procedural keyframe tables, indexed by sun altitude.
-	 * Four adjustments are then layered on, in order:
-	 * <ol>
-	 *   <li><b>sunStrength</b> - pulls a dark area's sky away from the procedural sunset
-	 *       colors, toward the area's own color by day and the night sky after dusk.</li>
-	 *   <li><b>sunriseSunsetStrength</b> - holds a strongly-colored area at its own color
-	 *       right through the twilight window, so e.g. a blood-red sky doesn't turn blue at
-	 *       sunrise.</li>
-	 *   <li><b>the daytime regional blend</b> - as the sun climbs, the area's own color takes
-	 *       over from the procedural gradient, completely by {@code skyColorTakeoverAngle}.</li>
-	 *   <li><b>the night blend</b> - once the sun is well down, everything resolves to the
-	 *       generic night sky so the moon tint and starfield (applied downstream) take over.</li>
-	 * </ol>
-	 *
-	 * @param regionalFogColor      the area's own sky/fog color (sRGB), or null for none
-	 * @param sunStrength           1 = full procedural sun, 0 = fully suppressed
-	 * @param sunriseSunsetStrength 1 = full procedural twilight, 0 = hold the regional color
-	 * @param skyColorTakeoverAngle sun altitude (degrees) at which the regional color fully wins
-	 */
-	public float[][] getSkyGradientColors(
-		float[] regionalFogColor,
-		float sunStrength,
-		float sunriseSunsetStrength,
-		float skyColorTakeoverAngle
-	) {
-		float sunAltitude = getSunAngles()[1] * RAD_TO_DEG;
-
-		// Sun altitude at which the area's own color has fully taken over from the
-		// procedural sunrise/sunset gradient. Shared by the sunrise/sunset suppression
-		// window and the daytime regional blend so they stay in sync. Clamped to >= 0;
-		// 0 means the regional color takes over immediately at the horizon.
-		float takeover = max(0, skyColorTakeoverAngle);
-		float[] regionalLin = regionalFogColor != null ? srgbToLinear(regionalFogColor) : null;
-
-		float[] zenith = interpolateSrgb(sunAltitude, ZENITH_KEYFRAMES);
-		float[] horizon = interpolateSrgb(sunAltitude, HORIZON_KEYFRAMES);
-		float[] sunGlow = interpolateSrgb(sunAltitude, SUN_GLOW_KEYFRAMES);
-
-		// 1. sunStrength: suppress the procedural sunset colors for dark environments.
-		// Full suppression above the horizon (the regional blend below takes over from
-		// there); below it, fade out by -25° where the night colors dominate anyway.
-		if (regionalLin != null && sunStrength < 1) {
-			float window = sunAltitude >= 0 ? 1 : smoothstep(-25, 0, sunAltitude);
-			float suppression = (1 - sunStrength) * window;
-			if (suppression > 0) {
-				// Crossfade the blend target between regional and night sky around the
-				// horizon, so there's no hard color jump as the sun crosses it.
-				float[] target = mixColor(regionalLin, NIGHT_SKY_LINEAR, smoothstep(5, -5, sunAltitude));
-				blendTowards(zenith, target, suppression);
-				blendTowards(horizon, target, suppression);
-				fadeOut(sunGlow, suppression); // the glow is additive, so suppress toward zero
-			}
-		}
-
-		// 2. sunriseSunsetStrength: an independent per-area knob that stops the procedural
-		// sunrise/sunset from overriding a strongly-colored area's own sky.
-		//
-		// Some areas set a vivid regional sky (e.g. Tolna's blood-red #290000) that is meant
-		// to be the mood all day. The cycle's procedural twilight paints its own orange->blue
-		// gradient over that, so at sunrise/sunset the intended red "turns blue". Lowering
-		// this knob holds the sky at the area's OWN color through the twilight window
-		// instead. The blend target is the regional color (NOT the night sky) so the area's
-		// color is preserved rather than muted to black; the night blend in step 4 still
-		// darkens things once the sun is well down, so nights stay dark regardless.
-		//
-		// The window's upper edge MUST be the same takeover angle used by step 3. If this
-		// window closed earlier, there would be a gap where neither this suppression nor the
-		// daytime blend holds the color, letting the raw keyframes show through - and those
-		// are strongly blue at mid-high sun (the +15° zenith keyframe is 0x6496C8). That gap
-		// was the "sky goes blue after sunrise before settling into the area's color" bug.
-		if (regionalLin != null && sunriseSunsetStrength < 1) {
-			float window;
-			if (sunAltitude < 0) {
-				window = smoothstep(-15, 0, sunAltitude); // Ramp in over deep night -> horizon
-			} else if (takeover == 0) {
-				// A zero-width takeover window must vanish rather than become a step.
-				window = 0;
-			} else {
-				window = smoothstep(takeover, 0, sunAltitude); // Ramp out from horizon -> takeover
-			}
-			float suppression = (1 - sunriseSunsetStrength) * window;
-			if (suppression > 0) {
-				blendTowards(zenith, regionalLin, suppression);
-				blendTowards(horizon, regionalLin, suppression);
-				// Fade the additive orange/red halo so it doesn't fight the held color.
-				fadeOut(sunGlow, suppression);
-			}
-		}
-
-		// 3. Daytime regional blend, from peak sunset (0°) to fully regional at the takeover
-		// angle. Lowering the takeover angle per-area pulls the regional color in earlier as
-		// the sun climbs, so a strongly-colored sky wins sooner in the morning.
-		if (regionalLin != null) {
-			// takeover == 0 is the degenerate case: the regional color wins the moment the
-			// sun clears the horizon, so there is no ramp to walk up.
-			float blend = sunAltitude < 0 ? 0 : (takeover == 0 ? 1 : smoothstep(0, takeover, sunAltitude));
-			if (blend > 0) {
-				blendTowards(zenith, regionalLin, blend);
-				blendTowards(horizon, regionalLin, blend);
-			}
-		}
-
-		// 4. Night blend, mirroring step 3: ramp from 0° (none) to -15° (full night sky).
-		// The night sky always resolves to this generic base so that, once the sun is well
-		// down, the moon-color tint (applied downstream in the renderer) and the procedural
-		// starfield take over - including in reduced sunriseSunsetStrength areas, where the
-		// regional hold only spans the visible sunrise/sunset and must not persist into
-		// deep night.
-		float nightBlend = smoothstep(0, -15, sunAltitude);
-		if (nightBlend > 0) {
-			blendTowards(zenith, NIGHT_SKY_LINEAR, nightBlend);
-			blendTowards(horizon, NIGHT_SKY_LINEAR, nightBlend);
-		}
-
-		// interpolateSrgb returns linear; the shader wants sRGB.
-		return new float[][] { linearToSrgb(zenith), linearToSrgb(horizon), linearToSrgb(sunGlow) };
-	}
-
-	/**
-	 * Reference horizon color at peak daytime, matching the skybox at high sun.
-	 * Returns sRGB, same space as {@link #getSkyGradientColors} horizon output.
-	 */
-	public float[] getReferenceHorizonColor(float[] regionalFogColor) {
-		if (regionalFogColor != null)
-			return regionalFogColor;
-
-		float[] horizonLinear = interpolateSrgb(90, HORIZON_KEYFRAMES);
-		return linearToSrgb(horizonLinear);
 	}
 
 	/**
@@ -930,27 +567,23 @@ public class TimeOfDay {
 			return currentMoonPhase.illumination; // Phase locked via config
 		}
 		if (currentCycleMode.isLocksMoonIllumination()) {
-			return 1.0f; // Always a full moon
+			return 1; // Always a full moon
 		}
-		// Real Time: use the same locally anchored timestamp as the sun and moon position.
-		// It advances continuously from session start, so daylight-saving changes cannot make
-		// the lunar phase jump relative to the rest of the cycle.
-		if (currentCycleMode.usesLocalTime) {
-			return (float) AstronomyUtils.getMoonIllumination(currentInstant.toEpochMilli())[0];
-		}
-		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED) {
+		// A realistic moon always uses its resolved astronomical date. Real Time also takes
+		// this path for Night Synced, keeping its phase continuous through daylight-saving changes.
+		if (currentMoonBehavior != MoonBehavior.NIGHT_SYNCED || currentCycleMode.usesLocalTime)
+			return getMoonIllumination(getMoonDate());
 
-			// Synced Days: advance the phase by the UTC-synced day count so the phase
-			// is identical for all players; otherwise use the stateful night offset.
-			long phaseDay = currentCycleMode.usesUtcSyncedTime
-				? frameWallClockMillis / SYNCED_DAYS_PERIOD_MS
-				: nightSyncedDayOffset;
-			long phaseMillis = EQUINOX_EPOCH_MS + phaseDay * DAY_MS;
-			return (float) AstronomyUtils.getMoonIllumination(phaseMillis)[0];
-		}
+		// Synced Days uses its UTC day count so every player shares a phase; other simulated
+		// modes use the stateful offset that advances only while the moon is unlit.
+		long phaseDay = currentCycleMode.usesUtcSyncedTime
+			? frameWallClockMillis / SYNCED_DAYS_PERIOD_MS
+			: nightSyncedDayOffset;
+		return getMoonIllumination(Instant.ofEpochMilli(EQUINOX_EPOCH_MS + phaseDay * DAY_MS));
+	}
 
-		Instant moonDate = getMoonDate();
-		return (float) AstronomyUtils.getMoonIllumination(moonDate.toEpochMilli())[0];
+	private static float getMoonIllumination(Instant instant) {
+		return (float) AstronomyUtils.getMoonIllumination(instant.toEpochMilli())[0];
 	}
 
 	/**
@@ -976,6 +609,8 @@ public class TimeOfDay {
 	private float computeMoonAltitudeDegrees() {
 		return getMoonAngles()[1] * RAD_TO_DEG;
 	}
+
+	// ===== Aurora ================================================================
 
 	/**
 	 * Whether the current simulated night is an "aurora night".
@@ -1033,8 +668,7 @@ public class TimeOfDay {
 		// so re-center the envelope on that boundary: auroras are absent right after a
 		// flip, swell to full a bit past mid-cycle, then fade back out before the next
 		// flip. phase in [0,1) measured from the 0.35 flip point.
-		float phase = (float) accumulatedCycleTime - .35f;
-		phase -= floor(phase); // wrap into [0, 1)
+		float phase = fract((float) accumulatedCycleTime - .35f); // wrap into [0, 1)
 
 		// Smooth bump: only visible over a fraction of the cycle. Ramp in over
 		// [0.15, 0.40], hold near full through mid-cycle, ramp out over [0.60, 0.85].
@@ -1050,6 +684,8 @@ public class TimeOfDay {
 		}
 		return env;
 	}
+
+	// ===== Night-synced moon =====================================================
 
 	/**
 	 * Get night synced moon angles {azimuth, altitude} by mirroring the sun.
@@ -1068,68 +704,47 @@ public class TimeOfDay {
 	}
 
 	private float[] computeNightSyncedMoonAngles() {
-		// Real Time: mirror the sun computed from the player's real local clock -
-		// the same instant the REAL_TIME sun/realistic-moon use - so moonrise tracks
-		// the real sunset and the moon spans the real night's length. Bypasses the
-		// cycle-duration accumulator entirely; without this, the night-synced moon
-		// would follow Cycle Duration while the sky follows the real clock.
-		if (currentCycleMode.usesLocalTime) {
-			double[] sa = AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
-			return new float[] { (float) sa[0] + PI, (float) -sa[1] };
-		}
+		// Real Time and Synced Days already resolve the sun from their respective clocks, so
+		// mirroring that cached position keeps moonrise aligned with sunset without maintaining
+		// a second clock. Synced Days remains identical for every player for the same reason.
+		if (currentCycleMode.usesLocalTime || currentCycleMode.usesUtcSyncedTime)
+			return mirrorAngles(getSunAngles());
 
-		// Synced Days: derive the moon's mirror position and phase purely from the
-		// UTC clock so the night-synced moon is identical for every player, matching
-		// the UTC-synced sun. Stateless - bypasses the pending-increment machinery.
-		if (currentCycleMode.usesUtcSyncedTime) {
-			double[] sa = AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong);
-			return new float[] { (float) sa[0] + PI, (float) -sa[1] };
-		}
+		float[] sunAngles = getAstronomicalSunAngles(getNightSyncedMoonInstant());
+		applyPendingNightSyncedDays(-sunAngles[1]);
+		return mirrorAngles(sunAngles);
+	}
 
-		// Warp identically to the sun so the night-synced moon stays aligned with
-		// the (now re-sized) day & night periods - moonrise still tracks visual sunset.
-		double cyclePosition = getMoonCyclePosition();
+	/**
+	 * Uniform moon motion keeps a night-synced moon moving at a constant rate while the sun slows
+	 * through dawn and dusk. The 3.4-hour offset puts moonrise near the sun's visual sunset.
+	 */
+	private Instant getNightSyncedMoonInstant() {
+		double hour = NIGHT_SYNCED_MOON_START_HOUR + getMoonCyclePosition() * 24;
+		if (hour >= 24)
+			hour -= 24;
+		return Instant.ofEpochMilli(EQUINOX_EPOCH_MS + nightSyncedDayOffset * DAY_MS + hoursToMillis(hour));
+	}
 
-		// Use a uniform linear mapping: cycle 0→1 maps to a full 24-hour day.
-		// This gives the moon constant angular speed across its whole arc,
-		// unlike the piecewise mapping used for the sun which slows at twilight.
-		//
-		// The start hour is chosen so that the equinox sunset (~19:00) falls
-		// at cycle position ~0.65, matching when the piecewise sun visually
-		// reaches the horizon. This keeps moonrise aligned with visual sunset.
-		// 19 = start + 0.65 * 24  =>  start ≈ 3.4
-		double mappedHour = 3.4 + cyclePosition * 24;
-		if (mappedHour >= 24) mappedHour -= 24;
-
-		// Detect newly completed cycles and queue them as pending
+	/** Queue a lunar phase advance at each cycle boundary, then apply it only while unlit. */
+	private void applyPendingNightSyncedDays(float moonAltitude) {
 		long newCycles = completedCycles - lastNightSyncedCycles;
 		if (newCycles > 0) {
 			pendingDayIncrements += newCycles;
 			lastNightSyncedCycles = completedCycles;
 		}
 
-		long fixedMillis = EQUINOX_EPOCH_MS + nightSyncedDayOffset * DAY_MS
-			+ hoursToMillis(mappedHour);
-
-		double[] sunAngles = AstronomyUtils.getSunAngles(fixedMillis, currentLatLong);
-		float moonAltitude = (float) -sunAngles[1];
-
-		// Apply pending day increments only once the moon is far enough down that its light
-		// no longer reaches the scene. A whole simulated day of phase lands at once, which
-		// near the quarters is a ~0.10 step in illumination, so doing this anywhere the moon
-		// still contributes shows up as a sudden brightness jump.
-		//
-		// The geometric horizon is not far enough: DayNightLighting fades moonlight out over
-		// MOON_ELEVATION_FADE_START_DEG..END and only stops lighting below
-		// MOON_HORIZON_CUTOFF_DEG, both -10 degrees, so between -10 and 0 the moon is under
-		// the horizon yet still lighting and shadowing the world. Waiting for that same
-		// altitude puts the phase change where every consumer already reads zero.
+		// The moon continues lighting and shadowing the scene between -10° and the geometric
+		// horizon, so changing phase there would create a visible brightness step.
 		if (pendingDayIncrements > 0 && moonAltitude < MOON_PHASE_ADVANCE_ALTITUDE_RAD) {
 			nightSyncedDayOffset += pendingDayIncrements;
 			pendingDayIncrements = 0;
 		}
+	}
 
-		return new float[] { (float) sunAngles[0] + PI, moonAltitude };
+	/** Mirror an astronomical {azimuth, altitude} position to its opposite point in the sky. */
+	private static float[] mirrorAngles(float[] angles) {
+		return new float[] { angles[0] + PI, -angles[1] };
 	}
 
 	/**
@@ -1194,6 +809,20 @@ public class TimeOfDay {
 	// instant every getter derives from. Called once per frame, so the astronomy
 	// snapshot invalidated here is rebuilt at most once per frame.
 	public void update() {
+		resolveEnvironmentState();
+		beginFrame();
+		updateSeasonalHemisphere();
+
+		frameWallClockMillis = System.currentTimeMillis();
+		frameWallClockInstant = Instant.ofEpochMilli(frameWallClockMillis);
+		initializeRealTimeClock();
+		currentInstant = frameWallClockInstant;
+		advanceCycle(frameWallClockMillis);
+		currentInstant = resolveCurrentInstant();
+	}
+
+	/** Apply the current environment's mode, moon phase, and fixed-angle overrides. */
+	private void resolveEnvironmentState() {
 		DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
 		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
 		currentCycleMode = forcedMode != null ? forcedMode : configuredCycleMode;
@@ -1202,74 +831,55 @@ public class TimeOfDay {
 			environmentManager.getForcedFixedSunAngles(),
 			environmentManager.getForcedFixedMoonAngles()
 		);
-		beginFrame();
-		updateSeasonalHemisphere();
+	}
 
-		frameWallClockMillis = System.currentTimeMillis();
-		frameWallClockInstant = Instant.ofEpochMilli(frameWallClockMillis);
-		initializeRealTimeClock();
-		long currentTimeMillis = frameWallClockMillis;
-		currentInstant = frameWallClockInstant;
-
-		// Initialize on first call
+	/** Advance the stateful dynamic-cycle clock. Fixed and real-time modes retain it for moons. */
+	private void advanceCycle(long currentTimeMillis) {
 		if (lastUpdateTime == 0)
 			lastUpdateTime = currentTimeMillis;
 
-		// Calculate elapsed real time since last update
-		long realTimeElapsed = currentTimeMillis - lastUpdateTime;
-
-		// Convert cycle duration from minutes to milliseconds for the full cycle
-		double cycleDurationMillis = currentCycleDuration * 60.0 * 1000.0; // minutes to milliseconds
-
-		// Calculate how much cycle time has progressed based on current day length
-		double cycleTimeElapsed = realTimeElapsed / cycleDurationMillis;
-
-		// Add to accumulated cycle time to maintain continuity
-		accumulatedCycleTime += cycleTimeElapsed;
-
-		// Track completed cycles (each = one simulated day) for moon phase progression
+		double cycleDurationMillis = currentCycleDuration * 60.0 * 1000.0;
+		accumulatedCycleTime += (currentTimeMillis - lastUpdateTime) / cycleDurationMillis;
 		while (accumulatedCycleTime >= 1.0) {
 			accumulatedCycleTime -= 1.0;
 			completedCycles++;
 		}
-
 		lastUpdateTime = currentTimeMillis;
+	}
+
+	/** Resolve the astronomical instant for the already-updated cycle state. */
+	private Instant resolveCurrentInstant() {
+		if (currentCycleMode.isFixed)
+			return getFixedModeInstant();
 
 		switch (currentCycleMode) {
 			case REAL_TIME:
 				// The session-local timestamp advances in Unix time, so daylight-saving changes
 				// cannot cause a discontinuity in the sun, moon, or seasonal date.
-				currentInstant = getRealTimeInstant();
-				break;
+				return getRealTimeInstant();
 			case SYNCED_DAYS:
 				// A full day & night per real UTC hour. The resulting sky is identical for all
 				// players and independent of Cycle Duration.
-				double syncedCyclePosition = getSyncedDaysCyclePosition(currentTimeMillis);
-				long syncedDay = currentTimeMillis / SYNCED_DAYS_PERIOD_MS;
+				double syncedCyclePosition = getSyncedDaysCyclePosition(frameWallClockMillis);
+				long syncedDay = frameWallClockMillis / SYNCED_DAYS_PERIOD_MS;
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
-				currentInstant = syncedStartOfDay.plusMillis(hoursToMillis(cyclePositionToHour(syncedCyclePosition)));
-				break;
-			case FIXED_DAWN:
-			case FIXED_MIDDAY:
-			case FIXED_SUNSET:
-			case FIXED_TWILIGHT:
-			case FIXED_NIGHT:
-			case ALWAYS_NIGHT:
-				// Cycle tracking above continues for moon calculations, but the sun's instant
-				// remains at this mode's authored time of day.
-				long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-				currentInstant = Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
-				break;
+				return syncedStartOfDay.plusMillis(hoursToMillis(cyclePositionToHour(syncedCyclePosition)));
 			case DYNAMIC:
 				// Warp the linear cycle clock so day and night occupy the configured share,
 				// then feed it through the twilight-weighted sun mapping.
 				double cyclePosition = applyDayLengthWarp(accumulatedCycleTime);
 				double mappedHour = cyclePositionToHour(cyclePosition);
-				Instant startOfDay = currentInstant.truncatedTo(ChronoUnit.DAYS)
+				Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS)
 					.plus(completedCycles, ChronoUnit.DAYS);
-				currentInstant = startOfDay.plusMillis(hoursToMillis(mappedHour));
-				break;
+				return startOfDay.plusMillis(hoursToMillis(mappedHour));
 		}
+		throw new IllegalStateException("Unhandled day & night cycle mode: " + currentCycleMode);
+	}
+
+	/** Fixed modes retain their moving-cycle state for moons, but pin the sun to this instant. */
+	private Instant getFixedModeInstant() {
+		long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
+		return Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
 	}
 
 	/**
@@ -1304,149 +914,78 @@ public class TimeOfDay {
 		return startOfDay.plusMillis(totalOffsetMillis);
 	}
 
-	public float getNightLightFactor() {
+	// ===== Light schedule ========================================================
+
+	public float getNightFactor() {
 		// Fixed Twilight/Sunset should contribute the same partial night factor as a
 		// moving sky at that altitude; fixed modes already return their authored sun angle.
-		float[] sunAngles = getSunAngles();
-		float sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
-
-		if (sunAltitudeDegrees >= 5)
-			return 0;
-		if (sunAltitudeDegrees <= -18)
-			return 1;
-
-		return smoothstep(5, -18, sunAltitudeDegrees);
+		return smoothstep(5, -18, getSunAngles()[1] * RAD_TO_DEG);
 	}
 
-	public float getDynamicBrightnessMultiplier(int minimumBrightness) {
-		// getSunAngles() returns the fixed angle in fixed modes, so brightness tracks the
-		// fixed sun altitude there instead of an incremented-time position.
-		float[] sunAngles = getSunAngles();
-
-		// Calculate sun altitude in degrees (-90 to 90, where 90 is directly overhead)
-		float sunAltitudeDegrees = sunAngles[1] * RAD_TO_DEG;
-
-		// Convert minimum brightness from percentage to decimal
-		float minBrightness = minimumBrightness / 100.0f;
-		float horizonBrightness = minBrightness + 0.10f; // 10% brighter at horizon
-
-		if (sunAltitudeDegrees <= -18) {
-			// Deep night: minimum brightness
-			return minBrightness;
-		} else if (sunAltitudeDegrees <= -5) {
-			// Night: smoothstep from minBrightness at -18° to twilightBrightness at -5°
-			// twilightBrightness is partway between min and horizon
-			float twilightBrightness = minBrightness + 0.07f;
-			float s = smoothstep(-18, -5, sunAltitudeDegrees);
-			return minBrightness + (twilightBrightness - minBrightness) * s;
-		} else if (sunAltitudeDegrees <= 5) {
-			// Horizon transition: smoothstep from twilightBrightness at -5° to earlyDayBrightness at +5°
-			// This zone spans the critical 0° boundary with a single smooth curve
-			float twilightBrightness = minBrightness + 0.07f;
-			float earlyDayBrightness = horizonBrightness + 0.05f;
-			float s = smoothstep(-5, 5, sunAltitudeDegrees);
-			return twilightBrightness + (earlyDayBrightness - twilightBrightness) * s;
-		} else {
-			// Daytime: sine curve from earlyDayBrightness at +5° to peak at 90°.
-			// Peak is 1.0 so the brightest part of the day matches the environment's
-			// base strengths (i.e. how the world looks with the cycle disabled).
-			float earlyDayBrightness = horizonBrightness + 0.05f;
-			float peakBrightness = 1.2f;
-			float sineFactor = sin(sunAltitudeDegrees * DEG_TO_RAD);
-			// Scale so that at 5°, we match earlyDayBrightness
-			float sineAt5 = sin(5 * DEG_TO_RAD);
-			float normalizedSine = max(0, (sineFactor - sineAt5) / (1 - sineAt5));
-			return earlyDayBrightness + (peakBrightness - earlyDayBrightness) * normalizedSine;
-		}
-	}
-
-	/** Update the shared day/night state used while LightManager processes the current frame. */
-	public void updateLightState() {
-		dayNightLightsActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
-		if (!dayNightLightsActive) {
-			previousNightLightFactor = -1;
+	/** Update the day/night light schedule before {@link LightManager} evaluates its lights. */
+	public void updateLightSchedule() {
+		lightScheduleActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
+		if (!lightScheduleActive) {
+			previousNightFactor = -1;
 			return;
 		}
 
-		nightLightFactor = getNightLightFactor();
-		nightLightFactorRising = previousNightLightFactor < 0 || nightLightFactor >= previousNightLightFactor;
-		previousNightLightFactor = nightLightFactor;
+		nightFactor = getNightFactor();
+		nightFactorIncreasing = previousNightFactor < 0 || nightFactor >= previousNightFactor;
+		previousNightFactor = nightFactor;
 	}
 
-	/** Whether a light definition that requires the cycle is enabled by the player's config. */
-	public boolean isLightEnabled(Light light) {
+	/** Whether a day/night-only light is allowed by the player's configuration. */
+	public boolean isLightAllowedByConfiguration(Light light) {
 		return !light.def.dayNightOnly || plugin.configEnableDayNightCycle;
 	}
 
 	/** Radius to use for culling before a light's final animation and cycle scale are applied. */
-	public float getLightCullingRadius(Light light) {
-		if (!dayNightLightsActive)
+	public float getScheduledLightCullingRadius(Light light) {
+		if (!lightScheduleActive)
 			return light.def.radius;
 
-		float phaseFactor = getEffectiveNightFactor(light);
-		return light.def.radius * getNightRadiusScale(light.def, phaseFactor);
+		float scheduledNightFactor = getScheduledNightFactor(light);
+		return light.def.radius * getNightRadiusScale(light.def, scheduledNightFactor);
 	}
 
 	/** Whether a time-restricted light is effectively off for the current day/night state. */
-	public boolean isLightHiddenByDayNightCycle(Light light) {
-		return dayNightLightsActive
+	public boolean isHiddenByLightSchedule(Light light) {
+		return lightScheduleActive
 			&& isTimeRestricted(light.def)
-			&& getNightStrengthScale(light.def, getEffectiveNightFactor(light)) < .001f;
+			&& getNightStrengthScale(light.def, getScheduledNightFactor(light)) < .001f;
 	}
 
 	/** Apply the cycle's strength and radius response after LightManager's normal fades. */
-	public void applyDayNightLightScale(Light light) {
-		if (!dayNightLightsActive)
+	public void applyLightSchedule(Light light) {
+		if (!lightScheduleActive)
 			return;
 
-		float phaseFactor = getEffectiveNightFactor(light);
-		light.strength *= getNightStrengthScale(light.def, phaseFactor);
-		light.radius *= getNightRadiusScale(light.def, phaseFactor);
+		float scheduledNightFactor = getScheduledNightFactor(light);
+		light.strength *= getNightStrengthScale(light.def, scheduledNightFactor);
+		light.radius *= getNightRadiusScale(light.def, scheduledNightFactor);
 	}
 
-	private float getEffectiveNightFactor(Light light) {
+	/** Apply a definition's optional phase window to the global night factor. */
+	private float getScheduledNightFactor(Light light) {
 		LightDefinition def = light.def;
-		LightTimeOfDay on = def.timeOfDay;
-		if (on == null)
-			return nightLightFactor;
+		if (def.timeOfDay == null)
+			return nightFactor;
 
-		if (nightLightFactorRising) {
-			float[] window = getPhaseWindow(light, on, def.staggered);
-			return remapNightWindow(nightLightFactor, window[0], window[1]);
+		LightTimeOfDay phase = nightFactorIncreasing || def.timeOfDayOff == null
+			? def.timeOfDay
+			: def.timeOfDayOff;
+		float start = phase.start;
+		float end = phase.end;
+		if (def.staggered) {
+			float rampWidth = min(NIGHT_STAGGER_RAMP_WIDTH, end - start);
+			start += getNightStaggerOffset(light) * max(0, end - start - rampWidth);
+			end = start + rampWidth;
 		}
-
-		LightTimeOfDay offPhase = def.timeOfDayOff != null ? def.timeOfDayOff : on;
-		float[] window = getPhaseWindow(light, offPhase, def.staggered);
-		if (nightLightFactor >= window[1])
-			return 1;
-		if (nightLightFactor <= window[0])
-			return 0;
-
-		float t = (nightLightFactor - window[0]) / (window[1] - window[0]);
-		return t * t * (3 - 2 * t);
+		return smoothstep(start, end, nightFactor);
 	}
 
-	private static float[] getPhaseWindow(Light light, LightTimeOfDay phase, boolean staggered) {
-		if (!staggered)
-			return new float[] { phase.start, phase.end };
-
-		float phaseSpan = phase.end - phase.start;
-		float rampWidth = min(NIGHT_STAGGER_RAMP_WIDTH, phaseSpan);
-		float maxOffset = max(0, phaseSpan - rampWidth);
-		float offset = getNightStaggerOffset(light) * maxOffset;
-		return new float[] { phase.start + offset, phase.start + offset + rampWidth };
-	}
-
-	private static float remapNightWindow(float nightLightFactor, float start, float end) {
-		if (nightLightFactor <= start)
-			return 0;
-		if (nightLightFactor >= end)
-			return 1;
-
-		float t = (nightLightFactor - start) / (end - start);
-		return t * t * (3 - 2 * t);
-	}
-
+	/** Derive a stable pseudo-random stagger from a light's immutable placement. */
 	private static float getNightStaggerOffset(Light light) {
 		int hash = Float.floatToIntBits(light.pos[0]);
 		hash ^= Float.floatToIntBits(light.pos[1]) * 374761393;
@@ -1464,127 +1003,28 @@ public class TimeOfDay {
 		return def.timeOfDay != null;
 	}
 
-	private float getNightStrengthScale(LightDefinition def, float phaseFactor) {
+	private float getNightStrengthScale(LightDefinition def, float scheduledNightFactor) {
 		float nightScale = lerpNightScale(def.nightMultiplier);
-		return isTimeRestricted(def) ? phaseFactor * nightScale : nightScale;
+		return isTimeRestricted(def) ? scheduledNightFactor * nightScale : nightScale;
 	}
 
-	private float getNightRadiusScale(LightDefinition def, float phaseFactor) {
+	private float getNightRadiusScale(LightDefinition def, float scheduledNightFactor) {
 		float multiplier = def.nightMultiplier;
-		if (isTimeRestricted(def)) {
-			if (multiplier <= 0)
-				return 0;
-			if (multiplier < 1)
-				return phaseFactor;
-			return phaseFactor * lerpNightRadiusScale(multiplier);
-		}
 		if (multiplier <= 0)
-			return lerpNightScale(0);
-		if (multiplier < 1)
-			return 1;
-		return lerpNightRadiusScale(multiplier);
+			return isTimeRestricted(def) ? 0 : lerpNightScale(0);
+
+		// A scheduled light's radius follows its phase window. Unscheduled lights retain their
+		// authored radius unless explicitly boosted at night; this preserves their normal culling.
+		float scheduleScale = isTimeRestricted(def) ? scheduledNightFactor : 1;
+		return scheduleScale * (multiplier > 1 ? lerpNightRadiusScale(multiplier) : 1);
 	}
 
 	private float lerpNightScale(float multiplier) {
-		return 1 + (multiplier - 1) * nightLightFactor;
+		return mix(1, multiplier, nightFactor);
 	}
 
 	private float lerpNightRadiusScale(float multiplier) {
 		float radiusFraction = multiplier > 1 ? NIGHT_RADIUS_BOOST_FRACTION : 1;
-		return 1 + (multiplier - 1) * nightLightFactor * radiusFraction;
-	}
-
-	/**
-	 * Apply the current sky's color and strength response to an outdoor light. Light definitions
-	 * remain the source of the authored daytime color; this only applies the day/night response
-	 * for definitions that opt in.
-	 */
-	public void applyOutdoorLightLighting(Light light, int[] worldPos, int minimumBrightness) {
-		System.arraycopy(light.def.color, 0, light.color, 0, 3);
-		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
-			return;
-
-		OutdoorSkySample sky = sampleOutdoorSky(worldPos, minimumBrightness);
-		float[] authoredColor = light.def.color;
-		float defLuma = dot(authoredColor, SKY_LUMA_WEIGHTS);
-		float noonLuma = dot(sky.noonHorizonLinear, SKY_LUMA_WEIGHTS);
-		float[] lightColor = copy(sky.horizonLinear);
-		double sunAltDeg = getSunAngles()[1] * RAD_TO_DEG;
-
-		// At night, blend the dark sky horizon toward moonColor: reduces the blue cast and adds
-		// silver moonlight filtering through tunnel openings. moonStrengthFloor keeps deep-night
-		// lights visibly moonlit even when the sampled sky brightness is near zero.
-		float moonStrengthFloor = 0;
-		if (sunAltDeg < 5) {
-			float moonAltDeg = getMoonAltitudeDegreesForLighting();
-			float moonIllumination = getMoonIlluminationFraction();
-			if (moonAltDeg > -5 && moonIllumination > .01f) {
-				float sunFade = (float) Math.max(0.0, Math.min(1.0, (5.0 - sunAltDeg) / 10.0));
-				float moonElevation = (float) Math.min(1.0, Math.max(0.0, (moonAltDeg + 5.0) / 25.0));
-				float moonElevationSmooth = moonElevation * moonElevation * (3 - 2 * moonElevation);
-				float moonBlend = moonIllumination * .25f * moonElevationSmooth * sunFade;
-				lightColor = mix(lightColor, environmentManager.currentMoonLightColor, moonBlend);
-				moonStrengthFloor = moonIllumination * .12f * moonElevationSmooth;
-			}
-		}
-
-		// Desaturate toward gray as the sun climbs - high sun produces whiter, more neutral light.
-		if (sunAltDeg > 0) {
-			float desaturation = smoothstep(0, 90, (float) sunAltDeg) * .75f;
-			float luma = dot(lightColor, SKY_LUMA_WEIGHTS);
-			for (int i = 0; i < 3; i++)
-				lightColor[i] = mix(lightColor[i], luma, desaturation);
-		}
-
-		float horizonLuma = dot(lightColor, SKY_LUMA_WEIGHTS);
-		// Only around midday does the light show its authored color; at sunrise/sunset and
-		// through the night it is tinted by the sky instead.
-		float middayFactor = smoothstep(15, 30, (float) sunAltDeg);
-		if (middayFactor > 0)
-			lightColor = mix(lightColor, authoredColor, middayFactor);
-
-		System.arraycopy(lightColor, 0, light.color, 0, 3);
-		float peakScale = defLuma / max(noonLuma, 1e-4f);
-		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1) * sky.brightnessMultiplier, moonStrengthFloor);
-		light.strength *= mix(peakScale * timeScale, 1, middayFactor);
-	}
-
-	private OutdoorSkySample sampleOutdoorSky(int[] worldPos, int minimumBrightness) {
-		Environment environment = environmentManager.getOutdoorEnvironment(worldPos);
-		if (environment == cachedOutdoorSkyEnvironment
-			&& plugin.frame == cachedOutdoorSkyFrame
-			&& minimumBrightness == cachedOutdoorSkyMinBrightness) {
-			return cachedOutdoorSkySample;
-		}
-
-		float[] regionalFogSrgb = environmentManager.getOutdoorRegionalFogSrgb(environment);
-		float[][] skyGradient = getSkyGradientColors(
-			regionalFogSrgb,
-			environment.sunStrength,
-			environment.sunriseSunsetStrength,
-			environment.skyColorTakeoverAngle
-		);
-		OutdoorSkySample sample = new OutdoorSkySample(
-			ColorUtils.srgbToLinear(skyGradient[1]),
-			ColorUtils.srgbToLinear(getReferenceHorizonColor(regionalFogSrgb)),
-			getDynamicBrightnessMultiplier(minimumBrightness)
-		);
-		cachedOutdoorSkySample = sample;
-		cachedOutdoorSkyEnvironment = environment;
-		cachedOutdoorSkyMinBrightness = minimumBrightness;
-		cachedOutdoorSkyFrame = plugin.frame;
-		return sample;
-	}
-
-	private static final class OutdoorSkySample {
-		private final float[] horizonLinear;
-		private final float[] noonHorizonLinear;
-		private final float brightnessMultiplier;
-
-		private OutdoorSkySample(float[] horizonLinear, float[] noonHorizonLinear, float brightnessMultiplier) {
-			this.horizonLinear = horizonLinear;
-			this.noonHorizonLinear = noonHorizonLinear;
-			this.brightnessMultiplier = brightnessMultiplier;
-		}
+		return mix(1, multiplier, nightFactor * radiusFraction);
 	}
 }

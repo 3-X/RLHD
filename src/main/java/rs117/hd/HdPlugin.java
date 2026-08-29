@@ -105,6 +105,7 @@ import rs117.hd.renderer.legacy.LegacyRenderer;
 import rs117.hd.renderer.zone.SceneManager;
 import rs117.hd.renderer.zone.ZoneRenderer;
 import rs117.hd.scene.AreaManager;
+import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.FishingSpotReplacer;
 import rs117.hd.scene.GamevalManager;
@@ -114,11 +115,10 @@ import rs117.hd.scene.MaterialManager;
 import rs117.hd.scene.ModelOverrideManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SceneContext;
-import rs117.hd.scene.StarField;
 import rs117.hd.scene.TextureManager;
 import rs117.hd.scene.TileOverrideManager;
-import rs117.hd.scene.TimeOfDay;
 import rs117.hd.scene.WaterTypeManager;
+import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.DestructibleHandler;
 import rs117.hd.utils.DeveloperTools;
@@ -274,7 +274,7 @@ public class HdPlugin extends Plugin {
 	private EnvironmentManager environmentManager;
 
 	@Inject
-	private TimeOfDay timeOfDay;
+	private DaylightCycleManager daylightCycleManager;
 
 	@Inject
 	private TextureManager textureManager;
@@ -1826,7 +1826,7 @@ public class HdPlugin extends Plugin {
 			}
 		}
 
-		timeOfDay.updateConfig(config);
+		daylightCycleManager.updateConfig(config);
 	}
 
 	@Subscribe

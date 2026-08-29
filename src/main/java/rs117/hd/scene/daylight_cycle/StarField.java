@@ -1,4 +1,4 @@
-package rs117.hd.scene;
+package rs117.hd.scene.daylight_cycle;
 
 import java.awt.Color;
 import java.nio.FloatBuffer;

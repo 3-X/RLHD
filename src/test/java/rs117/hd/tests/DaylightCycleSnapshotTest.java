@@ -1,15 +1,15 @@
 package rs117.hd.tests;
 
 import org.junit.Test;
-import rs117.hd.scene.TimeOfDay;
+import rs117.hd.scene.DaylightCycleManager;
 
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
-public class TimeOfDaySnapshotTest {
+public class DaylightCycleSnapshotTest {
 	@Test
 	public void sunAnglesAreCachedWithinAFrameAndInvalidatedByUpdate() {
-		TimeOfDay tod = new TimeOfDay();
+		DaylightCycleManager tod = new DaylightCycleManager();
 		// update() is the per-frame entry point: it pins the instant every getter
 		// derives from and drops the previous frame's astronomy snapshot.
 		tod.update();

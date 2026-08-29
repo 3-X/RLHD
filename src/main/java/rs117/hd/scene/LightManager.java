@@ -52,6 +52,7 @@ import rs117.hd.HdPlugin;
 import rs117.hd.config.DynamicLights;
 import rs117.hd.data.ObjectType;
 import rs117.hd.opengl.uniforms.UBOLights;
+import rs117.hd.scene.daylight_cycle.DaylightCycleLighting;
 import rs117.hd.scene.lights.Alignment;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
@@ -99,7 +100,10 @@ public class LightManager {
 	private ModelOverrideManager modelOverrideManager;
 
 	@Inject
-	private TimeOfDay timeOfDay;
+	private DaylightCycleManager daylightCycleManager;
+
+	@Inject
+	private DaylightCycleLighting daylightCycleLighting;
 
 	@Inject
 	private EntityHiderPlugin entityHiderPlugin;
@@ -194,7 +198,7 @@ public class LightManager {
 			});
 		}
 
-		timeOfDay.updateLightState();
+		daylightCycleManager.updateLightSchedule();
 
 		// These should never occur, but just in case...
 		if (sceneContext.knownProjectiles.size() > 10000) {
@@ -464,7 +468,7 @@ public class LightManager {
 			if (light.visible && light.hiddenTemporarily)
 				light.visible = light.changedVisibilityAt != -1 && light.elapsedTime - light.changedVisibilityAt < Light.VISIBILITY_FADE;
 
-			if (light.visible && !timeOfDay.isLightEnabled(light))
+			if (light.visible && !daylightCycleManager.isLightAllowedByConfiguration(light))
 				light.visible = false;
 
 			if (light.visible) {
@@ -473,8 +477,8 @@ public class LightManager {
 				float distZ = plugin.cameraFocalPoint[1] - light.pos[2];
 				light.distanceSquared = distX * distX + distZ * distZ;
 
-				float maxRadius = timeOfDay.getLightCullingRadius(light);
-				if (timeOfDay.isLightHiddenByDayNightCycle(light))
+				float maxRadius = daylightCycleManager.getScheduledLightCullingRadius(light);
+				if (daylightCycleManager.isHiddenByLightSchedule(light))
 					light.visible = false;
 				switch (light.def.type) {
 					case FLICKER:
@@ -560,7 +564,7 @@ public class LightManager {
 				light.radius = light.def.radius;
 			}
 
-			timeOfDay.applyOutdoorLightLighting(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
+			daylightCycleLighting.applyOutdoorLightLighting(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
 
 			// Spawn & despawn fade-in and fade-out
 			if (light.fadeInDuration > 0)
@@ -568,7 +572,7 @@ public class LightManager {
 			if (light.fadeOutDuration > 0 && light.lifetime != -1)
 				light.strength *= saturate((light.lifetime - light.elapsedTime) / light.fadeOutDuration);
 
-			timeOfDay.applyDayNightLightScale(light);
+			daylightCycleManager.applyLightSchedule(light);
 
 			light.applyTemporaryVisibilityFade();
 		}
