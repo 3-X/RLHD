@@ -33,11 +33,11 @@ import static rs117.hd.utils.MathUtils.*;
  * <ol>
  *   <li>{@link #update()} - applies the current environment's overrides,
  *       advances the simulated clock, resolves the latitude, pins
- *       {@link #currentInstant}, and clears the astronomy snapshot.</li>
- *   <li>any number of getters</li>
+ *       {@link #currentInstant}, and resolves the celestial state.</li>
+ *   <li>any number of state consumers</li>
  * </ol>
- * Getters are pure with respect to that state and share a per-frame astronomy snapshot, so
- * calling them repeatedly within a frame is cheap.
+ * State consumers never perform astronomy calculations: they read the completed snapshot
+ * resolved by {@link #update()}.
  *
  * <h2>Angle conventions</h2>
  * Two orderings are in play, and mixing them up is the classic bug here:
@@ -182,17 +182,7 @@ public class DaylightCycleManager {
 	private long realTimeStartEpochMillis = Long.MIN_VALUE;
 	private long realTimeSessionStartMillis;
 
-	// Per-frame astronomy snapshot. update() already pins the wall-clock instant
-	// once per frame; these cache the ephemeris solves derived from it, so the
-	// ~12 getter calls per frame share one solve instead of re-deriving.
-	// Callers must treat the returned arrays as read-only - they are shared.
-	private float[] frameSunAngles;
-	private float[] frameMoonAngles;
-	private float[] frameNightSyncedMoonAngles;
-	private float[] frameSunDirectionForSky;
-	private float[] frameMoonDirectionForSky;
-	private Float frameMoonIllumination;
-	private Float frameMoonAltitudeDegrees;
+	// Resolved once at the end of update(). Callers must treat its arrays as read-only.
 	private final DaylightCycleState state = new DaylightCycleState();
 
 	// Per-light cycle state. Updated once by LightManager before it evaluates visibility.
@@ -202,21 +192,6 @@ public class DaylightCycleManager {
 	private float previousNightFactor = -1;
 
 	// ===== Per-frame state =======================================================
-
-	/**
-	 * Invalidate the per-frame astronomy snapshot. update() is the sole frame boundary:
-	 * all state must be settled before getters run.
-	 */
-	private void beginFrame() {
-		frameSunAngles = null;
-		frameMoonAngles = null;
-		frameNightSyncedMoonAngles = null;
-		frameSunDirectionForSky = null;
-		frameMoonDirectionForSky = null;
-		frameMoonIllumination = null;
-		frameMoonAltitudeDegrees = null;
-		state.resolved = false;
-	}
 
 	/**
 	 * Refresh player-configured values when HdPlugin processes pending config changes.
@@ -386,18 +361,6 @@ public class DaylightCycleManager {
 
 	// ===== Sun and shadow directions =============================================
 
-	/**
-	 * The sun's {azimuth, altitude} in radians for this frame - the value nearly everything
-	 * else in this class derives from. Cached per frame; treat the result as read-only.
-	 *
-	 * @see <a href="https://en.wikipedia.org/wiki/Horizontal_coordinate_system">Horizontal coordinate system</a>
-	 */
-	private float[] getSunAngles() {
-		if (frameSunAngles == null)
-			frameSunAngles = computeSunAngles();
-		return frameSunAngles;
-	}
-
 	private float[] computeSunAngles() {
 		// Fixed modes return their fixed angle directly, bypassing the time machinery.
 		// Every sun-position-dependent value (sky gradient colors, brightness, blend
@@ -413,17 +376,6 @@ public class DaylightCycleManager {
 	}
 
 	/**
-	 * Get the sun direction vector for sky gradient rendering.
-	 * Returns normalized direction FROM the camera TO the sun.
-	 * Uses the same coordinate transformation as the shadow light direction.
-	 */
-	private float[] getSunDirectionForSky() {
-		if (frameSunDirectionForSky == null)
-			frameSunDirectionForSky = computeSunDirectionForSky();
-		return frameSunDirectionForSky;
-	}
-
-	/**
 	 * Write the sun's shadow-camera angles as {pitch, yaw}. Astronomical angles are
 	 * {azimuth, altitude}, while fixed environment angles are authored as {altitude, azimuth}.
 	 * Both require a half-turn azimuth compensation before driving the directional camera.
@@ -433,7 +385,7 @@ public class DaylightCycleManager {
 			return setShadowAngles(out, fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] + PI);
 		}
 
-		float[] sunAngles = getSunAngles();
+		float[] sunAngles = state.sunAngles;
 		return setShadowAngles(out, sunAngles[1], sunAngles[0] + PI);
 	}
 
@@ -449,26 +401,16 @@ public class DaylightCycleManager {
 		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride())
 			return getMoonShadowAngles(out);
 
-		if (getSunAngles()[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
-			&& getMoonAltitudeDegrees() > MOON_SHADOW_CUTOFF_DEG) {
+		if (state.sunAngles[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
+			&& state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG) {
 			return getMoonShadowAngles(out);
 		}
 
 		return getSunShadowAngles(out);
 	}
 
-	/**
-	 * Whether the active cycle mode suppresses the visible moon disk.
-	 */
-	private boolean hidesMoon() {
-		return currentCycleMode.isHidesMoon();
-	}
-
 	private float[] computeSunDirectionForSky() {
-		// getSunAngles() already handles the fixed modes (per-environment override or
-		// the built-in per-mode constant) and shares the per-frame snapshot, so the
-		// sun disk direction is derived from the same solve as everything else.
-		float[] sunAngles = getSunAngles();
+		float[] sunAngles = state.sunAngles;
 
 		// sunAngles[0] = azimuth, sunAngles[1] = altitude
 		// The renderers use: pitch = altitude, yaw = PI - azimuth
@@ -477,15 +419,6 @@ public class DaylightCycleManager {
 	}
 
 	// ===== Moon ==================================================================
-
-	/**
-	 * Get the moon direction vector for sky rendering, respecting moon behavior mode.
-	 */
-	private float[] getMoonDirectionForSky() {
-		if (frameMoonDirectionForSky == null)
-			frameMoonDirectionForSky = computeMoonDirectionForSky();
-		return frameMoonDirectionForSky;
-	}
 
 	/**
 	 * Write the moon's shadow-camera angles as {pitch, yaw}. Fixed moon positions use the
@@ -497,7 +430,7 @@ public class DaylightCycleManager {
 			return setShadowAngles(out, fixedMoonAngles[0], fixedMoonAngles[1]);
 		}
 
-		float[] moonAngles = getMoonAngles();
+		float[] moonAngles = state.moonAngles;
 		return setShadowAngles(out, moonAngles[1], moonAngles[0] + PI);
 	}
 
@@ -508,19 +441,8 @@ public class DaylightCycleManager {
 	}
 
 	private float[] computeMoonDirectionForSky() {
-		float[] moonAngles = getMoonAngles();
+		float[] moonAngles = state.moonAngles;
 		return anglesToSkyDirection(moonAngles[0], moonAngles[1]);
-	}
-
-	/**
-	 * The moon's {azimuth, altitude} in radians for this frame. Fixed modes return the
-	 * fixed moon position; otherwise the selected moon behavior determines its position.
-	 * The result is cached with the rest of the frame's astronomy snapshot.
-	 */
-	private float[] getMoonAngles() {
-		if (frameMoonAngles == null)
-			frameMoonAngles = computeMoonAngles();
-		return frameMoonAngles;
 	}
 
 	private float[] computeMoonAngles() {
@@ -529,21 +451,10 @@ public class DaylightCycleManager {
 		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride())
 			return fixedToAstronomicalAngles(getFixedNightMoonAngles());
 		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED)
-			return getNightSyncedMoonAngles();
+			return computeNightSyncedMoonAngles();
 
 		double[] angles = AstronomyUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong);
 		return new float[] { (float) angles[0], (float) angles[1] };
-	}
-
-	/**
-	 * Get the moon illumination fraction, respecting the moon phase lock and behavior mode.
-	 * A config phase lock takes precedence; otherwise Night Synced mode derives illumination
-	 * from the advancing equinox date so the phase cycles naturally (each game cycle = +1 day).
-	 */
-	private float getMoonIlluminationFraction() {
-		if (frameMoonIllumination == null)
-			frameMoonIllumination = computeMoonIlluminationFraction();
-		return frameMoonIllumination;
 	}
 
 	private float computeMoonIlluminationFraction() {
@@ -570,28 +481,8 @@ public class DaylightCycleManager {
 		return (float) AstronomyUtils.getMoonIllumination(instant.toEpochMilli())[0];
 	}
 
-	/**
-	 * Get the moon altitude in degrees, respecting moon behavior mode.
-	 */
-	private float getMoonAltitudeDegrees() {
-		if (frameMoonAltitudeDegrees == null)
-			frameMoonAltitudeDegrees = computeMoonAltitudeDegrees();
-		return frameMoonAltitudeDegrees;
-	}
-
-	/**
-	 * Moon altitude used by scene lighting. Fixed Night already gets its authored position from
-	 * {@link #getMoonAngles()}; Always Night uses that same altitude so its moving moon cannot
-	 * leave a permanently dark sky.
-	 */
-	private float getMoonAltitudeDegreesForLighting() {
-		return currentCycleMode.isUsesFixedMoonAltitudeForLighting()
-			? getFixedNightMoonAngles()[0] * RAD_TO_DEG
-			: getMoonAltitudeDegrees();
-	}
-
 	private float computeMoonAltitudeDegrees() {
-		return getMoonAngles()[1] * RAD_TO_DEG;
+		return state.moonAngles[1] * RAD_TO_DEG;
 	}
 
 	// ===== Aurora ================================================================
@@ -641,7 +532,7 @@ public class DaylightCycleManager {
 	 * aurora cycle the auroras ramp up and back down within the cycle (peaking mid-cycle,
 	 * zero at the edges) so they come and go; off-cycle it's zero.
 	 */
-	private float getAuroraStrength() {
+	private float computeAuroraStrength() {
 		if (!isAuroraNight())
 			return 0;
 
@@ -671,28 +562,12 @@ public class DaylightCycleManager {
 
 	// ===== Night-synced moon =====================================================
 
-	/**
-	 * Get night synced moon angles {azimuth, altitude} by mirroring the sun.
-	 * The moon is placed opposite the sun (azimuth + PI) with negated altitude,
-	 * so it rises when the sun sets and vice versa.
-	 * <p>
-	 * Uses a fixed equinox base date plus a day offset that only advances
-	 * while the moon is below the horizon. This means the moon's phase
-	 * changes cycle-to-cycle, but the shift is never visible because it
-	 * only happens when the moon can't be seen.
-	 */
-	private float[] getNightSyncedMoonAngles() {
-		if (frameNightSyncedMoonAngles == null)
-			frameNightSyncedMoonAngles = computeNightSyncedMoonAngles();
-		return frameNightSyncedMoonAngles;
-	}
-
 	private float[] computeNightSyncedMoonAngles() {
 		// Real Time and Synced Days already resolve the sun from their respective clocks, so
 		// mirroring that cached position keeps moonrise aligned with sunset without maintaining
 		// a second clock. Synced Days remains identical for every player for the same reason.
 		if (currentCycleMode.usesLocalTime || currentCycleMode.usesUtcSyncedTime)
-			return mirrorAngles(getSunAngles());
+			return mirrorAngles(state.sunAngles);
 
 		float[] sunAngles = getAstronomicalSunAngles(getNightSyncedMoonInstant());
 		applyPendingNightSyncedDays(-sunAngles[1]);
@@ -777,12 +652,10 @@ public class DaylightCycleManager {
 
 	// ===== Simulated clock =======================================================
 
-	// Stateful: advances accumulatedCycleTime/completedCycles, and re-pins the
-	// instant every getter derives from. Called once per frame, so the astronomy
-	// snapshot invalidated here is rebuilt at most once per frame.
+	// Stateful: advances accumulatedCycleTime/completedCycles, pins the current instant,
+	// and resolves the state every consumer reads for this frame.
 	public void update() {
 		resolveEnvironmentState();
-		beginFrame();
 		updateSeasonalHemisphere();
 
 		frameWallClockMillis = System.currentTimeMillis();
@@ -791,24 +664,32 @@ public class DaylightCycleManager {
 		currentInstant = frameWallClockInstant;
 		advanceCycle(frameWallClockMillis);
 		currentInstant = resolveCurrentInstant();
+		resolveState();
 	}
 
 	/**
-	 * Resolve the immutable-in-practice celestial inputs shared by SkyLighting this frame.
+	 * Resolve every value derived from this frame's environment and instant. This is deliberately
+	 * ordered: Night Synced moon angles can apply a pending phase change before illumination is
+	 * calculated.
 	 */
-	public DaylightCycleState getState() {
-		if (state.resolved)
-			return state;
+	private void resolveState() {
+		state.sunAngles = computeSunAngles();
+		state.moonAngles = computeMoonAngles();
+		state.moonIllumination = computeMoonIlluminationFraction();
+		state.moonAltitudeDegrees = computeMoonAltitudeDegrees();
+		state.moonAltitudeDegreesForLighting = currentCycleMode.isUsesFixedMoonAltitudeForLighting()
+			? getFixedNightMoonAngles()[0] * RAD_TO_DEG
+			: state.moonAltitudeDegrees;
+		state.sunDirection = computeSunDirectionForSky();
+		state.moonDirection = computeMoonDirectionForSky();
+		state.hidesMoon = currentCycleMode.isHidesMoon();
+		state.auroraStrength = computeAuroraStrength();
+	}
 
-		state.sunAngles = getSunAngles();
-		state.sunDirection = getSunDirectionForSky();
-		state.moonDirection = getMoonDirectionForSky();
-		state.moonIllumination = getMoonIlluminationFraction();
-		state.moonAltitudeDegrees = getMoonAltitudeDegrees();
-		state.moonAltitudeDegreesForLighting = getMoonAltitudeDegreesForLighting();
-		state.hidesMoon = hidesMoon();
-		state.auroraStrength = getAuroraStrength();
-		state.resolved = true;
+	/**
+	 * State resolved by {@link #update()}.
+	 */
+	DaylightCycleState getState() {
 		return state;
 	}
 
@@ -904,7 +785,7 @@ public class DaylightCycleManager {
 
 	// ===== Light schedule ========================================================
 
-	/** Update the day/night light schedule before {@link LightManager} evaluates its lights. */
+	/** Update the day/night light schedule before {@link rs117.hd.scene.LightManager} evaluates its lights. */
 	public void updateLightSchedule() {
 		lightScheduleActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
 		if (!lightScheduleActive) {
@@ -914,7 +795,7 @@ public class DaylightCycleManager {
 
 		// Fixed Twilight/Sunset use their authored sun angle, producing the same partial night
 		// factor as a moving sky at that altitude.
-		nightFactor = smoothstep(5, -18, getSunAngles()[1] * RAD_TO_DEG);
+		nightFactor = smoothstep(5, -18, state.sunAngles[1] * RAD_TO_DEG);
 		nightFactorIncreasing = previousNightFactor < 0 || nightFactor >= previousNightFactor;
 		previousNightFactor = nightFactor;
 	}
