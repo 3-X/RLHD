@@ -42,15 +42,8 @@ import static rs117.hd.utils.MathUtils.*;
  * resolved by {@link #update()}.
  *
  * <h2>Angle conventions</h2>
- * Two orderings are in play, and mixing them up is the classic bug here:
- * <ul>
- *   <li><b>Internal / astronomical:</b> {@code {azimuth, altitude}} in radians. Returned by
- *       {@link AstronomyUtils#getSunAngles} and {@link AstronomyUtils#getMoonPosition},
- *       and used by every method on this class.</li>
- *   <li><b>Fixed-angle data:</b> {@code {altitude, azimuth}} in radians, matching
- *       {@code Environment.fixedSunAngles} and {@code Environment.fixedMoonAngles}.
- *       This is retained until a fixed angle enters the astronomical calculations.</li>
- * </ul>
+ * This class uses EnvironmentManager's {@code {altitude, azimuth}} convention in radians.
+ * Camera orientation is {@code {yaw, pitch}}, so it is converted only when updated.
  *
  * <h2>Cycle modes</h2>
  * {@link DaylightCycle} splits into three families, and most branching in this file is one
@@ -61,7 +54,7 @@ import static rs117.hd.utils.MathUtils.*;
  *   <li><b>REAL_TIME / SYNCED_DAYS</b> - stateless: the instant is derived directly from the
  *       player's local clock, or from the UTC clock so all players see the same sky.</li>
  *   <li><b>The fixed modes</b> ({@link DaylightCycle#isFixed}) - the sun sits at a constant angle,
- *       bypassing the clock entirely. See {@link #getFixedModeSunAngles}.</li>
+ *       bypassing the clock entirely.</li>
  * </ul>
  */
 @Singleton
@@ -103,8 +96,8 @@ public class DaylightCycleManager {
 	private static final float AURORA_NIGHT_CHANCE = .02f;
 
 	// Fixed Night's moon: locked to a prominent spot in the south-east sky and always rendered
-	// full. Converted once from the environment convention into { azimuth, altitude }.
-	private static final float[] FIXED_NIGHT_MOON_ANGLES = fixedToAstronomicalAngles(HDUtils.sunAngles(25, 135));
+	// full. Uses EnvironmentManager's { altitude, azimuth } convention.
+	private static final float[] FIXED_NIGHT_MOON_ANGLES = HDUtils.sunAngles(25, 135);
 
 	// Latitudes used for the seasonal-hemisphere-based sun/moon arc: New York City
 	// (northern) and Rio de Janeiro (southern). Only latitude affects the sun's
@@ -113,8 +106,8 @@ public class DaylightCycleManager {
 	private static final double[] NORTHERN_LAT_LONG = { 40.7128, 0.0 };  // New York City
 	private static final double[] SOUTHERN_LAT_LONG = { -22.9068, 0.0 }; // Rio de Janeiro
 
-	// Environment override and position policy for the current frame. The corresponding angle
-	// references are held in the per-frame state.
+	// Environment override and position policy for the current frame. The angle references are
+	// held in the per-frame state using EnvironmentManager's { altitude, azimuth } convention.
 	private boolean hasFixedSunOverride;
 	private boolean hasFixedMoonOverride;
 	private boolean moonPositionFixed;
@@ -213,24 +206,16 @@ public class DaylightCycleManager {
 	/**
 	 * Set the per-environment fixed sun/moon angle overrides for this frame.
 	 * <p>
-	 * Inputs use the environment convention {altitude, azimuth} in radians, or null for no
-	 * override. They are converted immediately into the internal {azimuth, altitude} convention.
+	 * Inputs use the environment convention {altitude, azimuth} in radians, or null for no override.
 	 * <p>
 	 * Applied from {@link #update()}. Only takes effect under a fixed cycle
 	 * mode; the dynamic cycle ignores these.
 	 */
 	private void setFixedAngleOverrides(@Nullable float[] sunAngles, @Nullable float[] moonAngles) {
-		// Add PI while converting to the internal astronomical representation: anglesToSkyDirection
-		// was changed (PI - az -> PI + az,
-		// with the north/south component negated) to correct the real astronomical sun,
-		// which rotates any fixed angle 180° in azimuth. These overrides were hand-
-		// authored to look right under the old transform, so the conversion rotates them back
-		// 180° at the single boundary that feeds both the disk and its shadow, so every
-		// existing fixedSunAngles/fixedMoonAngles renders exactly as before.
-		state.fixedSunAnglesOverride = sunAngles == null ? null : fixedToAstronomicalAngles(sunAngles);
+		state.fixedSunAnglesOverride = sunAngles;
 		hasFixedMoonOverride = moonAngles != null;
 		state.fixedMoonAngles = moonAngles != null
-			? fixedToAstronomicalAngles(moonAngles)
+			? moonAngles
 			: FIXED_NIGHT_MOON_ANGLES;
 	}
 
@@ -250,35 +235,20 @@ public class DaylightCycleManager {
 		currentLatLong[1] = latLong[1];
 	}
 
-	// Convert an environment-order fixed angle to the internal {azimuth, altitude} convention.
-	// The half turn preserves the fixed-angle orientation under the corrected sky transform.
-	private static float[] fixedToAstronomicalAngles(float[] fixedAngles) {
-		return new float[] { fixedAngles[1] + PI, fixedAngles[0] };
-	}
-
 	/** Whether the moon, rather than the low sun, should drive directional shadows. */
 	private boolean shouldUseMoonShadows() {
-		return state.sunAngles[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
+		return state.sunAngles[0] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
 			state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG;
 	}
 
 	/**
-	 * Build a normalized direction vector FROM the camera TO the given
-	 * {azimuth, altitude} sky position, using the renderer/light convention
-	 * (pitch = altitude, yaw = PI - azimuth). Shared by the sun/moon sky
-	 * direction getters.
+	 * Build a normalized direction vector FROM the camera TO the given {altitude, azimuth} sky
+	 * position, using the renderer/light convention.
 	 */
-	private float[] anglesToSkyDirection(float azimuth, float altitude) {
-		// yaw = PI + azimuth maps the (now real, non-reversed) astronomical azimuth to
-		// the renderer's sky direction so the sun/moon rise in the east. The north/south
-		// (z) component is negated on top of that: without it the season rendered
-		// inverted (equatorial June sun appeared south instead of north). x (east/west)
-		// is left untouched so the correct sunrise-east direction is preserved.
-		float yaw = PI + azimuth;
-
-		float x = sin(yaw) * cos(altitude);
+	private float[] anglesToSkyDirection(float altitude, float azimuth) {
+		float x = sin(azimuth) * cos(altitude);
 		float y = sin(altitude);
-		float z = cos(yaw) * cos(altitude);
+		float z = cos(azimuth) * cos(altitude);
 
 		float length = sqrt(x * x + y * y + z * z);
 		if (length > 0.0001f) {
@@ -334,13 +304,11 @@ public class DaylightCycleManager {
 		// Every sun-position-dependent value (sky gradient colors, brightness, blend
 		// factors) reads this, so they all use the fixed position automatically.
 		if (currentCycle.isFixed)
-			return hasFixedSunOverride
-				? state.fixedSunAnglesOverride
-				: fixedToAstronomicalAngles(currentCycle.getFixedSunAngles());
-		return getAstronomicalSunAngles(currentInstant);
+			return hasFixedSunOverride ? state.fixedSunAnglesOverride : currentCycle.getFixedSunAngles();
+		return getSunAngles(currentInstant);
 	}
 
-	private float[] getAstronomicalSunAngles(Instant instant) {
+	private float[] getSunAngles(Instant instant) {
 		double[] angles = AstronomyUtils.getSunAngles(instant.toEpochMilli(), currentLatLong);
 		return new float[] { (float) angles[0], (float) angles[1] };
 	}
@@ -362,22 +330,18 @@ public class DaylightCycleManager {
 			angles = state.sunAngles;
 		}
 
-		angles = copy(angles);
-		// Environment fixedSunAngles were authored for the legacy directional-camera transform.
-		// Their normalized state angle includes a compensating half turn, which the camera must undo
-		// to preserve the existing shadow direction.
-		angles[0] = hasFixedSunOverride ? PI - angles[0] : -angles[0];
-		float diff = max(abs(angleDiff(angles, directionalCamera.getOrientation())));
+		float[] orientation = { PI - angles[1], angles[0] };
+		// Environment fixedSunAngles retain their legacy shadow orientation for compatibility.
+		if (hasFixedSunOverride)
+			orientation[0] -= PI;
+		float diff = max(abs(angleDiff(orientation, directionalCamera.getOrientation())));
 		if (diff >= directionalAngleUpdateThreshold)
-			directionalCamera.setOrientation(angles);
+			directionalCamera.setOrientation(orientation);
 	}
 
 	private float[] computeSunDirectionForSky() {
 		float[] sunAngles = state.sunAngles;
 
-		// sunAngles[0] = azimuth, sunAngles[1] = altitude
-		// The renderers use: pitch = altitude, yaw = PI - azimuth
-		// This matches how lightDir is calculated in ZoneRenderer and LegacyRenderer
 		return anglesToSkyDirection(sunAngles[0], sunAngles[1]);
 	}
 
@@ -424,7 +388,7 @@ public class DaylightCycleManager {
 	}
 
 	private float computeMoonAltitudeDegrees() {
-		return state.moonAngles[1] * RAD_TO_DEG;
+		return state.moonAngles[0] * RAD_TO_DEG;
 	}
 
 	// ===== Aurora ================================================================
@@ -511,8 +475,8 @@ public class DaylightCycleManager {
 		if (currentCycle.usesLocalTime || currentCycle.usesUtcSyncedTime)
 			return mirrorAngles(state.sunAngles);
 
-		float[] sunAngles = getAstronomicalSunAngles(getNightSyncedMoonInstant());
-		applyPendingNightSyncedDays(-sunAngles[1]);
+		float[] sunAngles = getSunAngles(getNightSyncedMoonInstant());
+		applyPendingNightSyncedDays(-sunAngles[0]);
 		return mirrorAngles(sunAngles);
 	}
 
@@ -543,9 +507,11 @@ public class DaylightCycleManager {
 		}
 	}
 
-	/** Mirror an astronomical {azimuth, altitude} position to its opposite point in the sky. */
+	/**
+	 * Mirror an environment-order {altitude, azimuth} position to its opposite point in the sky.
+	 */
 	private static float[] mirrorAngles(float[] angles) {
-		return new float[] { angles[0] + PI, -angles[1] };
+		return new float[] { -angles[0], angles[1] + PI };
 	}
 
 	/**
@@ -621,7 +587,7 @@ public class DaylightCycleManager {
 		state.moonIllumination = computeMoonIlluminationFraction();
 		state.moonAltitudeDegrees = computeMoonAltitudeDegrees();
 		state.moonAltitudeDegreesForLighting = currentCycle.isUsesFixedMoonAltitudeForLighting()
-			? state.fixedMoonAngles[1] * RAD_TO_DEG
+			? state.fixedMoonAngles[0] * RAD_TO_DEG
 			: state.moonAltitudeDegrees;
 		state.sunDirection = computeSunDirectionForSky();
 		state.moonDirection = computeMoonDirectionForSky();
@@ -736,7 +702,7 @@ public class DaylightCycleManager {
 
 		// Fixed Twilight/Sunset use their authored sun angle, producing the same partial night
 		// factor as a moving sky at that altitude.
-		nightFactor = smoothstep(5, -18, state.sunAngles[1] * RAD_TO_DEG);
+		nightFactor = smoothstep(5, -18, state.sunAngles[0] * RAD_TO_DEG);
 		nightFactorIncreasing = previousNightFactor < 0 || nightFactor >= previousNightFactor;
 		previousNightFactor = nightFactor;
 	}

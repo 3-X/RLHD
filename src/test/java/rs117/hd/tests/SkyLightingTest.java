@@ -23,7 +23,7 @@ import static rs117.hd.utils.MathUtils.*;
  */
 public class SkyLightingTest {
 	private static float[] angles(float altitudeDegrees) {
-		return new float[] { 0, altitudeDegrees * DEG_TO_RAD };
+		return new float[] { altitudeDegrees * DEG_TO_RAD, 0 };
 	}
 
 	private static float[] invokeColorHelper(String name, float altitudeDegrees) throws ReflectiveOperationException {

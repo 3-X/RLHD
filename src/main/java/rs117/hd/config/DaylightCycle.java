@@ -8,11 +8,6 @@ import rs117.hd.utils.HDUtils;
 @Getter
 public enum DaylightCycle {
 	// Fixed-mode sun angles use the environment convention [ altitude, azimuth ] in degrees.
-	//
-	// The sky direction calculation rotates a fixed azimuth by 180° relative to an
-	// environment-file azimuth. DaylightCycleManager applies that compensation uniformly when a fixed
-	// angle enters the astronomical calculations, so these values remain directly comparable
-	// with fixedSunAngles in environments.json.
 	// These angles are empirical - verify changes in-game rather than deriving them.
 
 	// Moving sun and moon driven by the configured cycle duration and day length.

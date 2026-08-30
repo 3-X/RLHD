@@ -222,7 +222,7 @@ public class SkyLighting {
 		// controls how dark nights get, rather than competing with the authored seasonal values.
 		ambientStrength = brightnessMultiplier;
 
-		float sunAltDeg = state.sunAngles[1] * RAD_TO_DEG;
+		float sunAltDeg = state.sunAngles[0] * RAD_TO_DEG;
 		float moonAltDeg = state.moonAltitudeDegrees;
 		float moonIllumination = state.moonIllumination;
 		float[][] sky = getSkyGradientColors(
@@ -282,14 +282,14 @@ public class SkyLighting {
 	private float[] getRegionalDirectionalLight(DaylightCycleState state, float[] regionalDirectionalColor) {
 		float[] sunAngles = state.sunAngles;
 		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
-		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
+		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
 	}
 
 	/** The ambient color from the cycle, using the same regional blend as directional light. */
 	private float[] getRegionalAmbientLight(DaylightCycleState state, float[] regionalAmbientColor) {
 		float[] sunAngles = state.sunAngles;
 		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
-		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
+		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
 	}
 
 	/**
@@ -304,7 +304,7 @@ public class SkyLighting {
 		float sunriseSunsetStrength,
 		float skyColorTakeoverAngle
 	) {
-		float sunAltitude = state.sunAngles[1] * RAD_TO_DEG;
+		float sunAltitude = state.sunAngles[0] * RAD_TO_DEG;
 		// Keep the twilight-suppression window and daytime takeover bound together. Otherwise
 		// raw blue keyframes leak through between them after sunrise.
 		float takeover = max(0, skyColorTakeoverAngle);
@@ -368,7 +368,7 @@ public class SkyLighting {
 
 	/** Brightness response driven by sun altitude, including the user's minimum brightness. */
 	private float getBrightnessMultiplier(DaylightCycleState state, int minimumBrightness) {
-		float sunAltitudeDegrees = state.sunAngles[1] * RAD_TO_DEG;
+		float sunAltitudeDegrees = state.sunAngles[0] * RAD_TO_DEG;
 		float minBrightness = minimumBrightness / 100f;
 		float horizonBrightness = minBrightness + .10f;
 
@@ -409,7 +409,7 @@ public class SkyLighting {
 		float defLuma = dot(authoredColor, SKY_LUMA_WEIGHTS);
 		float noonLuma = dot(sky.noonHorizonLinear, SKY_LUMA_WEIGHTS);
 		float[] lightColor = copy(sky.horizonLinear);
-		float sunAltDeg = state.sunAngles[1] * RAD_TO_DEG;
+		float sunAltDeg = state.sunAngles[0] * RAD_TO_DEG;
 
 		float moonStrengthFloor = 0;
 		if (sunAltDeg < 5) {
@@ -488,9 +488,9 @@ public class SkyLighting {
 
 	private static float[] getDirectionalLightForAngles(float[] sunAngles) {
 		float[] directionalLight = multiply(ColorUtils.colorTemperatureToLinearRgb(4100), .1f);
-		if (sunAngles[1] >= 0) {
-			float temperature = interpolate(sunAngles[1] * RAD_TO_DEG, DIRECTIONAL_TEMPERATURE_KEYFRAMES);
-			float strength = sin(sunAngles[1]);
+		if (sunAngles[0] >= 0) {
+			float temperature = interpolate(sunAngles[0] * RAD_TO_DEG, DIRECTIONAL_TEMPERATURE_KEYFRAMES);
+			float strength = sin(sunAngles[0]);
 			strength *= strength * 3;
 			add(directionalLight, directionalLight, multiply(ColorUtils.colorTemperatureToLinearRgb(temperature), strength));
 		}
@@ -498,7 +498,7 @@ public class SkyLighting {
 	}
 
 	private static float[] getAmbientColorForAngles(float[] sunAngles) {
-		return interpolateLinear(sunAngles[1] * RAD_TO_DEG, AMBIENT_COLOR_KEYFRAMES);
+		return interpolateLinear(sunAngles[0] * RAD_TO_DEG, AMBIENT_COLOR_KEYFRAMES);
 	}
 
 	private static float regionalBlendFactor(float sunAltitudeDegrees) {

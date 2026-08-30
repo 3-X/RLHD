@@ -49,7 +49,7 @@ public final class AstronomyUtils {
 	 *
 	 * @param millis  time in milliseconds since the Unix epoch
 	 * @param latLong latitude and longitude coordinates
-	 * @return the azimuth and altitude angles in radians
+	 * @return the altitude and azimuth angles in radians. Azimuth is clockwise from north.
 	 * @see <a href="https://en.wikipedia.org/wiki/Horizontal_coordinate_system">Horizontal coordinate system</a>
 	 * @see <a href="https://github.com/mourner/suncalc#sun-position">suncalc npm documentation</a>
 	 */
@@ -64,7 +64,7 @@ public final class AstronomyUtils {
 
 		double azimuth = azimuth(H, phi, c[0]);
 		double altitude = altitude(H, phi, c[0]);
-		return new double[] { azimuth, altitude };
+		return new double[] { altitude, azimuth + PI };
 	}
 
 	/**
@@ -72,7 +72,8 @@ public final class AstronomyUtils {
 	 *
 	 * @param millis  time in milliseconds since the Unix epoch
 	 * @param latLong latitude and longitude coordinates
-	 * @return the azimuth and altitude angles in radians
+	 * @return altitude, azimuth, distance, and parallactic angle. Angles are in radians, and
+	 * azimuth is clockwise from north.
 	 * @see <a href="https://en.wikipedia.org/wiki/Horizontal_coordinate_system">Horizontal coordinate system</a>
 	 * @see <a href="https://github.com/mourner/suncalc#moon-position">suncalc npm documentation</a>
 	 */
@@ -95,8 +96,8 @@ public final class AstronomyUtils {
 		double azimuth = azimuth(H, phi, dec);
 		double altitude = h + astroRefraction(h); // altitude correction for refraction
 		return new double[] {
-			azimuth,
 			altitude,
+			azimuth + PI,
 			dist,
 			pa
 		};

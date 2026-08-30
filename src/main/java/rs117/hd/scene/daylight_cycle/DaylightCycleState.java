@@ -7,8 +7,8 @@ package rs117.hd.scene.daylight_cycle;
  * fields are shared with the manager, so consumers must treat them as read-only.
  */
 final class DaylightCycleState {
-	// Fixed-angle references resolved from the current environment. They use the internal
-	// {azimuth, altitude} convention; fixedMoonAngles also supplies Always Night lighting.
+	// Fixed-angle references resolved from the current environment. They use EnvironmentManager's
+	// {altitude, azimuth} convention; fixedMoonAngles also supplies Always Night lighting.
 	float[] fixedSunAnglesOverride;
 	float[] fixedMoonAngles;
 	float[] sunAngles;
