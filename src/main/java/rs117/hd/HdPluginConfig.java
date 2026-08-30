@@ -602,10 +602,10 @@ public interface HdPluginConfig extends Config
 	}
 
 
-	/*====== Day & night cycle settings ======*/
+	/*====== Day & night settings ======*/
 
 	@ConfigSection(
-		name = "Day & night cycle",
+		name = "Day & night",
 		description = "Dynamic day and night cycle settings",
 		position = 3,
 		closedByDefault = true
