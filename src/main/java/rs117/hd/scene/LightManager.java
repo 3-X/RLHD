@@ -52,7 +52,7 @@ import rs117.hd.HdPlugin;
 import rs117.hd.config.DynamicLights;
 import rs117.hd.data.ObjectType;
 import rs117.hd.opengl.uniforms.UBOLights;
-import rs117.hd.scene.daylight_cycle.DaylightCycleLighting;
+import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.lights.Alignment;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
@@ -103,7 +103,7 @@ public class LightManager {
 	private DaylightCycleManager daylightCycleManager;
 
 	@Inject
-	private DaylightCycleLighting daylightCycleLighting;
+	private SkyLighting skyLighting;
 
 	@Inject
 	private EntityHiderPlugin entityHiderPlugin;
@@ -564,7 +564,7 @@ public class LightManager {
 				light.radius = light.def.radius;
 			}
 
-			daylightCycleLighting.applyOutdoorLightLighting(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
+			skyLighting.applyOutdoorLightLighting(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
 
 			// Spawn & despawn fade-in and fade-out
 			if (light.fadeInDuration > 0)

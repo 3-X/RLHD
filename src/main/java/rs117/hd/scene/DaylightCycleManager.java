@@ -14,7 +14,7 @@ import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
-import rs117.hd.scene.daylight_cycle.DaylightCycleLighting;
+import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.scene.lights.LightTimeOfDay;
@@ -25,7 +25,7 @@ import static rs117.hd.utils.MathUtils.*;
 
 /**
  * Drives the day & night cycle: it owns the simulated clock and turns it into a sun/moon
- * position, moon phase, aurora state, and day/night light schedule. {@link DaylightCycleLighting}
+ * position, moon phase, aurora state, and day/night light schedule. {@link SkyLighting}
  * turns those positions into sky colors and scene-lighting responses.
  *
  * <h2>Per-frame contract</h2>

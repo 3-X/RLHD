@@ -26,7 +26,7 @@ import static rs117.hd.utils.MathUtils.*;
  * frame lighting and skybox UBO upload, so the renderer consumes one coherent cycle result.
  */
 @Singleton
-public class DaylightCycleLighting {
+public class SkyLighting {
 	// Sun altitude below which the moon begins taking over shadows and light.
 	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
 	private static final float SUN_SHADOW_MIDPOINT_DEG = 12;
