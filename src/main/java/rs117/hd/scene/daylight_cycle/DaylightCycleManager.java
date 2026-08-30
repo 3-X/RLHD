@@ -1,4 +1,4 @@
-package rs117.hd.scene;
+package rs117.hd.scene.daylight_cycle;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -14,7 +14,7 @@ import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
-import rs117.hd.scene.daylight_cycle.SkyLighting;
+import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.scene.lights.LightTimeOfDay;
@@ -193,6 +193,7 @@ public class DaylightCycleManager {
 	private float[] frameMoonDirectionForSky;
 	private Float frameMoonIllumination;
 	private Float frameMoonAltitudeDegrees;
+	private final DaylightCycleState state = new DaylightCycleState();
 
 	// Per-light cycle state. Updated once by LightManager before it evaluates visibility.
 	private boolean lightScheduleActive;
@@ -214,6 +215,7 @@ public class DaylightCycleManager {
 		frameMoonDirectionForSky = null;
 		frameMoonIllumination = null;
 		frameMoonAltitudeDegrees = null;
+		state.resolved = false;
 	}
 
 	/**
@@ -390,7 +392,7 @@ public class DaylightCycleManager {
 	 *
 	 * @see <a href="https://en.wikipedia.org/wiki/Horizontal_coordinate_system">Horizontal coordinate system</a>
 	 */
-	public float[] getSunAngles() {
+	private float[] getSunAngles() {
 		if (frameSunAngles == null)
 			frameSunAngles = computeSunAngles();
 		return frameSunAngles;
@@ -415,7 +417,7 @@ public class DaylightCycleManager {
 	 * Returns normalized direction FROM the camera TO the sun.
 	 * Uses the same coordinate transformation as the shadow light direction.
 	 */
-	public float[] getSunDirectionForSky() {
+	private float[] getSunDirectionForSky() {
 		if (frameSunDirectionForSky == null)
 			frameSunDirectionForSky = computeSunDirectionForSky();
 		return frameSunDirectionForSky;
@@ -458,7 +460,7 @@ public class DaylightCycleManager {
 	/**
 	 * Whether the active cycle mode suppresses the visible moon disk.
 	 */
-	public boolean hidesMoon() {
+	private boolean hidesMoon() {
 		return currentCycleMode.isHidesMoon();
 	}
 
@@ -479,7 +481,7 @@ public class DaylightCycleManager {
 	/**
 	 * Get the moon direction vector for sky rendering, respecting moon behavior mode.
 	 */
-	public float[] getMoonDirectionForSky() {
+	private float[] getMoonDirectionForSky() {
 		if (frameMoonDirectionForSky == null)
 			frameMoonDirectionForSky = computeMoonDirectionForSky();
 		return frameMoonDirectionForSky;
@@ -538,7 +540,7 @@ public class DaylightCycleManager {
 	 * A config phase lock takes precedence; otherwise Night Synced mode derives illumination
 	 * from the advancing equinox date so the phase cycles naturally (each game cycle = +1 day).
 	 */
-	public float getMoonIlluminationFraction() {
+	private float getMoonIlluminationFraction() {
 		if (frameMoonIllumination == null)
 			frameMoonIllumination = computeMoonIlluminationFraction();
 		return frameMoonIllumination;
@@ -571,7 +573,7 @@ public class DaylightCycleManager {
 	/**
 	 * Get the moon altitude in degrees, respecting moon behavior mode.
 	 */
-	public float getMoonAltitudeDegrees() {
+	private float getMoonAltitudeDegrees() {
 		if (frameMoonAltitudeDegrees == null)
 			frameMoonAltitudeDegrees = computeMoonAltitudeDegrees();
 		return frameMoonAltitudeDegrees;
@@ -582,7 +584,7 @@ public class DaylightCycleManager {
 	 * {@link #getMoonAngles()}; Always Night uses that same altitude so its moving moon cannot
 	 * leave a permanently dark sky.
 	 */
-	public float getMoonAltitudeDegreesForLighting() {
+	private float getMoonAltitudeDegreesForLighting() {
 		return currentCycleMode.isUsesFixedMoonAltitudeForLighting()
 			? getFixedNightMoonAngles()[0] * RAD_TO_DEG
 			: getMoonAltitudeDegrees();
@@ -639,7 +641,7 @@ public class DaylightCycleManager {
 	 * aurora cycle the auroras ramp up and back down within the cycle (peaking mid-cycle,
 	 * zero at the edges) so they come and go; off-cycle it's zero.
 	 */
-	public float getAuroraStrength() {
+	private float getAuroraStrength() {
 		if (!isAuroraNight())
 			return 0;
 
@@ -789,6 +791,25 @@ public class DaylightCycleManager {
 		currentInstant = frameWallClockInstant;
 		advanceCycle(frameWallClockMillis);
 		currentInstant = resolveCurrentInstant();
+	}
+
+	/**
+	 * Resolve the immutable-in-practice celestial inputs shared by SkyLighting this frame.
+	 */
+	public DaylightCycleState getState() {
+		if (state.resolved)
+			return state;
+
+		state.sunAngles = getSunAngles();
+		state.sunDirection = getSunDirectionForSky();
+		state.moonDirection = getMoonDirectionForSky();
+		state.moonIllumination = getMoonIlluminationFraction();
+		state.moonAltitudeDegrees = getMoonAltitudeDegrees();
+		state.moonAltitudeDegreesForLighting = getMoonAltitudeDegreesForLighting();
+		state.hidesMoon = hidesMoon();
+		state.auroraStrength = getAuroraStrength();
+		state.resolved = true;
+		return state;
 	}
 
 	/** Apply the current environment's mode, moon phase, and fixed-angle overrides. */

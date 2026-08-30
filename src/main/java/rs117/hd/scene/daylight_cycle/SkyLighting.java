@@ -6,7 +6,6 @@ import javax.inject.Singleton;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.opengl.uniforms.UBOSkybox;
-import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.lights.Light;
@@ -161,19 +160,21 @@ public class SkyLighting {
 
 	/** Derive the frame's lighting from the current sun and moon, then upload the skybox UBO. */
 	public void computeCycleLighting() {
-		copyTo(directionalColor, getRegionalDirectionalLight(environmentManager.currentDirectionalColor));
-		copyTo(ambientColor, getRegionalAmbientLight(environmentManager.currentAmbientColor));
+		var state = daylightCycleManager.getState();
+		copyTo(directionalColor, getRegionalDirectionalLight(state, environmentManager.currentDirectionalColor));
+		copyTo(ambientColor, getRegionalAmbientLight(state, environmentManager.currentAmbientColor));
 
-		float brightnessMultiplier = getBrightnessMultiplier(plugin.configMinimumBrightness);
+		float brightnessMultiplier = getBrightnessMultiplier(state, plugin.configMinimumBrightness);
 		float baseDirectionalStrength = environmentManager.currentDirectionalStrength;
 		// Ignore seasonal ambientStrength while the cycle is active: its brightness response alone
 		// controls how dark nights get, rather than competing with the authored seasonal values.
 		ambientStrength = brightnessMultiplier;
 
-		float sunAltDeg = daylightCycleManager.getSunAngles()[1] * RAD_TO_DEG;
-		float moonAltDeg = daylightCycleManager.getMoonAltitudeDegrees();
-		float moonIllumination = daylightCycleManager.getMoonIlluminationFraction();
+		float sunAltDeg = state.sunAngles[1] * RAD_TO_DEG;
+		float moonAltDeg = state.moonAltitudeDegrees;
+		float moonIllumination = state.moonIllumination;
 		float[][] sky = getSkyGradientColors(
+			state,
 			ColorUtils.linearToSrgb(environmentManager.currentFogColor),
 			environmentManager.currentSunStrength,
 			environmentManager.currentSunriseSunsetStrength,
@@ -194,7 +195,7 @@ public class SkyLighting {
 
 		applyAmbientFloor(moonAltDeg, moonIllumination);
 		applySkyFill(sunAltDeg, shadowVisibility);
-		uploadSkyUniforms(sky, moonIllumination);
+		uploadSkyUniforms(state, sky, moonIllumination);
 	}
 
 	private float applyMoonLighting(float[][] sky, float moonInfluence, float baseDirectionalStrength) {
@@ -226,15 +227,15 @@ public class SkyLighting {
 	}
 
 	/** The directional color from the cycle, blended toward the area's authored color by day. */
-	private float[] getRegionalDirectionalLight(float[] regionalDirectionalColor) {
-		float[] sunAngles = daylightCycleManager.getSunAngles();
+	private float[] getRegionalDirectionalLight(DaylightCycleState state, float[] regionalDirectionalColor) {
+		float[] sunAngles = state.sunAngles;
 		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
 		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
 	}
 
 	/** The ambient color from the cycle, using the same regional blend as directional light. */
-	private float[] getRegionalAmbientLight(float[] regionalAmbientColor) {
-		float[] sunAngles = daylightCycleManager.getSunAngles();
+	private float[] getRegionalAmbientLight(DaylightCycleState state, float[] regionalAmbientColor) {
+		float[] sunAngles = state.sunAngles;
 		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
 		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[1] * RAD_TO_DEG));
 	}
@@ -245,12 +246,13 @@ public class SkyLighting {
 	 * sunrise/sunset suppression, the daytime regional takeover, then the generic night sky.
 	 */
 	private float[][] getSkyGradientColors(
+		DaylightCycleState state,
 		float[] regionalFogColor,
 		float sunStrength,
 		float sunriseSunsetStrength,
 		float skyColorTakeoverAngle
 	) {
-		float sunAltitude = daylightCycleManager.getSunAngles()[1] * RAD_TO_DEG;
+		float sunAltitude = state.sunAngles[1] * RAD_TO_DEG;
 		// Keep the twilight-suppression window and daytime takeover bound together. Otherwise
 		// raw blue keyframes leak through between them after sunrise.
 		float takeover = max(0, skyColorTakeoverAngle);
@@ -313,8 +315,8 @@ public class SkyLighting {
 	}
 
 	/** Brightness response driven by sun altitude, including the user's minimum brightness. */
-	private float getBrightnessMultiplier(int minimumBrightness) {
-		float sunAltitudeDegrees = daylightCycleManager.getSunAngles()[1] * RAD_TO_DEG;
+	private float getBrightnessMultiplier(DaylightCycleState state, int minimumBrightness) {
+		float sunAltitudeDegrees = state.sunAngles[1] * RAD_TO_DEG;
 		float minBrightness = minimumBrightness / 100f;
 		float horizonBrightness = minBrightness + .10f;
 
@@ -346,17 +348,18 @@ public class SkyLighting {
 		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
 			return;
 
-		OutdoorSkySample sky = sampleOutdoorSky(worldPos, minimumBrightness);
+		DaylightCycleState state = daylightCycleManager.getState();
+		OutdoorSkySample sky = sampleOutdoorSky(state, worldPos, minimumBrightness);
 		float[] authoredColor = light.def.color;
 		float defLuma = dot(authoredColor, SKY_LUMA_WEIGHTS);
 		float noonLuma = dot(sky.noonHorizonLinear, SKY_LUMA_WEIGHTS);
 		float[] lightColor = copy(sky.horizonLinear);
-		float sunAltDeg = daylightCycleManager.getSunAngles()[1] * RAD_TO_DEG;
+		float sunAltDeg = state.sunAngles[1] * RAD_TO_DEG;
 
 		float moonStrengthFloor = 0;
 		if (sunAltDeg < 5) {
-			float moonAltDeg = daylightCycleManager.getMoonAltitudeDegreesForLighting();
-			float moonIllumination = daylightCycleManager.getMoonIlluminationFraction();
+			float moonAltDeg = state.moonAltitudeDegreesForLighting;
+			float moonIllumination = state.moonIllumination;
 			if (moonAltDeg > -5 && moonIllumination > .01f) {
 				float sunFade = saturate((5 - sunAltDeg) / 10);
 				float moonElevation = saturate((moonAltDeg + 5) / 25);
@@ -388,7 +391,7 @@ public class SkyLighting {
 		light.strength *= mix(peakScale * timeScale, 1, middayFactor);
 	}
 
-	private OutdoorSkySample sampleOutdoorSky(int[] worldPos, int minimumBrightness) {
+	private OutdoorSkySample sampleOutdoorSky(DaylightCycleState state, int[] worldPos, int minimumBrightness) {
 		Environment environment = environmentManager.getOutdoorEnvironment(worldPos);
 		if (environment == cachedOutdoorSkyEnvironment && plugin.frame == cachedOutdoorSkyFrame
 			&& minimumBrightness == cachedOutdoorSkyMinBrightness)
@@ -396,6 +399,7 @@ public class SkyLighting {
 
 		float[] regionalFogSrgb = environmentManager.getOutdoorRegionalFogSrgb(environment);
 		float[][] skyGradient = getSkyGradientColors(
+			state,
 			regionalFogSrgb,
 			environment.sunStrength,
 			environment.sunriseSunsetStrength,
@@ -404,7 +408,7 @@ public class SkyLighting {
 		OutdoorSkySample sample = new OutdoorSkySample(
 			ColorUtils.srgbToLinear(skyGradient[1]),
 			ColorUtils.srgbToLinear(getReferenceHorizonColor(regionalFogSrgb)),
-			getBrightnessMultiplier(minimumBrightness)
+			getBrightnessMultiplier(state, minimumBrightness)
 		);
 		cachedOutdoorSkySample = sample;
 		cachedOutdoorSkyEnvironment = environment;
@@ -558,25 +562,25 @@ public class SkyLighting {
 		}
 	}
 
-	private void uploadSkyUniforms(float[][] sky, float moonIllumination) {
+	private void uploadSkyUniforms(DaylightCycleState state, float[][] sky, float moonIllumination) {
 		UBOSkybox ubo = plugin.uboSkybox;
 		ubo.skyGradientEnabled.set(1);
 		ubo.skyZenithColor.set(sky[0]);
 		ubo.skyHorizonColor.set(sky[1]);
 		ubo.skySunColor.set(sky[2]);
-		ubo.skySunDir.set(daylightCycleManager.getSunDirectionForSky());
-		ubo.skyMoonDir.set(daylightCycleManager.getMoonDirectionForSky());
+		ubo.skySunDir.set(state.sunDirection);
+		ubo.skyMoonDir.set(state.moonDirection);
 		ubo.skyMoonColor.set(environmentManager.currentMoonColor);
 		ubo.skyMoonIllumination.set(moonIllumination);
 		// An environment can force the moon for a cutscene, but locked daytime modes still hide it.
 		boolean moonEnabled = config.enableMoon() || environmentManager.forceMoonActive();
-		ubo.moonVisibility.set(!daylightCycleManager.hidesMoon() && moonEnabled ? environmentManager.currentMoonVisibility : 0);
+		ubo.moonVisibility.set(!state.hidesMoon && moonEnabled ? environmentManager.currentMoonVisibility : 0);
 		ubo.moonSizeMult.set(environmentManager.currentMoonSizeMult);
 		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);
 		ubo.starVisibility.set(config.enableStarMap() ? environmentManager.currentStarVisibility : 0);
 		// The float literal is intentional: an all-int ternary binds the wrong uniform setter.
 		ubo.nebulaVisibility.set(config.enableNebulas() ? environmentManager.currentNebulaVisibility : 0f);
-		ubo.auroraVisibility.set(daylightCycleManager.getAuroraStrength() * environmentManager.currentAuroraVisibility);
+		ubo.auroraVisibility.set(state.auroraStrength * environmentManager.currentAuroraVisibility);
 	}
 
 	private static boolean isMoonLighting(float moonAltDeg, float moonIllumination) {
