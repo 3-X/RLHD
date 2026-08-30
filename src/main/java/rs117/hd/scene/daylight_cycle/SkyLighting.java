@@ -3,6 +3,8 @@ package rs117.hd.scene.daylight_cycle;
 import java.awt.Color;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.opengl.uniforms.UBOSkybox;
@@ -135,6 +137,12 @@ public class SkyLighting {
 	public final float[] waterColor = new float[3];
 	public float directionalStrength;
 	public float ambientStrength;
+	// The directional strength after the legacy-brightness compatibility multiplier.
+	public float effectiveDirectionalStrength;
+
+	@Getter
+	@Accessors(fluent = true)
+	private boolean shouldRenderSky;
 
 	// The resolved environment, current frame, and minimum brightness fully determine the
 	// outdoor sky sample. This keeps one shared sample per environment per frame.
@@ -144,16 +152,52 @@ public class SkyLighting {
 	private int cachedOutdoorSkyFrame = -1;
 
 	/**
-	 * Resolve this frame's lighting from either the cycle or the environment.
+	 * Resolve this frame's lighting and write its global/skybox UBO properties.
 	 */
-	public boolean prepare() {
-		if (daylightCycleManager.isCycleActive()) {
+	public void update() {
+		boolean wasActive = shouldRenderSky;
+		shouldRenderSky = daylightCycleManager.isCycleActive();
+		if (shouldRenderSky) {
 			computeCycleLighting();
-			return true;
+		} else {
+			seedFromEnvironment();
+			if (wasActive)
+				plugin.uboSkybox.reset();
 		}
 
-		seedFromEnvironment();
-		return false;
+		writeGlobalLighting();
+		if (shouldRenderSky)
+			plugin.uboSkybox.upload();
+	}
+
+	/**
+	 * Write the global lighting properties; ZoneRenderer performs the actual UBO upload.
+	 */
+	private void writeGlobalLighting() {
+		plugin.uboGlobal.fogColor.set(fogColorSrgb);
+
+		float[] waterColorHsv = ColorUtils.srgbToHsv(waterColor);
+		plugin.uboGlobal.waterColorLight.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .8f
+		})));
+		plugin.uboGlobal.waterColorMid.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .45f
+		})));
+		plugin.uboGlobal.waterColorDark.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .05f
+		})));
+
+		float effectiveAmbientStrength = ambientStrength;
+		effectiveDirectionalStrength = directionalStrength;
+		if (config.useLegacyBrightness()) {
+			float factor = (float) config.legacyBrightness() / 20;
+			effectiveAmbientStrength *= factor;
+			effectiveDirectionalStrength *= factor;
+		}
+		plugin.uboGlobal.ambientStrength.set(effectiveAmbientStrength);
+		plugin.uboGlobal.ambientColor.set(ambientColor);
+		plugin.uboGlobal.lightStrength.set(effectiveDirectionalStrength);
+		plugin.uboGlobal.lightColor.set(directionalColor);
 	}
 
 	/** Copy the environment's current lighting in as this frame's starting point. */

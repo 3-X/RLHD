@@ -20,6 +20,7 @@ import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.scene.lights.LightTimeOfDay;
 import rs117.hd.utils.AstronomyUtils;
+import rs117.hd.utils.Camera;
 import rs117.hd.utils.HDUtils;
 
 import static rs117.hd.utils.MathUtils.*;
@@ -140,6 +141,9 @@ public class DaylightCycleManager {
 	// enough to light the scene. This avoids a camera-orientation pop when moon shadows fade in.
 	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
 	private static final float MOON_SHADOW_CUTOFF_DEG = -10;
+	// Ignore sub-pixel directional-light movement to stabilize shadow-map edges. Fast cycles use
+	// a smaller threshold so their visibly faster sun does not step between shadow updates.
+	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = .25f * DEG_TO_RAD;
 
 	// Simulated-clock state, preserved across config changes.
 	private long lastUpdateTime = 0;
@@ -158,7 +162,9 @@ public class DaylightCycleManager {
 	// naturally; any other value locks the moon's illumination fraction.
 	private MoonPhase configMoonPhase = MoonPhase.DYNAMIC;
 	private MoonBehavior configMoonBehavior = MoonBehavior.NIGHT_SYNCED;
-	public float configCycleDuration = 700;
+	private float configCycleDuration = 700;
+	@Getter
+	private float directionalAngleUpdateThreshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD;
 
 	private DaylightCycle currentCycle = DaylightCycle.DYNAMIC;
 	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
@@ -201,6 +207,8 @@ public class DaylightCycleManager {
 		configMoonBehavior = config.moonBehavior();
 		configMoonPhase = config.moonPhase();
 		configCycleDuration = config.cycleDurationMinutes();
+		directionalAngleUpdateThreshold =
+			DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(configCycleDuration / 300f);
 	}
 
 	/**
@@ -393,19 +401,35 @@ public class DaylightCycleManager {
 	 * moon overrides take precedence; otherwise the moon takes over after sunset when it is
 	 * still above the lighting horizon.
 	 */
-	public float[] getDirectionalShadowAngles(float[] out) {
+	private float[] getDirectionalShadowAngles() {
+		float[] angles = new float[2];
+
 		if (hasFixedSunOverride())
-			return getSunShadowAngles(out);
+			return getSunShadowAngles(angles);
 
 		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride())
-			return getMoonShadowAngles(out);
+			return getMoonShadowAngles(angles);
 
-		if (state.sunAngles[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
-			&& state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG) {
-			return getMoonShadowAngles(out);
+		if (state.sunAngles[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
+			state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG)
+			return getMoonShadowAngles(angles);
+
+		getSunShadowAngles(angles);
+		return angles;
+	}
+
+	/**
+	 * Update the directional camera angles in a way which minimizes shimmering.
+	 */
+	public void updateDirectionalCamera(Camera directionalCamera) {
+		float[] currentAngles = { directionalCamera.getPitch(), PI - directionalCamera.getYaw() };
+
+		float[] newAngles = getDirectionalShadowAngles();
+		float diff = max(abs(angleDiff(newAngles, currentAngles)));
+		if (diff >= directionalAngleUpdateThreshold) {
+			directionalCamera.setPitch(newAngles[0]);
+			directionalCamera.setYaw(PI - newAngles[1]);
 		}
-
-		return getSunShadowAngles(out);
 	}
 
 	private float[] computeSunDirectionForSky() {

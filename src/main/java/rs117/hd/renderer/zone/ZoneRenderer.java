@@ -66,7 +66,6 @@ import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
 import rs117.hd.utils.Camera;
-import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.CommandBuffer;
 import rs117.hd.utils.HDUtils;
 import rs117.hd.utils.Mat4;
@@ -104,8 +103,6 @@ public class ZoneRenderer implements Renderer {
 
 	private static int UNIFORM_BLOCK_COUNT = HdPlugin.UNIFORM_BLOCK_COUNT;
 	public static final int UNIFORM_BLOCK_WORLD_VIEWS = UNIFORM_BLOCK_COUNT++;
-
-	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = 0.25f * DEG_TO_RAD;
 
 	@Inject
 	private Injector injector;
@@ -183,13 +180,6 @@ public class ZoneRenderer implements Renderer {
 	public final Camera directionalCamera = new Camera().setOrthographic(true);
 	public final ShadowCasterVolume directionalShadowCasterVolume = new ShadowCasterVolume(directionalCamera);
 
-	// The final directional light strength uploaded to uboGlobal.lightStrength each frame.
-	// Written before zone command recording and the shadow pass, so both can skip work when
-	// the effective strength is zero (e.g. moonless nights).
-	private float effectiveDirectionalStrength;
-	// Scratch, reused each frame to keep the render loop allocation-free.
-	private final float[] directionalAngles = new float[2];
-
 	public final RenderState renderState = new RenderState();
 	public final CommandBuffer sceneCmd = new CommandBuffer("Scene");
 	public final CommandBuffer gapFillerCmd = new CommandBuffer("GapFiller");
@@ -205,7 +195,6 @@ public class ZoneRenderer implements Renderer {
 
 	private boolean sceneFboValid;
 	private boolean shouldRenderScene;
-	private boolean shouldRenderSky;
 	private boolean shouldRenderVanillaSkybox;
 	private boolean shouldClearShadowFbo;
 	private boolean shouldDrawRoofShadows;
@@ -308,27 +297,10 @@ public class ZoneRenderer implements Renderer {
 		starProgram.destroy();
 	}
 
-	/**
-	 * Point the shadow-casting directional camera at the given angles, ignoring changes below
-	 * a threshold.
-	 *
-	 * <p>Micro-rotations feed micro precision differences into the shadow map's view matrix,
-	 * which show up as shimmering shadow edges. Holding the camera still until the light has
-	 * moved a meaningful amount avoids that. The threshold scales with cycle duration, since a
-	 * fast cycle moves the sun far enough per frame that a fixed threshold would be visible as
-	 * stepping.
-	 */
-	private void applyDirectionalAngles(float pitch, float yaw) {
-		final float previousPitch = directionalCamera.getPitch();
-		final float previousRawYaw = PI - directionalCamera.getYaw();
-		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(daylightCycleManager.configCycleDuration / 300.0f);
-		if (absAngleDiff(pitch, previousPitch) >= threshold || absAngleDiff(yaw, previousRawYaw) >= threshold) {
-			directionalCamera.setPitch(pitch);
-			directionalCamera.setYaw(PI - yaw);
-		}
-	}
+	private void updateSkyboxCmd() {
+		if (!skyboxCmd.isEmpty() && !starField.shouldGenerateStarField())
+			return;
 
-	private void buildSkyboxCmd() {
 		skyboxCmd.reset();
 		skyboxCmd.PushTimer(Timer.RENDER_SKYBOX);
 		skyboxCmd.SetShader(skyProgram);
@@ -559,19 +531,13 @@ public class ZoneRenderer implements Renderer {
 			}
 
 			// The day & night cycle overrides the environment's static sun angles when active.
-			boolean isDayNightCycleActive = daylightCycleManager.isCycleActive();
-			float directionalPitch = environmentManager.currentSunAngles[0];
-			float directionalYaw = environmentManager.currentSunAngles[1];
-			if (isDayNightCycleActive) {
-				if (starField.generateStarField() || skyboxCmd.isEmpty())
-					buildSkyboxCmd();
-
-				daylightCycleManager.getDirectionalShadowAngles(directionalAngles);
-				directionalPitch = directionalAngles[0];
-				directionalYaw = directionalAngles[1];
+			if (daylightCycleManager.isCycleActive()) {
+				updateSkyboxCmd();
+				daylightCycleManager.updateDirectionalCamera(directionalCamera);
+			} else {
+				directionalCamera.setPitch(environmentManager.currentSunAngles[0]);
+				directionalCamera.setYaw(PI - environmentManager.currentSunAngles[1]);
 			}
-
-			applyDirectionalAngles(directionalPitch, directionalYaw);
 
 			boolean hasDirectionalCameraChanged = directionalCamera.isViewDirty() || directionalCamera.isProjDirty();
 
@@ -701,25 +667,7 @@ public class ZoneRenderer implements Renderer {
 		if (client.getGameState().getState() >= GameState.LOGGED_IN.getState())
 			plugin.hasLoggedIn = true;
 
-		boolean isDaylightCycleActive = skyLighting.prepare();
-		if (isDaylightCycleActive) {
-			shouldRenderSky = true;
-		} else {
-			if (shouldRenderSky) {
-				// Cycle just turned off, so restore the non-cycle sky defaults. The scene clear
-				// falls back to the environment's fog color while shouldRenderSky is false.
-				shouldRenderSky = false;
-				plugin.uboSkybox.reset();
-			}
-		}
-		plugin.uboSkybox.upload();
-
-		float[] directionalColor = skyLighting.directionalColor;
-		float directionalStrength = skyLighting.directionalStrength;
-		float[] ambientColor = skyLighting.ambientColor;
-		float ambientStrength = skyLighting.ambientStrength;
-		float[] fogColor = skyLighting.fogColorSrgb;
-		float[] waterColor = skyLighting.waterColor;
+		skyLighting.update();
 
 		// Hide the game's own skybox models so the cycle's sky shows in their place. Needs
 		// all three: the gradient sky must actually be rendering (otherwise hiding leaves a
@@ -727,7 +675,7 @@ public class ZoneRenderer implements Renderer {
 		// to force vanilla skyboxes back on everywhere. Reporting the skybox as absent lets
 		// the existing !shouldRenderRSSkybox paths do the swap.
 		boolean hideVanillaSkyboxes =
-			shouldRenderSky &&
+			skyLighting.shouldRenderSky() &&
 			config.hideVanillaSkyboxes() &&
 			environmentManager.hideVanillaSkyboxes();
 		shouldRenderVanillaSkybox = scene.getSkybox() != null && !hideVanillaSkyboxes;
@@ -746,46 +694,12 @@ public class ZoneRenderer implements Renderer {
 		}
 		plugin.uboGlobal.useFog.set(fogDepth > 0 ? 1 : 0);
 		plugin.uboGlobal.fogDepth.set(fogDepth);
-		plugin.uboGlobal.fogColor.set(fogColor);
 
 		plugin.uboGlobal.drawDistance.set((float) plugin.getDrawDistance());
 		plugin.uboGlobal.expandedMapLoadingChunks.set(ctx.sceneContext.expandedMapLoadingChunks);
 		plugin.uboGlobal.colorBlindnessIntensity.set(config.colorBlindnessIntensity() / 100.f);
 
-		float[] waterColorHsv = ColorUtils.srgbToHsv(waterColor);
-		float lightBrightnessMultiplier = 0.8f;
-		float midBrightnessMultiplier = 0.45f;
-		float darkBrightnessMultiplier = 0.05f;
-		float[] waterColorLight = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
-			waterColorHsv[0],
-			waterColorHsv[1],
-			waterColorHsv[2] * lightBrightnessMultiplier
-		}));
-		float[] waterColorMid = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
-			waterColorHsv[0],
-			waterColorHsv[1],
-			waterColorHsv[2] * midBrightnessMultiplier
-		}));
-		float[] waterColorDark = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
-			waterColorHsv[0],
-			waterColorHsv[1],
-			waterColorHsv[2] * darkBrightnessMultiplier
-		}));
-		plugin.uboGlobal.waterColorLight.set(waterColorLight);
-		plugin.uboGlobal.waterColorMid.set(waterColorMid);
-		plugin.uboGlobal.waterColorDark.set(waterColorDark);
-
 		plugin.uboGlobal.gammaCorrection.set(plugin.getGammaCorrection());
-		if (config.useLegacyBrightness()) {
-			float factor = config.legacyBrightness() / 20f;
-			ambientStrength *= factor;
-			directionalStrength *= factor;
-		}
-		plugin.uboGlobal.ambientStrength.set(ambientStrength);
-		plugin.uboGlobal.ambientColor.set(ambientColor);
-		effectiveDirectionalStrength = directionalStrength;
-		plugin.uboGlobal.lightStrength.set(directionalStrength);
-		plugin.uboGlobal.lightColor.set(directionalColor);
 
 		plugin.uboGlobal.underglowStrength.set(environmentManager.currentUnderglowStrength);
 		plugin.uboGlobal.underglowColor.set(environmentManager.currentUnderglowColor);
@@ -920,7 +834,7 @@ public class ZoneRenderer implements Renderer {
 		final boolean shouldRenderShadows =
 			plugin.configShadowsEnabled &&
 			plugin.fboShadowMap != 0 &&
-			effectiveDirectionalStrength > 0;
+			skyLighting.effectiveDirectionalStrength > 0;
 
 		if (shouldRenderShadows || shouldClearShadowFbo) {
 			if (plugin.configTerrainShadows && plugin.fboTerrainShadowMap != 0) {
@@ -1001,15 +915,15 @@ public class ZoneRenderer implements Renderer {
 		frameTimer.begin(Timer.CLEAR_SCENE);
 		glClearDepth(0);
 
-		// Render sky gradient if day & night Cycle is enabled, otherwise use solid color clear
-		if (shouldRenderSky && !shouldRenderVanillaSkybox && skyProgram.isValid()) {
+		// Render sky gradient if daylight cycle is enabled, otherwise use solid color clear
+		if (skyLighting.shouldRenderSky() && !shouldRenderVanillaSkybox && skyProgram.isValid()) {
 			glClear(GL_DEPTH_BUFFER_BIT);
 			frameTimer.end(Timer.CLEAR_SCENE);
 		} else {
 			// Use the cycle's fog color if it's driving this frame, otherwise the environment's
 			float[] fogColor = { 0, 0, 0 };
 			if (!shouldRenderVanillaSkybox)
-				fogColor = shouldRenderSky ? skyLighting.fogColorSrgb : ColorUtils.linearToSrgb(environmentManager.currentFogColor);
+				fogColor = skyLighting.fogColorSrgb;
 
 			float[] gammaCorrectedFogColor = pow(fogColor, plugin.getGammaCorrection());
 			glClearColor(
@@ -1147,7 +1061,7 @@ public class ZoneRenderer implements Renderer {
 			}
 
 			final boolean isSquashed = ctx.uboWorldViewStruct != null && ctx.uboWorldViewStruct.isSquashed();
-			if (effectiveDirectionalStrength > 0 && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
+			if (skyLighting.effectiveDirectionalStrength > 0 && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
 				if (!z.onlyWater || z.modelCount > 0) {
 					directionalCmd.SetShader(fastShadowProgram);
 					z.renderOpaque(directionalCmd, ctx, shouldDrawRoofShadows);
@@ -1196,7 +1110,7 @@ public class ZoneRenderer implements Renderer {
 					z.alphaSort(zx - offset, zz - offset, sceneCamera);
 
 				final boolean isSquashed = ctx.uboWorldViewStruct != null && ctx.uboWorldViewStruct.isSquashed();
-				if (effectiveDirectionalStrength > 0 && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
+				if (skyLighting.effectiveDirectionalStrength > 0 && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
 					directionalCmd.SetShader(plugin.configShadowMode == ShadowMode.DETAILED ? detailedShadowProgram : fastShadowProgram);
 					z.renderAlpha(directionalCmd, zx - offset, zz - offset, level, ctx, true, shouldDrawRoofShadows);
 				}
@@ -1256,7 +1170,7 @@ public class ZoneRenderer implements Renderer {
 
 					sceneCmd.ExecuteSubCommandBuffer(ctx.vaoSceneCmd);
 
-					if (shouldRenderSky &&
+					if (skyLighting.shouldRenderSky() &&
 						!shouldRenderVanillaSkybox &&
 						!plugin.orthographicProjection &&
 						sceneManager.isRoot(ctx) &&

@@ -475,8 +475,18 @@ public final class MathUtils {
 		return product;
 	}
 
-	public static float absAngleDiff(float a, float b) {
-		return abs(mod(a - b + PI, TWO_PI) - PI);
+	public static float angleDiff(float a, float b) {
+		return mod(a - b + PI, TWO_PI) - PI;
+	}
+
+	public static float[] angleDiff(float[] out, float[] a, float[] b) {
+		for (int i = 0; i < out.length; i++)
+			out[i] = angleDiff(a[i % a.length], b[i % b.length]);
+		return out;
+	}
+
+	public static float[] angleDiff(float[] a, float[] b) {
+		return angleDiff(new float[max(a.length, b.length)], a, b);
 	}
 
 	/**

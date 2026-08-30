@@ -138,7 +138,7 @@ public final class StarField {
 
 	public void resetStarfield() { starfieldGenerated = false; }
 
-	public boolean generateStarField() {
+	public boolean shouldGenerateStarField() {
 		if (starfieldGenerated)
 			return false;
 
