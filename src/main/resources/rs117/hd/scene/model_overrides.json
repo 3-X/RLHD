@@ -9329,7 +9329,7 @@
       {
         "description": "Fake light",
         "colors": "h == 0  && s == 0",
-        "baseMaterial": "NONE"
+        "baseMaterial": "GRAY_65"
       }
     ]
   },
@@ -9406,7 +9406,8 @@
       },
       {
         "colors": "a < 255 || h == 0",
-        "baseMaterial": "GRAY_150"
+        "baseMaterial": "GRAY_150",
+        "upwardsNormals": true
       }
     ]
   },
@@ -10251,7 +10252,7 @@
     "colorOverrides": [
       {
         "colors": [ "l == 103", "l == 23"],
-        "baseMaterial": "GRAY_200",
+        "baseMaterial": "NONE",
         "depthBias": 1
       }
     ]
@@ -37553,7 +37554,22 @@
       "TROLL_STRONGHOLD_EXIT"
     ],
     "uvType": "BOX",
-    "uvScale": 0.7
+    "uvScale": 0.7,
+    "colorOverrides": [
+      {
+        "colors": "s == 0 && l > 80",
+        "baseMaterial": "GRAY_60"
+      },
+      {
+        "colors": "s == 0 && l < 80",
+        "baseMaterial": "EADGARS_CAVE_FIX",
+        "shiftLightness": -30,
+        "shiftSaturation": 1,
+        "minLightness": 30,
+        "uvType": "BOX",
+        "uvScale": 0.7
+      }
+    ]
   },
   {
     "description": "Trollheim - Corsair Cove - Tents",
@@ -46553,8 +46569,13 @@
     "uvScale": 0.86,
     "colorOverrides": [
       {
+        "colors": "a < 255",
+        "baseMaterial": "GRAY_65",
+        "flatNormals": true
+      },
+      {
         "colors": "l > 63",
-        "baseMaterial": "NONE"
+        "baseMaterial": "GRAY_65"
       }
     ]
   },
@@ -64178,7 +64199,7 @@
       {
         "description": "Exit",
         "colors": "h == 0",
-        "baseMaterial": "GRAY_90"
+        "baseMaterial": "GRAY_60"
       }
     ],
     "objectIds": [

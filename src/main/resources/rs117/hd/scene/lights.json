@@ -17826,6 +17826,7 @@
     "height": 600,
     "radius": 1200,
     "strength": 5,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -18099,6 +18100,7 @@
     "offset": [ 0, 400, 0 ],
     "radius": 1500,
     "strength": 20,
+    "followDayNight": true,
     "color": [
       255,
       249.4737,
@@ -22694,6 +22696,7 @@
     "description": "CRASH_ISLAND_ROPE",
     "height": 450,
     "alignment": "CENTER",
+    "followDayNight": true,
     "radius": 700,
     "strength": 25,
     "color": [
@@ -25385,10 +25388,11 @@
   },
   {
     "description": "EADGAR_CAVE_EXIT",
-    "height": 70,
+    "offset": [ 0, 70, -50 ],
     "alignment": "CENTER",
-    "radius": 250,
+    "radius": 350,
     "strength": 15,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -26482,9 +26486,10 @@
   },
   {
     "description": "PYRAMID_PLUNDER_TOMB_DOOR_1",
-    "height": 100,
+    "offset": [ 0, 100, 25 ],
     "radius": 400,
-    "strength": 15,
+    "strength": 25,
+    "followDayNight": true,
     "color": [
       255,
       224,
@@ -26499,9 +26504,10 @@
   },
   {
     "description": "PYRAMID_PLUNDER_TOMB_DOOR_2",
-    "height": 100,
+    "offset": [ 0, 100, 25 ],
     "radius": 350,
     "strength": 65,
+    "followDayNight": true,
     "color": [
       255,
       224,
@@ -27545,7 +27551,7 @@
   },
   {
     "description": "TUNNEL_EXIT",
-    "offset": [ 0, 70, -80 ],
+    "offset": [ 0, 70, -130 ],
     "radius": 450,
     "strength": 10,
     "followDayNight": true,
@@ -27566,7 +27572,8 @@
     "height": 450,
     "alignment": "CENTER",
     "radius": 800,
-    "strength": 7.5,
+    "strength": 12,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -36972,6 +36979,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_TOP",
     "offset": [ 40, 800, 0 ],
     "alignment": "CENTER",
+    "followDayNight": true,
     "radius": 1200,
     "strength": 20,
     "color": [
@@ -36988,6 +36996,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_MIDDLE_1",
     "offset": [ 45, 500, 0 ],
     "alignment": "CENTER",
+    "followDayNight": true,
     "radius": 300,
     "strength": 20,
     "color": [
@@ -37004,6 +37013,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_MIDDLE_2",
     "offset": [ 45, 250, 0 ],
     "alignment": "CENTER",
+    "followDayNight": true,
     "radius": 300,
     "strength": 15,
     "color": [
@@ -37020,6 +37030,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_FLOOR_HIGHLIGHT",
     "offset": [ 35, 100, 0 ],
     "alignment": "CENTER",
+    "followDayNight": true,
     "radius": 300,
     "strength": 13,
     "color": [
@@ -37036,6 +37047,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_FLOOR_SPOTLIGHT",
     "offset": [ -14, 150, 0 ],
     "alignment": "CENTER",
+    "followDayNight": true,
     "radius": 400,
     "strength": 4,
     "color": [
@@ -38667,9 +38679,10 @@
   },
   {
     "description": "TOA_LOBBY_EXIT",
-    "offset": [ 0, 215, -35 ],
-    "radius": 450,
+    "offset": [ 0, 210, 30 ],
+    "radius": 575,
     "strength": 15,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -42577,12 +42590,13 @@
   },
   {
     "description": "Red Chinchompa Hunting Grounds Exit Main",
-    "offset": [ 6, 40, 36 ],
+    "offset": [ 6, 60, 26 ],
     "radius": 350,
     "strength": 15,
     "color": "#ffffff",
     "type": "FLICKER",
     "range": 13,
+    "followDayNight": true,
     "objectIds": [
       "CHINCHOMPA_JUNGLE_CAVE_EXIT"
     ]
@@ -42595,6 +42609,7 @@
     "color": "#ffffff",
     "type": "FLICKER",
     "range": 13,
+    "followDayNight": true,
     "objectIds": [
       "CHINCHOMPA_JUNGLE_CAVE_EXIT"
     ]
@@ -42702,9 +42717,10 @@
     "objectIds": [ "TROLL_STRONGHOLD_WINDOW", "TROLL_STRONGHOLD_TOP_EXIT_MID" ],
     "radius": 450,
     "areas": [ "TROLL_STRONGHOLD" ],
+    "followDayNight": true,
     "strength": 10,
     "color": "#ffffff",
-    "offset": [ 0, 150, 60 ]
+    "offset": [ 0, 150, 70 ]
   },
   {
     "description": "Icy Basalt Teleport",
@@ -42910,6 +42926,7 @@
     ],
     "radius": 500,
     "strength": 10,
+    "followDayNight": true,
     "color": "#ffffff",
     "offset": [ 40, 40, 0 ]
   },
@@ -42920,6 +42937,7 @@
     ],
     "radius": 450,
     "strength": 10,
+    "followDayNight": true,
     "color": "#ffffff",
     "offset": [ 40, 150, 0 ]
   },
@@ -42930,6 +42948,7 @@
     ],
     "radius": 1150,
     "strength": 8,
+    "followDayNight": true,
     "color": "#ffffff",
     "offset": [ 40, 600, 0 ]
   },
@@ -43211,6 +43230,7 @@
     ],
     "radius": 550,
     "strength": 15,
+    "followDayNight": true,
     "color": "#ffffff",
     "offset": [ 0, 200, -70 ]
   },
@@ -44425,6 +44445,7 @@
     "offset": [ 50, 300, 30 ],
     "radius": 400,
     "strength": 4.5,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -44437,10 +44458,11 @@
   },
   {
     "description": "GETTING_AHEAD_CAVE_EXIT",
-    "height": 70,
+    "offset": [ 0, 70, -20 ],
     "alignment": "CENTER",
-    "radius": 250,
-    "strength": 15,
+    "radius": 275,
+    "strength": 18,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -44495,6 +44517,7 @@
     "alignment": "CENTER",
     "radius": 400,
     "strength": 17,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -44513,6 +44536,7 @@
     "alignment": "CENTER",
     "radius": 500,
     "strength": 10,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -44527,8 +44551,9 @@
     "description": "Wolf Den Cave Exit",
     "offset": [ -100, 100, 0 ],
     "alignment": "CENTER",
-    "radius": 700,
-    "strength": 15,
+    "radius": 600,
+    "strength": 35,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -44544,7 +44569,8 @@
     "description": "Stalker Den Cave Exit",
     "offset": [ -50, 200, -50 ],
     "radius": 600,
-    "strength": 5,
+    "strength": 10,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -44659,9 +44685,9 @@
   {
     "description": "SLAYER_CAVE_EXIT",
     "height": 70,
-    "offset": [ -65, 48, -26 ],
-    "radius": 250,
-    "strength": 15,
+    "offset": [ -65, 48, 20 ],
+    "radius": 350,
+    "strength": 17,
     "color": [
       255,
       255,
@@ -44670,6 +44696,7 @@
     "type": "STATIC",
     "duration": 0,
     "range": 0,
+    "followDayNight": true,
     "objectIds": [
       "SLAYER_CAVE_EXIT_LEFT",
       "EYEGLO_DUNGEON_EXIT_LEFT"
@@ -48671,6 +48698,7 @@
       255
     ],
     "type": "STATIC",
+    "followDayNight": true,
     "objectIds": [
       "DEEPFIN_CAVE_EXIT",
       "LAGUNA_CAVE_EXIT"
@@ -48895,6 +48923,7 @@
       255
     ],
     "type": "STATIC",
+    "followDayNight": true,
     "objectIds": [
       "GRIMSTONE_CAVE_EXIT"
     ]
@@ -48910,6 +48939,7 @@
       255
     ],
     "type": "STATIC",
+    "followDayNight": true,
     "objectIds": [
       "GRIMSTONE_CAVE_EXIT"
     ]
@@ -49026,7 +49056,8 @@
     "description": "ARAXYTE_SPIDER_CAVE_EXIT",
     "offset": [ 0, 125, 0 ],
     "radius": 750,
-    "strength": 3.5,
+    "strength": 6,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -50688,6 +50719,7 @@
     "alignment": "CENTER",
     "radius": 1500,
     "strength": 10,
+    "followDayNight": true,
     "color": [
       255,
       255,
@@ -50704,6 +50736,7 @@
     "alignment": "CENTER",
     "radius": 750,
     "strength": 20,
+    "followDayNight": true,
     "color": [
       255,
       255,
