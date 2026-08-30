@@ -143,8 +143,21 @@ public class SkyLighting {
 	private int cachedOutdoorSkyMinBrightness;
 	private int cachedOutdoorSkyFrame = -1;
 
+	/**
+	 * Resolve this frame's lighting from either the cycle or the environment.
+	 */
+	public boolean prepare() {
+		if (daylightCycleManager.isCycleActive()) {
+			computeCycleLighting();
+			return true;
+		}
+
+		seedFromEnvironment();
+		return false;
+	}
+
 	/** Copy the environment's current lighting in as this frame's starting point. */
-	public void seedFromEnvironment() {
+	private void seedFromEnvironment() {
 		copyTo(directionalColor, environmentManager.currentDirectionalColor);
 		copyTo(ambientColor, environmentManager.currentAmbientColor);
 		copyTo(waterColor, environmentManager.currentWaterColor);
@@ -154,7 +167,7 @@ public class SkyLighting {
 	}
 
 	/** Derive the frame's lighting from the current sun and moon, then upload the skybox UBO. */
-	public void computeCycleLighting() {
+	private void computeCycleLighting() {
 		var state = daylightCycleManager.getState();
 		copyTo(directionalColor, getRegionalDirectionalLight(state, environmentManager.currentDirectionalColor));
 		copyTo(ambientColor, getRegionalAmbientLight(state, environmentManager.currentAmbientColor));
@@ -338,7 +351,7 @@ public class SkyLighting {
 	 * remain the source of the authored daytime color; this only applies the day/night response
 	 * for definitions that opt in.
 	 */
-	public void applyOutdoorLightLighting(Light light, int[] worldPos, int minimumBrightness) {
+	public void updateOutdoorLight(Light light, int[] worldPos, int minimumBrightness) {
 		copyTo(light.color, light.def.color);
 		// Outdoor lights retain the day/night response underground, so cave openings can be lit
 		// by the outdoor sky. This intentionally checks only the user setting rather than the

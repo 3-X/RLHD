@@ -60,8 +60,8 @@ import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.LightManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SceneContext;
-import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.daylight_cycle.DaylightCycleManager;
+import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
@@ -321,7 +321,7 @@ public class ZoneRenderer implements Renderer {
 	private void applyDirectionalAngles(float pitch, float yaw) {
 		final float previousPitch = directionalCamera.getPitch();
 		final float previousRawYaw = PI - directionalCamera.getYaw();
-		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(daylightCycleManager.currentCycleDuration / 300.0f);
+		final float threshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(daylightCycleManager.configCycleDuration / 300.0f);
 		if (absAngleDiff(pitch, previousPitch) >= threshold || absAngleDiff(yaw, previousRawYaw) >= threshold) {
 			directionalCamera.setPitch(pitch);
 			directionalCamera.setYaw(PI - yaw);
@@ -701,12 +701,10 @@ public class ZoneRenderer implements Renderer {
 		if (client.getGameState().getState() >= GameState.LOGGED_IN.getState())
 			plugin.hasLoggedIn = true;
 
-		if (daylightCycleManager.isCycleActive()) {
+		boolean isDaylightCycleActive = skyLighting.prepare();
+		if (isDaylightCycleActive) {
 			shouldRenderSky = true;
-			skyLighting.computeCycleLighting();
 		} else {
-			// Without the cycle, the renderer uses the environment's interpolated lighting directly.
-			skyLighting.seedFromEnvironment();
 			if (shouldRenderSky) {
 				// Cycle just turned off, so restore the non-cycle sky defaults. The scene clear
 				// falls back to the environment's fog color while shouldRenderSky is false.

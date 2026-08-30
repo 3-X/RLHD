@@ -89,7 +89,7 @@ public class SkyLightingTest {
 	}
 
 	@Test
-	public void lightingMustNotAliasEnvironmentColors() throws NoSuchFieldException, IllegalAccessException {
+	public void lightingMustNotAliasEnvironmentColors() throws ReflectiveOperationException {
 		EnvironmentManager environmentManager = new EnvironmentManager();
 		environmentManager.currentDirectionalColor = new float[] { .1f, .2f, .3f };
 		environmentManager.currentAmbientColor = new float[] { .4f, .5f, .6f };
@@ -102,7 +102,9 @@ public class SkyLightingTest {
 		var environmentManagerField = SkyLighting.class.getDeclaredField("environmentManager");
 		environmentManagerField.setAccessible(true);
 		environmentManagerField.set(lighting, environmentManager);
-		lighting.seedFromEnvironment();
+		Method seedFromEnvironment = SkyLighting.class.getDeclaredMethod("seedFromEnvironment");
+		seedFromEnvironment.setAccessible(true);
+		seedFromEnvironment.invoke(lighting);
 
 		assertNotSame(environmentManager.currentDirectionalColor, lighting.directionalColor);
 		assertNotSame(environmentManager.currentAmbientColor, lighting.ambientColor);

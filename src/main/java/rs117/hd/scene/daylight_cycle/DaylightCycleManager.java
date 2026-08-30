@@ -149,27 +149,19 @@ public class DaylightCycleManager {
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
 	// Player-configured defaults are updated by HdPlugin.updateCachedConfigs().
-	private DaylightCycle configuredCycle = DaylightCycle.DYNAMIC;
-
-	private DaylightCycle currentCycle = DaylightCycle.DYNAMIC;
-
-	@Getter
-	private boolean cycleActive;
-
+	private DaylightCycle configCycle = DaylightCycle.DYNAMIC;
 	// Current day length skew - set once per frame alongside the cycle mode.
 	// Warps the linear cycle clock so day & night occupy different shares of the
 	// fixed total cycle time (see applyDayLengthWarp).
-	private DayLength currentDayLength = DayLength.STANDARD;
-
+	private DayLength configDayLength = DayLength.STANDARD;
 	// Current moon phase lock - set once per frame. DYNAMIC = phase advances
 	// naturally; any other value locks the moon's illumination fraction.
-	private MoonPhase configuredMoonPhase = MoonPhase.DYNAMIC;
+	private MoonPhase configMoonPhase = MoonPhase.DYNAMIC;
+	private MoonBehavior configMoonBehavior = MoonBehavior.NIGHT_SYNCED;
+	public float configCycleDuration = 700;
 
+	private DaylightCycle currentCycle = DaylightCycle.DYNAMIC;
 	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
-
-	private MoonBehavior currentMoonBehavior = MoonBehavior.NIGHT_SYNCED;
-
-	public float currentCycleDuration = 700;
 
 	private final double[] currentLatLong = { 0, 0 };
 
@@ -186,14 +178,17 @@ public class DaylightCycleManager {
 	private long realTimeStartEpochMillis = Long.MIN_VALUE;
 	private long realTimeSessionStartMillis;
 
-	// Resolved once at the end of update(). Callers must treat its arrays as read-only.
-	private final DaylightCycleState state = new DaylightCycleState();
-
 	// Per-light cycle state. Updated once by LightManager before it evaluates visibility.
 	private boolean lightScheduleActive;
 	private float nightFactor = 1;
 	private boolean nightFactorIncreasing = true;
 	private float previousNightFactor = -1;
+
+	@Getter
+	private boolean cycleActive;
+
+	@Getter
+	private final DaylightCycleState state = new DaylightCycleState();
 
 	// ===== Per-frame state =======================================================
 
@@ -201,11 +196,11 @@ public class DaylightCycleManager {
 	 * Refresh player-configured values when HdPlugin processes pending config changes.
 	 */
 	public void updateConfig(HdPluginConfig config) {
-		configuredCycle = config.daylightCycle();
-		currentDayLength = config.dayLength();
-		currentMoonBehavior = config.moonBehavior();
-		configuredMoonPhase = config.moonPhase();
-		currentCycleDuration = config.cycleDurationMinutes();
+		configCycle = config.daylightCycle();
+		configDayLength = config.dayLength();
+		configMoonBehavior = config.moonBehavior();
+		configMoonPhase = config.moonPhase();
+		configCycleDuration = config.cycleDurationMinutes();
 	}
 
 	/**
@@ -337,7 +332,7 @@ public class DaylightCycleManager {
 	 * exactly cycleDurationMinutes.
 	 */
 	private double applyDayLengthWarp(double cyclePosition) {
-		float dayFraction = currentDayLength.dayFraction;
+		float dayFraction = configDayLength.dayFraction;
 		// STANDARD (and any config matching the natural split) is the identity map.
 		if (abs(dayFraction - NATURAL_DAY_BOUNDARY) < 1e-6f)
 			return cyclePosition;
@@ -452,7 +447,7 @@ public class DaylightCycleManager {
 		// regardless of moon behavior. ALWAYS_NIGHT is excluded so its moon keeps moving.
 		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride())
 			return fixedToAstronomicalAngles(getFixedNightMoonAngles());
-		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED)
+		if (configMoonBehavior == MoonBehavior.NIGHT_SYNCED)
 			return computeNightSyncedMoonAngles();
 
 		double[] angles = AstronomyUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong);
@@ -468,7 +463,7 @@ public class DaylightCycleManager {
 		}
 		// A realistic moon always uses its resolved astronomical date. Real Time also takes
 		// this path for Night Synced, keeping its phase continuous through daylight-saving changes.
-		if (currentMoonBehavior != MoonBehavior.NIGHT_SYNCED || currentCycle.usesLocalTime)
+		if (configMoonBehavior != MoonBehavior.NIGHT_SYNCED || currentCycle.usesLocalTime)
 			return getMoonIllumination(getMoonDate());
 
 		// Synced Days uses its UTC day count so every player shares a phase; other simulated
@@ -689,21 +684,14 @@ public class DaylightCycleManager {
 		state.auroraStrength = computeAuroraStrength();
 	}
 
-	/**
-	 * State resolved by {@link #update()}.
-	 */
-	DaylightCycleState getState() {
-		return state;
-	}
-
 	/** Apply the current environment's mode, moon phase, and fixed-angle overrides. */
 	private void resolveEnvironmentState() {
 		cycleActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
 
 		DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
 		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
-		currentCycle = forcedMode != null ? forcedMode : configuredCycle;
-		currentMoonPhase = forcedMoonPhase != null ? forcedMoonPhase : configuredMoonPhase;
+		currentCycle = forcedMode != null ? forcedMode : configCycle;
+		currentMoonPhase = forcedMoonPhase != null ? forcedMoonPhase : configMoonPhase;
 		setFixedAngleOverrides(
 			environmentManager.getForcedFixedSunAngles(),
 			environmentManager.getForcedFixedMoonAngles()
@@ -715,7 +703,7 @@ public class DaylightCycleManager {
 		if (lastUpdateTime == 0)
 			lastUpdateTime = currentTimeMillis;
 
-		double cycleDurationMillis = currentCycleDuration * 60.0 * 1000.0;
+		double cycleDurationMillis = configCycleDuration * 60.0 * 1000.0;
 		accumulatedCycleTime += (currentTimeMillis - lastUpdateTime) / cycleDurationMillis;
 		while (accumulatedCycleTime >= 1.0) {
 			accumulatedCycleTime -= 1.0;
