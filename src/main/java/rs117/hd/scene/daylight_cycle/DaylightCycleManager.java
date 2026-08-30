@@ -222,8 +222,7 @@ public class DaylightCycleManager {
 
 	/** Whether the moon, rather than the low sun, should drive directional shadows. */
 	private boolean shouldUseMoonShadows() {
-		return state.sunAngles[0] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
-			state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG;
+		return state.sunAngles[0] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG && state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG;
 	}
 
 	/**
