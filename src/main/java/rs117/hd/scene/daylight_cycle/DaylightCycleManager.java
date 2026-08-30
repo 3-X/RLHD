@@ -82,11 +82,6 @@ public class DaylightCycleManager {
 	/** June 10, 2025 - near the summer solstice, for a higher midday sun arc. */
 	private static final long SOLSTICE_EPOCH_MS = 1749513600000L;
 
-	/** An hour-of-day in [0, 24) as a millisecond offset from the start of that day. */
-	private static long hoursToMillis(double hourOfDay) {
-		return (long) (hourOfDay * HOUR_MS);
-	}
-
 	// The natural (unwarped) cycle position where daytime ends and night begins.
 	// 0.0-0.70 maps to 5am-7pm (day, incl. twilight), 0.70-1.0 maps to 7pm-5am (night).
 	private static final float NATURAL_DAY_BOUNDARY = .7f;
@@ -144,19 +139,11 @@ public class DaylightCycleManager {
 	private double accumulatedCycleTime = .35;
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
-	// Player-configured defaults are updated by HdPlugin.updateCachedConfigs().
-	private DaylightCycle configCycle = DaylightCycle.DYNAMIC;
-	// Current day length skew - set once per frame alongside the cycle mode.
-	// Warps the linear cycle clock so day & night occupy different shares of the
-	// fixed total cycle time (see applyDayLengthWarp).
-	private DayLength configDayLength = DayLength.STANDARD;
-	// Current moon phase lock - set once per frame. DYNAMIC = phase advances
-	// naturally; any other value locks the moon's illumination fraction.
-	private MoonPhase configMoonPhase = MoonPhase.DYNAMIC;
-	private MoonBehavior configMoonBehavior = MoonBehavior.NIGHT_SYNCED;
-	private float configCycleDuration = 700;
-	@Getter
-	private float directionalAngleUpdateThreshold = DIRECTIONAL_ANGLE_UPDATE_THRESHOLD;
+	private DaylightCycle configCycle;
+	private DayLength configDayLength;
+	private MoonPhase configMoonPhase;
+	private MoonBehavior configMoonBehavior;
+	private float configCycleDuration;
 
 	private DaylightCycle currentCycle = DaylightCycle.DYNAMIC;
 	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
@@ -199,8 +186,6 @@ public class DaylightCycleManager {
 		configMoonBehavior = config.moonBehavior();
 		configMoonPhase = config.moonPhase();
 		configCycleDuration = config.cycleDurationMinutes();
-		directionalAngleUpdateThreshold =
-			DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(configCycleDuration / 300f);
 	}
 
 	/**
@@ -332,10 +317,8 @@ public class DaylightCycleManager {
 
 		float[] orientation = { PI - angles[1], angles[0] };
 		// Environment fixedSunAngles retain their legacy shadow orientation for compatibility.
-		if (hasFixedSunOverride)
-			orientation[0] -= PI;
 		float diff = max(abs(angleDiff(orientation, directionalCamera.getOrientation())));
-		if (diff >= directionalAngleUpdateThreshold)
+		if (diff >= DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(configCycleDuration / 300f))
 			directionalCamera.setOrientation(orientation);
 	}
 
@@ -488,7 +471,7 @@ public class DaylightCycleManager {
 		double hour = NIGHT_SYNCED_MOON_START_HOUR + getMoonCyclePosition() * 24;
 		if (hour >= 24)
 			hour -= 24;
-		return Instant.ofEpochMilli(EQUINOX_EPOCH_MS + nightSyncedDayOffset * DAY_MS + hoursToMillis(hour));
+		return Instant.ofEpochMilli(EQUINOX_EPOCH_MS + nightSyncedDayOffset * DAY_MS + (long) (hour * HOUR_MS));
 	}
 
 	/** Queue a lunar phase advance at each cycle boundary, then apply it only while unlit. */
@@ -630,7 +613,7 @@ public class DaylightCycleManager {
 	private Instant resolveCurrentInstant() {
 		if (currentCycle.isFixed) {
 			long baseEpochMs = currentCycle.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-			return Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycle.getFixedHour()));
+			return Instant.ofEpochMilli(baseEpochMs).plusMillis((long) (currentCycle.getFixedHour() * HOUR_MS));
 		}
 
 		switch (currentCycle) {
@@ -645,7 +628,7 @@ public class DaylightCycleManager {
 					(frameWallClockMillis % SYNCED_DAYS_PERIOD_MS) / (double) SYNCED_DAYS_PERIOD_MS;
 				long syncedDay = frameWallClockMillis / SYNCED_DAYS_PERIOD_MS;
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
-				return syncedStartOfDay.plusMillis(hoursToMillis(cyclePositionToHour(syncedCyclePosition)));
+				return syncedStartOfDay.plusMillis((long) (cyclePositionToHour(syncedCyclePosition) * HOUR_MS));
 			case DYNAMIC:
 				// Warp the linear cycle clock so day and night occupy the configured share,
 				// then feed it through the twilight-weighted sun mapping.
@@ -653,7 +636,7 @@ public class DaylightCycleManager {
 				double mappedHour = cyclePositionToHour(cyclePosition);
 				Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS)
 					.plus(completedCycles, ChronoUnit.DAYS);
-				return startOfDay.plusMillis(hoursToMillis(mappedHour));
+				return startOfDay.plusMillis((long) (mappedHour * HOUR_MS));
 		}
 		throw new IllegalStateException("Unhandled day & night cycle mode: " + currentCycle);
 	}
