@@ -559,7 +559,7 @@ public class ZoneRenderer implements Renderer {
 			}
 
 			// The day & night cycle overrides the environment's static sun angles when active.
-			boolean isDayNightCycleActive = skyLighting.isCycleActive();
+			boolean isDayNightCycleActive = daylightCycleManager.isCycleActive();
 			float directionalPitch = environmentManager.currentSunAngles[0];
 			float directionalYaw = environmentManager.currentSunAngles[1];
 			if (isDayNightCycleActive) {
@@ -701,7 +701,7 @@ public class ZoneRenderer implements Renderer {
 		if (client.getGameState().getState() >= GameState.LOGGED_IN.getState())
 			plugin.hasLoggedIn = true;
 
-		if (skyLighting.isCycleActive()) {
+		if (daylightCycleManager.isCycleActive()) {
 			shouldRenderSky = true;
 			skyLighting.computeCycleLighting();
 		} else {

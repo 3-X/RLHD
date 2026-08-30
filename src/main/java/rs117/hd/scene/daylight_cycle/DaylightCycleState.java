@@ -16,5 +16,4 @@ final class DaylightCycleState {
 	float moonAltitudeDegreesForLighting;
 	boolean hidesMoon;
 	float auroraStrength;
-
 }

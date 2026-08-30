@@ -7,6 +7,7 @@ import java.time.temporal.ChronoUnit;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import lombok.Getter;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DayLength;
@@ -148,9 +149,12 @@ public class DaylightCycleManager {
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
 	// Player-configured defaults are updated by HdPlugin.updateCachedConfigs().
-	private DaylightCycle configuredCycleMode = DaylightCycle.DYNAMIC;
+	private DaylightCycle configuredCycle = DaylightCycle.DYNAMIC;
 
-	private DaylightCycle currentCycleMode = DaylightCycle.DYNAMIC;
+	private DaylightCycle currentCycle = DaylightCycle.DYNAMIC;
+
+	@Getter
+	private boolean cycleActive;
 
 	// Current day length skew - set once per frame alongside the cycle mode.
 	// Warps the linear cycle clock so day & night occupy different shares of the
@@ -197,7 +201,7 @@ public class DaylightCycleManager {
 	 * Refresh player-configured values when HdPlugin processes pending config changes.
 	 */
 	public void updateConfig(HdPluginConfig config) {
-		configuredCycleMode = config.daylightCycle();
+		configuredCycle = config.daylightCycle();
 		currentDayLength = config.dayLength();
 		currentMoonBehavior = config.moonBehavior();
 		configuredMoonPhase = config.moonPhase();
@@ -239,7 +243,7 @@ public class DaylightCycleManager {
 	 * setting, which would otherwise make the two hemispheres diverge.
 	 */
 	private void updateSeasonalHemisphere() {
-		double[] latLong = currentCycleMode.isForcesNorthernHemisphere() || plugin.configSeasonalHemisphere != SeasonalHemisphere.SOUTHERN
+		double[] latLong = currentCycle.isForcesNorthernHemisphere() || plugin.configSeasonalHemisphere != SeasonalHemisphere.SOUTHERN
 			? NORTHERN_LAT_LONG
 			: SOUTHERN_LAT_LONG;
 		currentLatLong[0] = latLong[0];
@@ -256,7 +260,7 @@ public class DaylightCycleManager {
 	private float[] getFixedModeSunAngles() {
 		if (fixedSunAnglesOverride != null)
 			return new float[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
-		return currentCycleMode.getFixedSunAngles();
+		return currentCycle.getFixedSunAngles();
 	}
 
 	// Convert an environment-order fixed angle to the internal {azimuth, altitude} convention.
@@ -283,7 +287,7 @@ public class DaylightCycleManager {
 	 * should be honored (i.e. a fixed mode is active and an override is set).
 	 */
 	private boolean hasFixedSunOverride() {
-		return currentCycleMode.isFixed && fixedSunAnglesOverride != null;
+		return currentCycle.isFixed && fixedSunAnglesOverride != null;
 	}
 
 	/**
@@ -291,7 +295,7 @@ public class DaylightCycleManager {
 	 * should be honored (i.e. a fixed mode is active and an override is set).
 	 */
 	private boolean hasFixedMoonOverride() {
-		return currentCycleMode.isFixed && fixedMoonAnglesOverride != null;
+		return currentCycle.isFixed && fixedMoonAnglesOverride != null;
 	}
 
 	/**
@@ -354,7 +358,7 @@ public class DaylightCycleManager {
 	 * moon still follows the resized day/night periods.
 	 */
 	private double getMoonCyclePosition() {
-		return currentCycleMode.usesDayLengthForMoon
+		return currentCycle.usesDayLengthForMoon
 			? applyDayLengthWarp(accumulatedCycleTime)
 			: accumulatedCycleTime;
 	}
@@ -365,7 +369,7 @@ public class DaylightCycleManager {
 		// Fixed modes return their fixed angle directly, bypassing the time machinery.
 		// Every sun-position-dependent value (sky gradient colors, brightness, blend
 		// factors) reads this, so they all use the fixed position automatically.
-		if (currentCycleMode.isFixed)
+		if (currentCycle.isFixed)
 			return fixedToAstronomicalAngles(getFixedModeSunAngles());
 		return getAstronomicalSunAngles(currentInstant);
 	}
@@ -398,7 +402,7 @@ public class DaylightCycleManager {
 		if (hasFixedSunOverride())
 			return getSunShadowAngles(out);
 
-		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride())
+		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride())
 			return getMoonShadowAngles(out);
 
 		if (state.sunAngles[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG
@@ -425,13 +429,12 @@ public class DaylightCycleManager {
 	 * environment order directly; moving moons use the astronomical {azimuth, altitude} order.
 	 */
 	private float[] getMoonShadowAngles(float[] out) {
-		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride()) {
+		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride()) {
 			float[] fixedMoonAngles = getFixedNightMoonAngles();
 			return setShadowAngles(out, fixedMoonAngles[0], fixedMoonAngles[1]);
 		}
 
-		float[] moonAngles = state.moonAngles;
-		return setShadowAngles(out, moonAngles[1], moonAngles[0] + PI);
+		return setShadowAngles(out, state.moonAngles[1], state.moonAngles[0] + PI);
 	}
 
 	private static float[] setShadowAngles(float[] out, float pitch, float yaw) {
@@ -441,14 +444,13 @@ public class DaylightCycleManager {
 	}
 
 	private float[] computeMoonDirectionForSky() {
-		float[] moonAngles = state.moonAngles;
-		return anglesToSkyDirection(moonAngles[0], moonAngles[1]);
+		return anglesToSkyDirection(state.moonAngles[0], state.moonAngles[1]);
 	}
 
 	private float[] computeMoonAngles() {
 		// A fixed-mode moon override (or the default Fixed Night position) locks the moon
 		// regardless of moon behavior. ALWAYS_NIGHT is excluded so its moon keeps moving.
-		if (currentCycleMode.isLocksMoonPosition() || hasFixedMoonOverride())
+		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride())
 			return fixedToAstronomicalAngles(getFixedNightMoonAngles());
 		if (currentMoonBehavior == MoonBehavior.NIGHT_SYNCED)
 			return computeNightSyncedMoonAngles();
@@ -461,17 +463,17 @@ public class DaylightCycleManager {
 		if (currentMoonPhase.isLocked()) {
 			return currentMoonPhase.illumination; // Phase locked via config
 		}
-		if (currentCycleMode.isLocksMoonIllumination()) {
+		if (currentCycle.isLocksMoonIllumination()) {
 			return 1; // Always a full moon
 		}
 		// A realistic moon always uses its resolved astronomical date. Real Time also takes
 		// this path for Night Synced, keeping its phase continuous through daylight-saving changes.
-		if (currentMoonBehavior != MoonBehavior.NIGHT_SYNCED || currentCycleMode.usesLocalTime)
+		if (currentMoonBehavior != MoonBehavior.NIGHT_SYNCED || currentCycle.usesLocalTime)
 			return getMoonIllumination(getMoonDate());
 
 		// Synced Days uses its UTC day count so every player shares a phase; other simulated
 		// modes use the stateful offset that advances only while the moon is unlit.
-		long phaseDay = currentCycleMode.usesUtcSyncedTime
+		long phaseDay = currentCycle.usesUtcSyncedTime
 			? frameWallClockMillis / SYNCED_DAYS_PERIOD_MS
 			: nightSyncedDayOffset;
 		return getMoonIllumination(Instant.ofEpochMilli(EQUINOX_EPOCH_MS + phaseDay * DAY_MS));
@@ -536,7 +538,7 @@ public class DaylightCycleManager {
 		if (!isAuroraNight())
 			return 0;
 
-		if (!currentCycleMode.isPermanentNight())
+		if (!currentCycle.isPermanentNight())
 			return 1;
 
 		// Position within the current cycle. The night index flips at 0.35 (midday),
@@ -566,7 +568,7 @@ public class DaylightCycleManager {
 		// Real Time and Synced Days already resolve the sun from their respective clocks, so
 		// mirroring that cached position keeps moonrise aligned with sunset without maintaining
 		// a second clock. Synced Days remains identical for every player for the same reason.
-		if (currentCycleMode.usesLocalTime || currentCycleMode.usesUtcSyncedTime)
+		if (currentCycle.usesLocalTime || currentCycle.usesUtcSyncedTime)
 			return mirrorAngles(state.sunAngles);
 
 		float[] sunAngles = getAstronomicalSunAngles(getNightSyncedMoonInstant());
@@ -665,6 +667,7 @@ public class DaylightCycleManager {
 		advanceCycle(frameWallClockMillis);
 		currentInstant = resolveCurrentInstant();
 		resolveState();
+		resolveLightSchedule();
 	}
 
 	/**
@@ -677,12 +680,12 @@ public class DaylightCycleManager {
 		state.moonAngles = computeMoonAngles();
 		state.moonIllumination = computeMoonIlluminationFraction();
 		state.moonAltitudeDegrees = computeMoonAltitudeDegrees();
-		state.moonAltitudeDegreesForLighting = currentCycleMode.isUsesFixedMoonAltitudeForLighting()
+		state.moonAltitudeDegreesForLighting = currentCycle.isUsesFixedMoonAltitudeForLighting()
 			? getFixedNightMoonAngles()[0] * RAD_TO_DEG
 			: state.moonAltitudeDegrees;
 		state.sunDirection = computeSunDirectionForSky();
 		state.moonDirection = computeMoonDirectionForSky();
-		state.hidesMoon = currentCycleMode.isHidesMoon();
+		state.hidesMoon = currentCycle.isHidesMoon();
 		state.auroraStrength = computeAuroraStrength();
 	}
 
@@ -695,9 +698,11 @@ public class DaylightCycleManager {
 
 	/** Apply the current environment's mode, moon phase, and fixed-angle overrides. */
 	private void resolveEnvironmentState() {
+		cycleActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
+
 		DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
 		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
-		currentCycleMode = forcedMode != null ? forcedMode : configuredCycleMode;
+		currentCycle = forcedMode != null ? forcedMode : configuredCycle;
 		currentMoonPhase = forcedMoonPhase != null ? forcedMoonPhase : configuredMoonPhase;
 		setFixedAngleOverrides(
 			environmentManager.getForcedFixedSunAngles(),
@@ -721,12 +726,12 @@ public class DaylightCycleManager {
 
 	/** Resolve the astronomical instant for the already-updated cycle state. */
 	private Instant resolveCurrentInstant() {
-		if (currentCycleMode.isFixed) {
-			long baseEpochMs = currentCycleMode.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-			return Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycleMode.getFixedHour()));
+		if (currentCycle.isFixed) {
+			long baseEpochMs = currentCycle.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
+			return Instant.ofEpochMilli(baseEpochMs).plusMillis(hoursToMillis(currentCycle.getFixedHour()));
 		}
 
-		switch (currentCycleMode) {
+		switch (currentCycle) {
 			case REAL_TIME:
 				// The session-local timestamp advances in Unix time, so daylight-saving changes
 				// cannot cause a discontinuity in the sun, moon, or seasonal date.
@@ -748,7 +753,7 @@ public class DaylightCycleManager {
 					.plus(completedCycles, ChronoUnit.DAYS);
 				return startOfDay.plusMillis(hoursToMillis(mappedHour));
 		}
-		throw new IllegalStateException("Unhandled day & night cycle mode: " + currentCycleMode);
+		throw new IllegalStateException("Unhandled day & night cycle mode: " + currentCycle);
 	}
 
 	/**
@@ -763,14 +768,14 @@ public class DaylightCycleManager {
 
 		// Real Time mode: the moon's phase and position are astronomically real for
 		// today at the player's local hour, matching the real-clock sun.
-		if (currentCycleMode.usesLocalTime) {
+		if (currentCycle.usesLocalTime) {
 			return currentInstant;
 		}
 
 		// Synced Days mode: use the same UTC-derived instant as the sun so the moon
 		// stays coherent with it and is identical for every player. One simulated
 		// day advances per completed UTC hour.
-		if (currentCycleMode.usesUtcSyncedTime) {
+		if (currentCycle.usesUtcSyncedTime) {
 			return currentInstant;
 		}
 
@@ -785,9 +790,9 @@ public class DaylightCycleManager {
 
 	// ===== Light schedule ========================================================
 
-	/** Update the day/night light schedule before {@link rs117.hd.scene.LightManager} evaluates its lights. */
-	public void updateLightSchedule() {
-		lightScheduleActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
+	/** Resolve the day/night light schedule used later by {@link rs117.hd.scene.LightManager}. */
+	private void resolveLightSchedule() {
+		lightScheduleActive = cycleActive;
 		if (!lightScheduleActive) {
 			previousNightFactor = -1;
 			return;

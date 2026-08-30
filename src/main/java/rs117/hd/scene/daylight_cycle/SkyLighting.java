@@ -153,11 +153,6 @@ public class SkyLighting {
 		ambientStrength = environmentManager.currentAmbientStrength;
 	}
 
-	/** Whether the cycle drives this frame: enabled in config and in an area that opts in. */
-	public boolean isCycleActive() {
-		return environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
-	}
-
 	/** Derive the frame's lighting from the current sun and moon, then upload the skybox UBO. */
 	public void computeCycleLighting() {
 		var state = daylightCycleManager.getState();
@@ -345,6 +340,9 @@ public class SkyLighting {
 	 */
 	public void applyOutdoorLightLighting(Light light, int[] worldPos, int minimumBrightness) {
 		copyTo(light.color, light.def.color);
+		// Outdoor lights retain the day/night response underground, so cave openings can be lit
+		// by the outdoor sky. This intentionally checks only the user setting rather than the
+		// current environment's cycleActive state.
 		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
 			return;
 

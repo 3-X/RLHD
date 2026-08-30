@@ -199,8 +199,6 @@ public class LightManager {
 			});
 		}
 
-		daylightCycleManager.updateLightSchedule();
-
 		// These should never occur, but just in case...
 		if (sceneContext.knownProjectiles.size() > 10000) {
 			log.warn("Too many projectiles tracked: {}. Clearing...", sceneContext.knownProjectiles.size());
