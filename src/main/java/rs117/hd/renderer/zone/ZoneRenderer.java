@@ -298,7 +298,8 @@ public class ZoneRenderer implements Renderer {
 	}
 
 	private void updateSkyboxCmd() {
-		if (!skyboxCmd.isEmpty() && !starField.shouldGenerateStarField())
+		boolean starfieldChanged = starField.shouldGenerateStarField();
+		if (!starfieldChanged && !skyboxCmd.isEmpty())
 			return;
 
 		skyboxCmd.reset();

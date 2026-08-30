@@ -102,9 +102,9 @@ public class DaylightCycleManager {
 	// environments flagged aurora-eligible. Rolled deterministically per night.
 	private static final float AURORA_NIGHT_CHANCE = .02f;
 
-	// Fixed Night's moon: locked to a prominent spot in the south-east sky and always
-	// rendered full. Uses the same { altitude, azimuth } order as environment fixed angles.
-	private static final float[] FIXED_NIGHT_MOON_ANGLES = HDUtils.sunAngles(25, 135);
+	// Fixed Night's moon: locked to a prominent spot in the south-east sky and always rendered
+	// full. Converted once from the environment convention into { azimuth, altitude }.
+	private static final float[] FIXED_NIGHT_MOON_ANGLES = fixedToAstronomicalAngles(HDUtils.sunAngles(25, 135));
 
 	// Latitudes used for the seasonal-hemisphere-based sun/moon arc: New York City
 	// (northern) and Rio de Janeiro (southern). Only latitude affects the sun's
@@ -113,12 +113,11 @@ public class DaylightCycleManager {
 	private static final double[] NORTHERN_LAT_LONG = { 40.7128, 0.0 };  // New York City
 	private static final double[] SOUTHERN_LAT_LONG = { -22.9068, 0.0 }; // Rio de Janeiro
 
-	// Per-environment fixed-angle overrides {altitude, azimuth} in radians, or
-	// null to use astronomical/default angles. Set once per frame by the renderer
-	// from the current environment. Only consulted while a fixed cycle mode is
-	// active - the dynamic cycle always computes angles.
-	private float[] fixedSunAnglesOverride = null;
-	private float[] fixedMoonAnglesOverride = null;
+	// Environment override and position policy for the current frame. The corresponding angle
+	// references are held in the per-frame state.
+	private boolean hasFixedSunOverride;
+	private boolean hasFixedMoonOverride;
+	private boolean moonPositionFixed;
 
 	// Night Synced mode: day offset advances only once the moon is low enough that its light
 	// no longer reaches the scene, so phase changes are never visible. We track pending
@@ -215,26 +214,24 @@ public class DaylightCycleManager {
 	 * Set the per-environment fixed sun/moon angle overrides for this frame.
 	 * <p>
 	 * Inputs use the environment convention {altitude, azimuth} in radians, or null for no
-	 * override. Fixed-angle APIs retain that order; conversion happens only when an angle enters
-	 * the astronomical calculations.
+	 * override. They are converted immediately into the internal {azimuth, altitude} convention.
 	 * <p>
 	 * Applied from {@link #update()}. Only takes effect under a fixed cycle
 	 * mode; the dynamic cycle ignores these.
 	 */
 	private void setFixedAngleOverrides(@Nullable float[] sunAngles, @Nullable float[] moonAngles) {
-		// Keep {altitude, azimuth}. Add PI only when converting to the internal astronomical
-		// representation: anglesToSkyDirection was changed (PI - az -> PI + az,
+		// Add PI while converting to the internal astronomical representation: anglesToSkyDirection
+		// was changed (PI - az -> PI + az,
 		// with the north/south component negated) to correct the real astronomical sun,
 		// which rotates any fixed angle 180° in azimuth. These overrides were hand-
 		// authored to look right under the old transform, so the conversion rotates them back
 		// 180° at the single boundary that feeds both the disk and its shadow, so every
 		// existing fixedSunAngles/fixedMoonAngles renders exactly as before.
-		float[] newSun = sunAngles == null ? null :
-			new float[] { sunAngles[0], sunAngles[1] };
-		float[] newMoon = moonAngles == null ? null :
-			new float[] { moonAngles[0], moonAngles[1] };
-		fixedSunAnglesOverride = newSun;
-		fixedMoonAnglesOverride = newMoon;
+		state.fixedSunAnglesOverride = sunAngles == null ? null : fixedToAstronomicalAngles(sunAngles);
+		hasFixedMoonOverride = moonAngles != null;
+		state.fixedMoonAngles = moonAngles != null
+			? fixedToAstronomicalAngles(moonAngles)
+			: FIXED_NIGHT_MOON_ANGLES;
 	}
 
 	/**
@@ -253,52 +250,16 @@ public class DaylightCycleManager {
 		currentLatLong[1] = latLong[1];
 	}
 
-	/**
-	 * Resolve the fixed sun angles {altitude, azimuth} in radians
-	 * for the active fixed cycle mode: the environment's fixedSunAngles override when
-	 * present, otherwise the built-in per-mode constant. Only valid for a fixed cycle mode.
-	 * Drives everything sun-related in fixed modes (disk, shadow, sky colors, brightness)
-	 * so those modes no longer depend on incremented time.
-	 */
-	private float[] getFixedModeSunAngles() {
-		if (fixedSunAnglesOverride != null)
-			return new float[] { fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] };
-		return currentCycle.getFixedSunAngles();
-	}
-
 	// Convert an environment-order fixed angle to the internal {azimuth, altitude} convention.
 	// The half turn preserves the fixed-angle orientation under the corrected sky transform.
 	private static float[] fixedToAstronomicalAngles(float[] fixedAngles) {
 		return new float[] { fixedAngles[1] + PI, fixedAngles[0] };
 	}
 
-	/**
-	 * Fixed moon angles {altitude, azimuth} in radians for the current fixed
-	 * mode. Returns the environment's fixedMoonAngles override when set,
-	 * otherwise the default Fixed Night position. Used both for the sky moon
-	 * direction and the shadow-casting light direction so the moon disk and the
-	 * shadows it casts stay locked together.
-	 */
-	private float[] getFixedNightMoonAngles() {
-		if (fixedMoonAnglesOverride != null)
-			return new float[] { fixedMoonAnglesOverride[0], fixedMoonAnglesOverride[1] };
-		return new float[] { FIXED_NIGHT_MOON_ANGLES[0], FIXED_NIGHT_MOON_ANGLES[1] };
-	}
-
-	/**
-	 * Whether the current environment supplies a fixed sun-angle override that
-	 * should be honored (i.e. a fixed mode is active and an override is set).
-	 */
-	private boolean hasFixedSunOverride() {
-		return currentCycle.isFixed && fixedSunAnglesOverride != null;
-	}
-
-	/**
-	 * Whether the current environment supplies a fixed moon-angle override that
-	 * should be honored (i.e. a fixed mode is active and an override is set).
-	 */
-	private boolean hasFixedMoonOverride() {
-		return currentCycle.isFixed && fixedMoonAnglesOverride != null;
+	/** Whether the moon, rather than the low sun, should drive directional shadows. */
+	private boolean shouldUseMoonShadows() {
+		return state.sunAngles[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
+			state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG;
 	}
 
 	/**
@@ -373,7 +334,9 @@ public class DaylightCycleManager {
 		// Every sun-position-dependent value (sky gradient colors, brightness, blend
 		// factors) reads this, so they all use the fixed position automatically.
 		if (currentCycle.isFixed)
-			return fixedToAstronomicalAngles(getFixedModeSunAngles());
+			return hasFixedSunOverride
+				? state.fixedSunAnglesOverride
+				: fixedToAstronomicalAngles(currentCycle.getFixedSunAngles());
 		return getAstronomicalSunAngles(currentInstant);
 	}
 
@@ -383,53 +346,30 @@ public class DaylightCycleManager {
 	}
 
 	/**
-	 * Write the sun's shadow-camera angles as {pitch, yaw}. Astronomical angles are
-	 * {azimuth, altitude}, while fixed environment angles are authored as {altitude, azimuth}.
-	 * Both require a half-turn azimuth compensation before driving the directional camera.
-	 */
-	private float[] getSunShadowAngles(float[] out) {
-		if (hasFixedSunOverride()) {
-			return setShadowAngles(out, fixedSunAnglesOverride[0], fixedSunAnglesOverride[1] + PI);
-		}
-
-		float[] sunAngles = state.sunAngles;
-		return setShadowAngles(out, sunAngles[1], sunAngles[0] + PI);
-	}
-
-	/**
-	 * Write the shadow camera angles for the body currently lighting the scene. Fixed sun and
-	 * moon overrides take precedence; otherwise the moon takes over after sunset when it is
-	 * still above the lighting horizon.
-	 */
-	private float[] getDirectionalShadowAngles() {
-		float[] angles = new float[2];
-
-		if (hasFixedSunOverride())
-			return getSunShadowAngles(angles);
-
-		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride())
-			return getMoonShadowAngles(angles);
-
-		if (state.sunAngles[1] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
-			state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG)
-			return getMoonShadowAngles(angles);
-
-		getSunShadowAngles(angles);
-		return angles;
-	}
-
-	/**
 	 * Update the directional camera angles in a way which minimizes shimmering.
 	 */
 	public void updateDirectionalCamera(Camera directionalCamera) {
-		float[] currentAngles = { directionalCamera.getPitch(), PI - directionalCamera.getYaw() };
-
-		float[] newAngles = getDirectionalShadowAngles();
-		float diff = max(abs(angleDiff(newAngles, currentAngles)));
-		if (diff >= directionalAngleUpdateThreshold) {
-			directionalCamera.setPitch(newAngles[0]);
-			directionalCamera.setYaw(PI - newAngles[1]);
+		// Fixed sun and moon overrides take precedence. Otherwise, the moon takes over after
+		// sunset while it remains above the lighting horizon.
+		float[] angles;
+		if (hasFixedSunOverride) {
+			angles = state.sunAngles;
+		} else if (moonPositionFixed) {
+			angles = state.moonAngles;
+		} else if (shouldUseMoonShadows()) {
+			angles = state.moonAngles;
+		} else {
+			angles = state.sunAngles;
 		}
+
+		angles = copy(angles);
+		// Environment fixedSunAngles were authored for the legacy directional-camera transform.
+		// Their normalized state angle includes a compensating half turn, which the camera must undo
+		// to preserve the existing shadow direction.
+		angles[0] = hasFixedSunOverride ? PI - angles[0] : -angles[0];
+		float diff = max(abs(angleDiff(angles, directionalCamera.getOrientation())));
+		if (diff >= directionalAngleUpdateThreshold)
+			directionalCamera.setOrientation(angles);
 	}
 
 	private float[] computeSunDirectionForSky() {
@@ -443,25 +383,6 @@ public class DaylightCycleManager {
 
 	// ===== Moon ==================================================================
 
-	/**
-	 * Write the moon's shadow-camera angles as {pitch, yaw}. Fixed moon positions use the
-	 * environment order directly; moving moons use the astronomical {azimuth, altitude} order.
-	 */
-	private float[] getMoonShadowAngles(float[] out) {
-		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride()) {
-			float[] fixedMoonAngles = getFixedNightMoonAngles();
-			return setShadowAngles(out, fixedMoonAngles[0], fixedMoonAngles[1]);
-		}
-
-		return setShadowAngles(out, state.moonAngles[1], state.moonAngles[0] + PI);
-	}
-
-	private static float[] setShadowAngles(float[] out, float pitch, float yaw) {
-		out[0] = pitch;
-		out[1] = yaw;
-		return out;
-	}
-
 	private float[] computeMoonDirectionForSky() {
 		return anglesToSkyDirection(state.moonAngles[0], state.moonAngles[1]);
 	}
@@ -469,8 +390,8 @@ public class DaylightCycleManager {
 	private float[] computeMoonAngles() {
 		// A fixed-mode moon override (or the default Fixed Night position) locks the moon
 		// regardless of moon behavior. ALWAYS_NIGHT is excluded so its moon keeps moving.
-		if (currentCycle.isLocksMoonPosition() || hasFixedMoonOverride())
-			return fixedToAstronomicalAngles(getFixedNightMoonAngles());
+		if (moonPositionFixed)
+			return state.fixedMoonAngles;
 		if (configMoonBehavior == MoonBehavior.NIGHT_SYNCED)
 			return computeNightSyncedMoonAngles();
 
@@ -700,7 +621,7 @@ public class DaylightCycleManager {
 		state.moonIllumination = computeMoonIlluminationFraction();
 		state.moonAltitudeDegrees = computeMoonAltitudeDegrees();
 		state.moonAltitudeDegreesForLighting = currentCycle.isUsesFixedMoonAltitudeForLighting()
-			? getFixedNightMoonAngles()[0] * RAD_TO_DEG
+			? state.fixedMoonAngles[1] * RAD_TO_DEG
 			: state.moonAltitudeDegrees;
 		state.sunDirection = computeSunDirectionForSky();
 		state.moonDirection = computeMoonDirectionForSky();
@@ -720,6 +641,9 @@ public class DaylightCycleManager {
 			environmentManager.getForcedFixedSunAngles(),
 			environmentManager.getForcedFixedMoonAngles()
 		);
+		hasFixedSunOverride = currentCycle.isFixed && state.fixedSunAnglesOverride != null;
+		moonPositionFixed = currentCycle.isLocksMoonPosition() ||
+			currentCycle.isFixed && hasFixedMoonOverride;
 	}
 
 	/** Advance the stateful dynamic-cycle clock. Fixed and real-time modes retain it for moons. */
