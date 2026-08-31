@@ -52,7 +52,6 @@ import rs117.hd.HdPlugin;
 import rs117.hd.config.DynamicLights;
 import rs117.hd.data.ObjectType;
 import rs117.hd.opengl.uniforms.UBOLights;
-import rs117.hd.scene.daylight_cycle.DaylightCycleManager;
 import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.lights.Alignment;
 import rs117.hd.scene.lights.Light;

@@ -8,6 +8,7 @@ import lombok.experimental.Accessors;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.opengl.uniforms.UBOSkybox;
+import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.lights.Light;

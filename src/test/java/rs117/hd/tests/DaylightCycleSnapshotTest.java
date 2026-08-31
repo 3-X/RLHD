@@ -3,7 +3,7 @@ package rs117.hd.tests;
 import java.lang.reflect.Field;
 import org.junit.Test;
 import rs117.hd.HdPlugin;
-import rs117.hd.scene.daylight_cycle.DaylightCycleManager;
+import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 
 import static org.junit.Assert.assertNotSame;

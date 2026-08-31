@@ -1,4 +1,4 @@
-package rs117.hd.scene.daylight_cycle;
+package rs117.hd.scene;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -14,7 +14,8 @@ import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
-import rs117.hd.scene.EnvironmentManager;
+import rs117.hd.scene.daylight_cycle.DaylightCycleState;
+import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.scene.lights.LightTimeOfDay;

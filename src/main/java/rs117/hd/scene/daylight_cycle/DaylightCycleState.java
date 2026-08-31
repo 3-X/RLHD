@@ -1,17 +1,15 @@
 package rs117.hd.scene.daylight_cycle;
 
-/** Per-frame celestial state. DaylightCycleManager mutates it; consumers treat arrays as read-only. */
-final class DaylightCycleState {
-	// Environment {altitude, azimuth} overrides; fixedMoonAngles also supports Always Night.
-	float[] fixedSunAnglesOverride;
-	float[] fixedMoonAngles;
-	float[] sunAngles;
-	float[] moonAngles;
-	float[] sunDirection;
-	float[] moonDirection;
-	float moonIllumination;
-	float moonAltitudeDegrees;
-	float moonAltitudeDegreesForLighting;
-	boolean hidesMoon;
-	float auroraStrength;
+public final class DaylightCycleState {
+	public float[] fixedSunAnglesOverride;
+	public float[] fixedMoonAngles;
+	public float[] sunAngles;
+	public float[] moonAngles;
+	public float[] sunDirection;
+	public float[] moonDirection;
+	public float moonIllumination;
+	public float moonAltitudeDegrees;
+	public float moonAltitudeDegreesForLighting;
+	public boolean hidesMoon;
+	public float auroraStrength;
 }
