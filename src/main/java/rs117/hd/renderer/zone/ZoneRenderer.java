@@ -848,7 +848,7 @@ public class ZoneRenderer implements Renderer {
 		renderState.ido.set(indirectDrawCmds.id);
 		renderState.apply();
 
-		skyRenderer.clear(skyRenderer.shouldRender() && !shouldRenderVanillaSkybox, shouldRenderVanillaSkybox);
+		skyRenderer.clear(shouldRenderVanillaSkybox);
 
 		frameTimer.begin(Timer.RENDER_SCENE);
 
@@ -1009,7 +1009,7 @@ public class ZoneRenderer implements Renderer {
 
 			frameTimer.begin(Timer.DRAW_ZONE_ALPHA);
 			sceneCmd.Enable(GL_BLEND);
-			
+
 			final boolean renderWater = z.inSceneFrustum && level == 0 && z.hasWater;
 			if (renderWater)
 				z.renderOpaqueLevel(sceneCmd, Zone.LEVEL_WATER_SURFACE);

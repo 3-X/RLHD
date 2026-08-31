@@ -87,7 +87,12 @@ public class SkyRenderer {
 		return skyLighting.shouldRenderSky() && skyProgram.isValid();
 	}
 
-	public void clear(boolean renderSky, boolean hasVanillaSkybox) {
+	private boolean canRenderSky(boolean hasVanillaSkybox) {
+		return shouldRender() && !plugin.orthographicProjection && !hasVanillaSkybox;
+	}
+
+	public void clear(boolean hasVanillaSkybox) {
+		boolean renderSky = canRenderSky(hasVanillaSkybox);
 		frameTimer.begin(Timer.CLEAR_SCENE);
 		glClearDepth(0);
 		if (renderSky) {
@@ -111,8 +116,8 @@ public class SkyRenderer {
 	}
 
 	public void render() {
-		boolean renderSky = shouldRender() && !plugin.orthographicProjection;
-		clear(renderSky, false);
+		boolean renderSky = canRenderSky(false);
+		clear(false);
 		if (renderSky) {
 			glDisable(GL_DEPTH_TEST);
 			glDisable(GL_CULL_FACE);

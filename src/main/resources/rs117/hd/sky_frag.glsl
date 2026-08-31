@@ -154,10 +154,8 @@ void main() {
                 float normDist = 1.0 - angDist / moonRadius;
                 normDist = clamp(normDist, 0.0, 1.0);
 
-                // For phase shape, we need a 2D coordinate on the moon face
-                // Project view direction onto moon-local coordinate system
-                // Create a local frame: moonDir is forward, need up and right
-                vec3 moonUp = vec3(0.0, 1.0, 0.0);
+                // Use a fallback reference axis near vertical to avoid a zero cross product.
+                vec3 moonUp = abs(moonDir.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(0.0, 0.0, 1.0);
                 vec3 moonRight = normalize(cross(moonUp, moonDir));
                 moonUp = normalize(cross(moonDir, moonRight));
 

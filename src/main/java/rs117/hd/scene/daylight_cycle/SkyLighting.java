@@ -257,13 +257,13 @@ public class SkyLighting {
 	private float[] getRegionalDirectionalLight(DaylightCycleState state, float[] regionalDirectionalColor) {
 		float[] sunAngles = state.sunAngles;
 		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
-		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
+		return mix(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
 	}
 
 	private float[] getRegionalAmbientLight(DaylightCycleState state, float[] regionalAmbientColor) {
 		float[] sunAngles = state.sunAngles;
 		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
-		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
+		return mix(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
 	}
 
 	/** Return {zenith, horizon, sun glow} sRGB after regional and night-sky blending. */
@@ -288,7 +288,7 @@ public class SkyLighting {
 			float window = sunAltitude >= 0 ? 1 : smoothstep(-25, 0, sunAltitude);
 			float suppression = (1 - sunStrength) * window;
 			if (suppression > 0) {
-				float[] target = mixColor(regionalLin, NIGHT_SKY_LINEAR, smoothstep(5, -5, sunAltitude));
+				float[] target = mix(regionalLin, NIGHT_SKY_LINEAR, smoothstep(5, -5, sunAltitude));
 				blendTowards(zenith, target, suppression);
 				blendTowards(horizon, target, suppression);
 				fadeOut(sunGlow, suppression);
@@ -618,10 +618,6 @@ public class SkyLighting {
 
 	private static float moonElevationFade(float moonAltDeg) {
 		return smoothstep(MOON_ELEVATION_FADE_START_DEG, MOON_ELEVATION_FADE_END_DEG, moonAltDeg);
-	}
-
-	private static float[] mixColor(float[] a, float[] b, float t) {
-		return mix(a, b, t);
 	}
 
 	private static final class OutdoorSkySample {
