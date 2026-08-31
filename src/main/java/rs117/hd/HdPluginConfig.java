@@ -666,7 +666,7 @@ public interface HdPluginConfig extends Config
 	// 0.1 and ignores @Range for doubles, so a double here makes the arrows increment
 	// by a fraction of a minute and drops the 1-720 clamp. The int spinner steps by 1
 	// and honors @Range.
-	default int cycleDurationMinutes() {
+	default double cycleDurationMinutes() {
 		return 30;
 	}
 

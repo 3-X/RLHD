@@ -127,7 +127,7 @@ public class DaylightCycleManager {
 		configDayLength = config.dayLength();
 		configMoonBehavior = config.moonBehavior();
 		configMoonPhase = config.moonPhase();
-		configCycleDuration = config.cycleDurationMinutes();
+		configCycleDuration = max(1e-6f, (float) config.cycleDurationMinutes());
 	}
 
 	/** Synced Days always uses the northern latitude so all players see the same sky. */
