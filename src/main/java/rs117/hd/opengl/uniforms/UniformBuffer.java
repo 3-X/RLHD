@@ -39,6 +39,7 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 		private final int alignment;
 		private final int elementCount;
 		private final boolean isInt = name().startsWith("I");
+		private final boolean isFloat = name().startsWith("F");
 	}
 
 	@AllArgsConstructor
@@ -100,7 +101,12 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 			owner.markWaterLine(position, type.size);
 		}
 
-		public final void set(int x) {
+		public final void set(int v) {
+			if (type.isFloat) {
+				set((float) v);
+				return;
+			}
+
 			if (isUninitialized())
 				return;
 
@@ -109,11 +115,16 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 				return;
 			}
 
-			owner.dataInt.position(offset).put(x);
+			owner.dataInt.position(offset).put(v);
 			owner.markWaterLine(position, type.size);
 		}
 
 		public final void set(int x, int y) {
+			if (type.isFloat) {
+				set((float) x, (float) y);
+				return;
+			}
+
 			if (isUninitialized())
 				return;
 
@@ -127,6 +138,11 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 		}
 
 		public final void set(int x, int y, int z) {
+			if (type.isFloat) {
+				set((float) x, (float) y, (float) z);
+				return;
+			}
+
 			if (isUninitialized())
 				return;
 
@@ -140,6 +156,11 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 		}
 
 		public final void set(int x, int y, int z, int w) {
+			if (type.isFloat) {
+				set((float) x, (float) y, (float) z, (float) w);
+				return;
+			}
+
 			if (isUninitialized())
 				return;
 
@@ -186,7 +207,7 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 			owner.markWaterLine(position, type.size);
 		}
 
-		public final void set(float x) {
+		public final void set(float v) {
 			if (isUninitialized())
 				return;
 
@@ -195,7 +216,7 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 				return;
 			}
 
-			owner.dataFloat.position(offset).put(x);
+			owner.dataFloat.position(offset).put(v);
 			owner.markWaterLine(position, type.size);
 		}
 
