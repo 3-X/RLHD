@@ -2,6 +2,42 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "environments.schema.json",
   "title": "Environments",
+  "$defs": {
+    "skyGradient": {
+      "type": "object",
+      "description": "Sky colors keyed by sun altitude. Environments without a profile inherit the active seasonal overworld profile.",
+      "additionalProperties": false,
+      "required": [ "zenith", "horizon", "sunGlow" ],
+      "properties": {
+        "zenith": { "$ref": "#/$defs/skyGradientKeyframes" },
+        "horizon": { "$ref": "#/$defs/skyGradientKeyframes" },
+        "sunGlow": { "$ref": "#/$defs/skyGradientKeyframes" }
+      }
+    },
+    "skyGradientKeyframes": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [ "altitude", "color" ],
+        "properties": {
+          "altitude": {
+            "type": "number",
+            "description": "Sun altitude in degrees. Keyframes must be ordered from low to high altitude."
+          },
+          "color": {
+            "type": [ "string", "array" ],
+            "description": "sRGB color, specified as a hex code or an array in the range 0-255.",
+            "pattern": "^#[A-Fa-f0-9]{6}$",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": { "type": "number" }
+          }
+        }
+      }
+    }
+  },
   "type": "array",
   "items": {
     "type": "object",
@@ -344,6 +380,9 @@
         "description": "Sun altitude in degrees where `fogColor` fully replaces the procedural sky gradient. Lower values shorten the procedural twilight; 0 replaces it at the horizon. Defaults to 40.",
         "minimum": 0,
         "maximum": 90
+      },
+      "skyGradient": {
+        "$ref": "#/$defs/skyGradient"
       },
       "sunlightStrength": {
         "type": "number",

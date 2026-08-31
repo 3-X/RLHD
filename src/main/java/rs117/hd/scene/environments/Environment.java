@@ -17,6 +17,7 @@ import rs117.hd.utils.GsonUtils.DegreesToRadians;
 import rs117.hd.utils.HDUtils;
 
 import static rs117.hd.utils.ColorUtils.SrgbToLinearAdapter;
+import static rs117.hd.utils.ColorUtils.SrgbAdapter;
 import static rs117.hd.utils.ColorUtils.rgb;
 
 @Slf4j
@@ -113,6 +114,8 @@ public class Environment {
 	public float sunStrength = 1;
 	public float sunriseSunsetStrength = 1;
 	public float skyColorTakeoverAngle = 40;
+	@Nullable
+	public SkyGradient skyGradient;
 	public float sunlightStrength = 1;
 	public float minBrightnessBoost = 0;
 	public boolean hideVanillaSkyboxes = false;
@@ -176,5 +179,17 @@ public class Environment {
 		if (key != null)
 			return key;
 		return area.name;
+	}
+
+	public static class SkyGradient {
+		public Keyframe[] zenith;
+		public Keyframe[] horizon;
+		public Keyframe[] sunGlow;
+
+		public static class Keyframe {
+			public float altitude;
+			@JsonAdapter(SrgbAdapter.class)
+			public float[] color;
+		}
 	}
 }

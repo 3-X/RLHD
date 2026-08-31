@@ -753,7 +753,7 @@ public interface HdPluginConfig extends Config
 		description =
 			"How the moon moves across the sky.<br>" +
 			"Realistic = Astronomical moon with realistic phases and independent orbit<br>" +
-			"Night Synced = Moon always rises when sun sets and sets when sun rises (always full)",
+			"Night Synced = Moon rises at sunset and sets at sunrise; its phase advances while unlit",
 		position = 8,
 		section = daylightCycleSettings
 	)

@@ -161,20 +161,20 @@ void main() {
                 float localX = dot(toView, moonRight) * angDist / moonRadius;
                 float localY = dot(toView, moonUp) * angDist / moonRadius;
 
-                // Phase terminator: illumination maps to terminator position
-                // The lit region is where localX < terminatorEdge (sun-facing side)
-                // illumination=1 (full): terminatorX = 1, edge at +1 -> all lit
-                // illumination=0.5 (half): terminatorX = 0, edge at 0 -> half lit
-                // illumination=0 (new): terminatorX = -1, edge at -1 -> all dark
-                float terminatorX = 2.0 * skyMoonIllumination - 1.0;
+                // Orient the terminator toward the sun. The phase amount can remain
+                // independent, which lets Night Synced use its separate phase clock.
+                vec2 moonToSun = vec2(dot(sky.sunDir, moonRight), dot(sky.sunDir, moonUp));
+                float moonToSunLength = length(moonToSun);
+                moonToSun = moonToSunLength > 1e-4 ? moonToSun / moonToSunLength : vec2(1.0, 0.0);
 
-                // The terminator is an ellipse on the disk surface
-                float yy = localY * localY;
-                float terminatorEdge = terminatorX * sqrt(max(0.0, 1.0 - yy));
-                // Widen the smoothstep near the poles where the ellipse curvature is steep
-                float edgeSoftness = mix(0.05, 0.35, yy * yy);
-                // Smooth the terminator edge - lit when localX is LESS than the edge
-                float isLit = smoothstep(terminatorEdge + edgeSoftness, terminatorEdge - edgeSoftness, localX);
+                vec2 moonLocal = vec2(localX, localY);
+                float phaseX = -dot(moonLocal, moonToSun);
+                float phaseY = dot(moonLocal, vec2(-moonToSun.y, moonToSun.x));
+                float terminatorPosition = 2.0 * skyMoonIllumination - 1.0;
+                float phaseY2 = phaseY * phaseY;
+                float terminatorEdge = terminatorPosition * sqrt(max(0.0, 1.0 - phaseY2));
+                float edgeSoftness = mix(0.05, 0.35, phaseY2 * phaseY2);
+                float isLit = smoothstep(terminatorEdge + edgeSoftness, terminatorEdge - edgeSoftness, phaseX);
 
                 // Limb darkening: edges of the moon are slightly darker
                 float limbDarkening = mix(0.85, 1.0, normDist);

@@ -44,6 +44,7 @@ import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.DefaultSkyColor;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.scene.environments.Environment;
+import rs117.hd.scene.environments.Environment.SkyGradient;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.ExpressionParser;
 import rs117.hd.utils.ExpressionPredicate;
@@ -775,6 +776,25 @@ public class EnvironmentManager {
 			default:
 				return Environment.OVERWORLD;
 		}
+	}
+
+	/** Resolve a sky-gradient profile, falling back through the active seasonal overworld. */
+	@Nonnull
+	public SkyGradient getSkyGradient() {
+		return getSkyGradient(getCurrentEnvironment());
+	}
+
+	/** Resolve an outdoor sky-gradient profile for lighting sampled at {@code environment}. */
+	@Nonnull
+	public SkyGradient getSkyGradient(Environment environment) {
+		if (environment.skyGradient != null)
+			return environment.skyGradient;
+
+		Environment overworld = getOverworldEnvironment();
+		if (overworld.skyGradient != null)
+			return overworld.skyGradient;
+
+		return Objects.requireNonNull(Environment.OVERWORLD.skyGradient, "OVERWORLD environment must define a skyGradient");
 	}
 
 	public boolean isOverworld() {

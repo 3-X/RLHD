@@ -12,6 +12,7 @@ import rs117.hd.opengl.uniforms.UBOSky;
 import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.environments.Environment;
+import rs117.hd.scene.environments.Environment.SkyGradient;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.utils.ColorUtils;
 
@@ -48,47 +49,6 @@ public class SkyLighting {
 
 	private static final float[] NIGHT_SKY_LINEAR = rgb(5, 7, 15);
 	private static final float[] SKY_LUMA_WEIGHTS = { .2126f, .7152f, .0722f };
-
-	// {sun altitude degrees, sRGB}; rows must remain sorted.
-	private static final float[][] ZENITH_KEYFRAMES = {
-		srgbKeyframe(-30, 0x010104),
-		srgbKeyframe(-15, 0x03040A),
-		srgbKeyframe(-8, 0x2D2346),
-		srgbKeyframe(-3, 0x503C64),
-		srgbKeyframe(0, 0x645078),
-		srgbKeyframe(5, 0x788CB4),
-		srgbKeyframe(15, 0x6496C8),
-		srgbKeyframe(30, 0x5A91C8),
-		srgbKeyframe(50, 0x558CC3),
-		srgbKeyframe(90, 0x5087BE),
-	};
-
-	private static final float[][] HORIZON_KEYFRAMES = {
-		srgbKeyframe(-30, 0x010205),
-		srgbKeyframe(-15, 0x04050C),
-		srgbKeyframe(-8, 0x3C2D41),
-		srgbKeyframe(-3, 0x8C5046),
-		srgbKeyframe(0, 0xDC8250),
-		srgbKeyframe(5, 0xE6AA78),
-		srgbKeyframe(10, 0xC8B4A0),
-		srgbKeyframe(20, 0xAAAFB9),
-		srgbKeyframe(30, 0x96A5BE),
-		srgbKeyframe(50, 0x8CA0BE),
-		srgbKeyframe(90, 0x879BB9),
-	};
-
-	private static final float[][] SUN_GLOW_KEYFRAMES = {
-		srgbKeyframe(-30, 0x000000),
-		srgbKeyframe(-10, 0x140A1E),
-		srgbKeyframe(-5, 0x50283C),
-		srgbKeyframe(-2, 0xB45032),
-		srgbKeyframe(0, 0xFF9650),
-		srgbKeyframe(5, 0xFFC882),
-		srgbKeyframe(15, 0xFFE6B4),
-		srgbKeyframe(30, 0xFFFADC),
-		srgbKeyframe(50, 0xFFFFF0),
-		srgbKeyframe(90, 0xFFFFFA),
-	};
 
 	// Sun altitude in degrees mapped to color temperature in kelvin.
 	private static final float[][] DIRECTIONAL_TEMPERATURE_KEYFRAMES = {
@@ -205,6 +165,7 @@ public class SkyLighting {
 		float moonIllumination = state.moonIllumination;
 		float[][] sky = getSkyGradientColors(
 			state,
+			environmentManager.getSkyGradient(),
 			fogColorSrgb,
 			environmentManager.currentSunStrength,
 			environmentManager.currentSunriseSunsetStrength,
@@ -269,6 +230,7 @@ public class SkyLighting {
 	/** Return {zenith, horizon, sun glow} sRGB after regional and night-sky blending. */
 	private float[][] getSkyGradientColors(
 		DaylightCycleState state,
+		SkyGradient profile,
 		float[] regionalFogColor,
 		float sunStrength,
 		float sunriseSunsetStrength,
@@ -279,9 +241,9 @@ public class SkyLighting {
 		float takeover = max(0, skyColorTakeoverAngle);
 		float[] regionalLin = regionalFogColor != null ? srgbToLinear(regionalFogColor) : null;
 
-		float[] zenith = interpolateSrgb(sunAltitude, ZENITH_KEYFRAMES);
-		float[] horizon = interpolateSrgb(sunAltitude, HORIZON_KEYFRAMES);
-		float[] sunGlow = interpolateSrgb(sunAltitude, SUN_GLOW_KEYFRAMES);
+		float[] zenith = interpolateSrgb(sunAltitude, profile.zenith);
+		float[] horizon = interpolateSrgb(sunAltitude, profile.horizon);
+		float[] sunGlow = interpolateSrgb(sunAltitude, profile.sunGlow);
 
 		// Suppress procedural sunset colors in dark regional environments.
 		if (regionalLin != null && sunStrength < 1) {
@@ -327,10 +289,10 @@ public class SkyLighting {
 		return new float[][] { linearToSrgb(zenith), linearToSrgb(horizon), linearToSrgb(sunGlow) };
 	}
 
-	private float[] getReferenceHorizonColor(float[] regionalFogColor) {
+	private float[] getReferenceHorizonColor(float[] regionalFogColor, SkyGradient profile) {
 		return regionalFogColor != null
 			? regionalFogColor
-			: linearToSrgb(interpolateSrgb(90, HORIZON_KEYFRAMES));
+			: linearToSrgb(interpolateSrgb(90, profile.horizon));
 	}
 
 	private float getBrightnessMultiplier(DaylightCycleState state, int minimumBrightness) {
@@ -410,8 +372,10 @@ public class SkyLighting {
 			return cachedOutdoorSkySample;
 
 		float[] regionalFogSrgb = environmentManager.getOutdoorRegionalFogSrgb(environment);
+		SkyGradient profile = environmentManager.getSkyGradient(environment);
 		float[][] skyGradient = getSkyGradientColors(
 			state,
+			profile,
 			regionalFogSrgb,
 			environment.sunStrength,
 			environment.sunriseSunsetStrength,
@@ -419,7 +383,7 @@ public class SkyLighting {
 		);
 		OutdoorSkySample sample = new OutdoorSkySample(
 			ColorUtils.srgbToLinear(skyGradient[1]),
-			ColorUtils.srgbToLinear(getReferenceHorizonColor(regionalFogSrgb)),
+			ColorUtils.srgbToLinear(getReferenceHorizonColor(regionalFogSrgb, profile)),
 			getBrightnessMultiplier(state, minimumBrightness)
 		);
 		cachedOutdoorSkySample = sample;
@@ -427,15 +391,6 @@ public class SkyLighting {
 		cachedOutdoorSkyMinBrightness = minimumBrightness;
 		cachedOutdoorSkyFrame = plugin.frame;
 		return sample;
-	}
-
-	private static float[] srgbKeyframe(float altitudeDegrees, int srgb) {
-		return vec(
-			altitudeDegrees,
-			((srgb >> 16) & 0xFF) / 255f,
-			((srgb >> 8) & 0xFF) / 255f,
-			(srgb & 0xFF) / 255f
-		);
 	}
 
 	private static float[] linearKeyframe(float altitudeDegrees, int red, int green, int blue) {
@@ -482,21 +437,19 @@ public class SkyLighting {
 		return mix(from[1], to[1], clamp((x - from[0]) / (to[0] - from[0]), 0, 1));
 	}
 
-	private static float[] interpolateSrgb(float x, float[][] keyframes) {
+	private static float[] interpolateSrgb(float x, SkyGradient.Keyframe[] keyframes) {
 		int end = keyframes.length - 1;
 		int i = 0;
-		while (i < end && x > keyframes[i + 1][0])
+		while (i < end && x > keyframes[i + 1].altitude)
 			i++;
-		float[] from = keyframes[i];
+
+		SkyGradient.Keyframe from = keyframes[i];
 		if (i == end)
-			return srgbToLinear(slice(from, 1));
-		float[] to = keyframes[i + 1];
-		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
-		return mix(
-			srgbToLinear(slice(from, 1)),
-			srgbToLinear(slice(to, 1)),
-			t
-		);
+			return srgbToLinear(from.color);
+
+		SkyGradient.Keyframe to = keyframes[i + 1];
+		float t = clamp((x - from.altitude) / (to.altitude - from.altitude), 0, 1);
+		return mix(srgbToLinear(from.color), srgbToLinear(to.color), t);
 	}
 
 	private static float[] interpolateLinear(float x, float[][] keyframes) {
