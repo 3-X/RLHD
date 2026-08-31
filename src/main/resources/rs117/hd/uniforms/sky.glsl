@@ -2,7 +2,7 @@
 
 #include NEBULA_CLUSTER_COUNT
 
-layout(std140) uniform UBOSkybox {
+layout(std140) uniform UBOSky {
     bool skyGradientEnabled;
     vec3 skyZenithColor;
     vec3 skyHorizonColor;

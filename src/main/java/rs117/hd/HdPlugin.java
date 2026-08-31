@@ -93,7 +93,7 @@ import rs117.hd.opengl.shader.UIShaderProgram;
 import rs117.hd.opengl.uniforms.UBOCompute;
 import rs117.hd.opengl.uniforms.UBOGlobal;
 import rs117.hd.opengl.uniforms.UBOLights;
-import rs117.hd.opengl.uniforms.UBOSkybox;
+import rs117.hd.opengl.uniforms.UBOSky;
 import rs117.hd.opengl.uniforms.UBOUI;
 import rs117.hd.overlays.FrameTimer;
 import rs117.hd.overlays.GammaCalibrationOverlay;
@@ -403,7 +403,7 @@ public class HdPlugin extends Plugin {
 	public int texTiledLighting;
 
 	public UBOGlobal uboGlobal;
-	public UBOSkybox uboSkybox;
+	public UBOSky uboSky;
 	public UBOUI uboUI;
 	public UBOLights uboLights;
 	public UBOLights uboLightsCulling;
@@ -980,7 +980,7 @@ public class HdPlugin extends Plugin {
 			.addInclude("WATER_TYPE_GETTER", () -> generateGetter("WaterType", waterTypeManager.uboWaterTypes.getCount()))
 			.define("NEBULA_CLUSTER_COUNT", StarField.CLUSTER_COUNT)
 			.addUniformBuffer(uboGlobal)
-			.addUniformBuffer(uboSkybox)
+			.addUniformBuffer(uboSky)
 			.addUniformBuffer(uboLights)
 			.addUniformBuffer(uboLightsCulling)
 			.addUniformBuffer(uboUI)
@@ -1161,9 +1161,8 @@ public class HdPlugin extends Plugin {
 		uboGlobal = new UBOGlobal();
 		uboGlobal.initialize(UNIFORM_BLOCK_GLOBAL);
 
-		uboSkybox = new UBOSkybox();
-		uboSkybox.initialize(UNIFORM_BLOCK_SKYBOX);
-		uboSkybox.reset();
+		uboSky = new UBOSky();
+		uboSky.initialize(UNIFORM_BLOCK_SKYBOX);
 
 		uboUI = new UBOUI();
 		uboUI.initialize(UNIFORM_BLOCK_UI);
@@ -1180,9 +1179,9 @@ public class HdPlugin extends Plugin {
 			uboGlobal.destroy();
 		uboGlobal = null;
 
-		if (uboSkybox != null)
-			uboSkybox.destroy();
-		uboSkybox = null;
+		if (uboSky != null)
+			uboSky.destroy();
+		uboSky = null;
 
 		if (uboUI != null)
 			uboUI.destroy();

@@ -43,26 +43,23 @@ import rs117.hd.HdPluginConfig;
 import rs117.hd.config.ColorFilter;
 import rs117.hd.config.DynamicLights;
 import rs117.hd.config.ShadowMode;
-import rs117.hd.opengl.shader.NebulaBakeShaderProgram;
 import rs117.hd.opengl.shader.SceneShaderProgram;
 import rs117.hd.opengl.shader.ShaderException;
 import rs117.hd.opengl.shader.ShaderIncludes;
 import rs117.hd.opengl.shader.ShadowShaderProgram;
-import rs117.hd.opengl.shader.SkyShaderProgram;
-import rs117.hd.opengl.shader.StarShaderProgram;
 import rs117.hd.opengl.shader.TerrainShadowShaderProgram;
 import rs117.hd.opengl.uniforms.UBOLights;
 import rs117.hd.opengl.uniforms.UBOWorldViews;
 import rs117.hd.overlays.FrameTimer;
 import rs117.hd.overlays.Timer;
 import rs117.hd.renderer.Renderer;
+import rs117.hd.renderer.SkyRenderer;
 import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.LightManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SceneContext;
 import rs117.hd.scene.daylight_cycle.SkyLighting;
-import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
 import rs117.hd.utils.Camera;
@@ -82,7 +79,6 @@ import static net.runelite.api.Perspective.*;
 import static org.lwjgl.opengl.GL33C.*;
 import static rs117.hd.HdPlugin.APPLE;
 import static rs117.hd.HdPlugin.COLOR_FILTER_FADE_DURATION;
-import static rs117.hd.HdPlugin.GL_CAPS;
 import static rs117.hd.HdPlugin.NEAR_PLANE;
 import static rs117.hd.HdPlugin.ORTHOGRAPHIC_ZOOM;
 import static rs117.hd.HdPlugin.checkGLErrors;
@@ -153,19 +149,10 @@ public class ZoneRenderer implements Renderer {
 	private TerrainShadowShaderProgram terrainShadowProgram;
 
 	@Inject
-	private SkyShaderProgram skyProgram;
-
-	@Inject
-	public NebulaBakeShaderProgram nebulaBakeProgram;
-
-	@Inject
-	private StarShaderProgram starProgram;
-
-	@Inject
-	private StarField starField;
-
-	@Inject
 	private DaylightCycleManager daylightCycleManager;
+
+	@Inject
+	private SkyRenderer skyRenderer;
 
 	@Inject
 	private SkyLighting skyLighting;
@@ -185,7 +172,6 @@ public class ZoneRenderer implements Renderer {
 	public final CommandBuffer gapFillerCmd = new CommandBuffer("GapFiller");
 	public final CommandBuffer directionalCmd = new CommandBuffer("Directional");
 	public final CommandBuffer terrainShadowCmd = new CommandBuffer("TerrainShadow");
-	public final CommandBuffer skyboxCmd = new CommandBuffer("Skybox");
 
 	private GLBuffer indirectDrawCmds;
 	public static GpuIntBuffer indirectDrawCmdsStaging;
@@ -226,15 +212,13 @@ public class ZoneRenderer implements Renderer {
 		gapFillerCmd.setFrameTimer(frameTimer);
 		directionalCmd.setFrameTimer(frameTimer);
 		terrainShadowCmd.setFrameTimer(frameTimer);
-		skyboxCmd.setFrameTimer(frameTimer);
 
 		jobSystem.startUp(config.cpuUsageLimit());
 		uboWorldViews.initialize(UNIFORM_BLOCK_WORLD_VIEWS);
 		sceneManager.initialize(uboWorldViews);
 		modelStreamingManager.initialize();
 
-		starField.initialize();
-		skyboxCmd.reset();
+		skyRenderer.initialize();
 
 		// Force updates that only run when the cameras change
 		sceneCamera.setDirty();
@@ -244,6 +228,7 @@ public class ZoneRenderer implements Renderer {
 	@Override
 	public void destroy() {
 		destroyBuffers();
+		skyRenderer.destroy();
 
 		jobSystem.shutDown();
 		modelStreamingManager.destroy();
@@ -278,11 +263,7 @@ public class ZoneRenderer implements Renderer {
 		fastShadowProgram.compile(includes);
 		detailedShadowProgram.compile(includes);
 		terrainShadowProgram.compile(includes);
-		skyProgram.compile(includes);
-		nebulaBakeProgram.compile(includes);
-		starProgram.compile(includes);
-
-		starField.resetStarfield();
+		skyRenderer.initializeShaders(includes);
 	}
 
 	@Override
@@ -292,48 +273,7 @@ public class ZoneRenderer implements Renderer {
 		fastShadowProgram.destroy();
 		detailedShadowProgram.destroy();
 		terrainShadowProgram.destroy();
-		skyProgram.destroy();
-		nebulaBakeProgram.destroy();
-		starProgram.destroy();
-	}
-
-	private void updateSkyboxCmd() {
-		boolean starfieldChanged = starField.shouldGenerateStarField();
-		if (!starfieldChanged && !skyboxCmd.isEmpty())
-			return;
-
-		skyboxCmd.reset();
-		skyboxCmd.PushTimer(Timer.RENDER_SKYBOX);
-		skyboxCmd.SetShader(skyProgram);
-		skyboxCmd.DepthMask(false);
-
-		// Render sky gradient using fullscreen triangle
-		skyboxCmd.BindVertexArray(plugin.vaoTri);
-		skyboxCmd.DrawArrays(GL_TRIANGLES, 0, 3);
-
-		// Star point sprites, drawn additively over the sky. Cost scales with
-		// star count rather than screen pixels (unlike the old per-pixel field).
-		if (starProgram.isValid() && starField.getVaoStars() != 0) {
-			skyboxCmd.SetShader(starProgram);
-			skyboxCmd.Enable(GL_PROGRAM_POINT_SIZE);
-			if (!GL_CAPS.forwardCompatible) // GL_POINT_SPRITE is always enabled for core OpenGL >=3.0
-				skyboxCmd.Enable(GL20.GL_POINT_SPRITE);
-			skyboxCmd.Enable(GL_BLEND);
-			skyboxCmd.BlendFunc(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
-
-			skyboxCmd.BindVertexArray(starField.getVaoStars());
-			skyboxCmd.DrawArrays(GL_POINTS, 0, starField.starCount);
-
-			skyboxCmd.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-			skyboxCmd.Disable(GL_BLEND);
-			if (!GL_CAPS.forwardCompatible) // GL_POINT_SPRITE is always enabled for core OpenGL >=3.0
-				skyboxCmd.Disable(GL20.GL_POINT_SPRITE);
-			skyboxCmd.Disable(GL_PROGRAM_POINT_SIZE);
-		}
-
-		// Restore Scene Shader
-		skyboxCmd.DepthMask(true);
-		skyboxCmd.PopTimer(Timer.RENDER_SKYBOX);
+		skyRenderer.destroyShaders();
 	}
 
 	private void initializeBuffers() {
@@ -361,8 +301,6 @@ public class ZoneRenderer implements Renderer {
 		if (indirectDrawCmdsStaging != null)
 			indirectDrawCmdsStaging.destroy();
 		indirectDrawCmdsStaging = null;
-
-		starField.destroy();
 	}
 
 	@Override
@@ -370,8 +308,7 @@ public class ZoneRenderer implements Renderer {
 		if (keys.contains(KEY_ASYNC_MODEL_PROCESSING))
 			modelStreamingManager.reinitialize();
 
-		if (keys.contains(KEY_ENABLE_NEBULAS))
-			starField.resetStarfield();
+		skyRenderer.processConfigChanges(keys);
 	}
 
 	@Override
@@ -533,7 +470,6 @@ public class ZoneRenderer implements Renderer {
 
 			// The day & night cycle overrides the environment's static sun angles when active.
 			if (daylightCycleManager.isCycleActive()) {
-				updateSkyboxCmd();
 				daylightCycleManager.updateDirectionalCamera(directionalCamera);
 			} else {
 				directionalCamera.setPitch(environmentManager.currentSunAngles[0]);
@@ -668,7 +604,7 @@ public class ZoneRenderer implements Renderer {
 		if (client.getGameState().getState() >= GameState.LOGGED_IN.getState())
 			plugin.hasLoggedIn = true;
 
-		skyLighting.update();
+		skyRenderer.update(plugin.uboGlobal);
 
 		// Hide the game's own skybox models so the cycle's sky shows in their place. Needs
 		// all three: the gradient sky must actually be rendering (otherwise hiding leaves a
@@ -676,7 +612,7 @@ public class ZoneRenderer implements Renderer {
 		// to force vanilla skyboxes back on everywhere. Reporting the skybox as absent lets
 		// the existing !shouldRenderRSSkybox paths do the swap.
 		boolean hideVanillaSkyboxes =
-			skyLighting.shouldRenderSky() &&
+			skyRenderer.shouldRender() &&
 			config.hideVanillaSkyboxes() &&
 			environmentManager.hideVanillaSkyboxes();
 		shouldRenderVanillaSkybox = scene.getSkybox() != null && !hideVanillaSkyboxes;
@@ -912,30 +848,7 @@ public class ZoneRenderer implements Renderer {
 		renderState.ido.set(indirectDrawCmds.id);
 		renderState.apply();
 
-		// Clear scene
-		frameTimer.begin(Timer.CLEAR_SCENE);
-		glClearDepth(0);
-
-		// Render sky gradient if daylight cycle is enabled, otherwise use solid color clear
-		if (skyLighting.shouldRenderSky() && !shouldRenderVanillaSkybox && skyProgram.isValid()) {
-			glClear(GL_DEPTH_BUFFER_BIT);
-			frameTimer.end(Timer.CLEAR_SCENE);
-		} else {
-			// Use the cycle's fog color if it's driving this frame, otherwise the environment's
-			float[] fogColor = { 0, 0, 0 };
-			if (!shouldRenderVanillaSkybox)
-				fogColor = skyLighting.fogColorSrgb;
-
-			float[] gammaCorrectedFogColor = pow(fogColor, plugin.getGammaCorrection());
-			glClearColor(
-				gammaCorrectedFogColor[0],
-				gammaCorrectedFogColor[1],
-				gammaCorrectedFogColor[2],
-				1f
-			);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			frameTimer.end(Timer.CLEAR_SCENE);
-		}
+		skyRenderer.clear(skyRenderer.shouldRender() && !shouldRenderVanillaSkybox, shouldRenderVanillaSkybox);
 
 		frameTimer.begin(Timer.RENDER_SCENE);
 
@@ -1171,14 +1084,13 @@ public class ZoneRenderer implements Renderer {
 
 					sceneCmd.ExecuteSubCommandBuffer(ctx.vaoSceneCmd);
 
-					if (skyLighting.shouldRenderSky() &&
+					if (skyRenderer.shouldRender() &&
 						!shouldRenderVanillaSkybox &&
 						!plugin.orthographicProjection &&
-						sceneManager.isRoot(ctx) &&
-						skyProgram.isValid()
+						sceneManager.isRoot(ctx)
 					) {
 						// Draw Skybox after drawing Top Level Scene Opaque
-						sceneCmd.ExecuteSubCommandBuffer(skyboxCmd);
+						skyRenderer.render(sceneCmd);
 						sceneCmd.SetShader(sceneProgram);
 					}
 					break;

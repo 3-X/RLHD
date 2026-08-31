@@ -7,7 +7,8 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
-import rs117.hd.opengl.uniforms.UBOSkybox;
+import rs117.hd.opengl.uniforms.UBOGlobal;
+import rs117.hd.opengl.uniforms.UBOSky;
 import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.environments.Environment;
@@ -134,49 +135,22 @@ public class SkyLighting {
 	private int cachedOutdoorSkyMinBrightness;
 	private int cachedOutdoorSkyFrame = -1;
 
-	/** Resolve this frame's lighting and UBO properties. */
-	public void update() {
+	public void initialize() {
+		disableSky();
+	}
+
+	public void update(UBOGlobal uboGlobal) {
+		seedFromEnvironment();
+
 		boolean wasActive = shouldRenderSky;
 		shouldRenderSky = daylightCycleManager.isCycleActive();
 		if (shouldRenderSky) {
-			computeCycleLighting();
-		} else {
-			seedFromEnvironment();
-			if (wasActive)
-				plugin.uboSkybox.reset();
+			updateSky();
+		} else if (wasActive) {
+			disableSky();
 		}
 
-		writeGlobalLighting();
-		if (shouldRenderSky)
-			plugin.uboSkybox.upload();
-	}
-
-	/** Write global lighting; ZoneRenderer uploads it. */
-	private void writeGlobalLighting() {
-		plugin.uboGlobal.fogColor.set(fogColorSrgb);
-
-		float[] waterColorHsv = ColorUtils.srgbToHsv(waterColor);
-		plugin.uboGlobal.waterColorLight.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
-			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .8f
-		)));
-		plugin.uboGlobal.waterColorMid.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
-			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .45f
-		)));
-		plugin.uboGlobal.waterColorDark.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
-			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .05f
-		)));
-
-		float effectiveAmbientStrength = ambientStrength;
-		effectiveDirectionalStrength = directionalStrength;
-		if (config.useLegacyBrightness()) {
-			float factor = (float) config.legacyBrightness() / 20;
-			effectiveAmbientStrength *= factor;
-			effectiveDirectionalStrength *= factor;
-		}
-		plugin.uboGlobal.ambientStrength.set(effectiveAmbientStrength);
-		plugin.uboGlobal.ambientColor.set(ambientColor);
-		plugin.uboGlobal.lightStrength.set(effectiveDirectionalStrength);
-		plugin.uboGlobal.lightColor.set(directionalColor);
+		updateGlobalUbo(uboGlobal);
 	}
 
 	private void seedFromEnvironment() {
@@ -188,14 +162,41 @@ public class SkyLighting {
 		ambientStrength = environmentManager.currentAmbientStrength;
 	}
 
+	private void updateGlobalUbo(UBOGlobal ubo) {
+		ubo.fogColor.set(fogColorSrgb);
+
+		float[] waterColorHsv = ColorUtils.srgbToHsv(waterColor);
+		ubo.waterColorLight.set(linearToSrgb(ColorUtils.hsvToSrgb(
+			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .8f
+		)));
+		ubo.waterColorMid.set(linearToSrgb(ColorUtils.hsvToSrgb(
+			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .45f
+		)));
+		ubo.waterColorDark.set(linearToSrgb(ColorUtils.hsvToSrgb(
+			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .05f
+		)));
+
+		float effectiveAmbientStrength = ambientStrength;
+		effectiveDirectionalStrength = directionalStrength;
+		if (config.useLegacyBrightness()) {
+			float factor = (float) config.legacyBrightness() / 20;
+			effectiveAmbientStrength *= factor;
+			effectiveDirectionalStrength *= factor;
+		}
+		ubo.ambientStrength.set(effectiveAmbientStrength);
+		ubo.ambientColor.set(ambientColor);
+		ubo.lightStrength.set(effectiveDirectionalStrength);
+		ubo.lightColor.set(directionalColor);
+	}
+
 	/** Derive this frame's lighting from the sun and moon. */
-	private void computeCycleLighting() {
+	private void updateSky() {
 		var state = daylightCycleManager.getState();
-		copyTo(directionalColor, getRegionalDirectionalLight(state, environmentManager.currentDirectionalColor));
-		copyTo(ambientColor, getRegionalAmbientLight(state, environmentManager.currentAmbientColor));
+		copyTo(directionalColor, getRegionalDirectionalLight(state, directionalColor));
+		copyTo(ambientColor, getRegionalAmbientLight(state, ambientColor));
 
 		float brightnessMultiplier = getBrightnessMultiplier(state, plugin.configMinimumBrightness);
-		float baseDirectionalStrength = environmentManager.currentDirectionalStrength;
+		float baseDirectionalStrength = directionalStrength;
 		// The cycle controls night brightness instead of seasonal ambient strength.
 		ambientStrength = brightnessMultiplier;
 
@@ -204,7 +205,7 @@ public class SkyLighting {
 		float moonIllumination = state.moonIllumination;
 		float[][] sky = getSkyGradientColors(
 			state,
-			ColorUtils.linearToSrgb(environmentManager.currentFogColor),
+			fogColorSrgb,
 			environmentManager.currentSunStrength,
 			environmentManager.currentSunriseSunsetStrength,
 			environmentManager.currentSkyColorTakeoverAngle
@@ -224,7 +225,7 @@ public class SkyLighting {
 
 		applyAmbientFloor(moonAltDeg, moonIllumination);
 		applySkyFill(sunAltDeg, shadowVisibility);
-		uploadSkyUniforms(state, sky, moonIllumination);
+		updateSkyUbo(state, sky, moonIllumination);
 	}
 
 	private float applyMoonLighting(float[][] sky, float moonInfluence, float baseDirectionalStrength) {
@@ -569,8 +570,8 @@ public class SkyLighting {
 		mix(sky[1], sky[1], nightSkyColor, skyTint);
 	}
 
-	private void uploadSkyUniforms(DaylightCycleState state, float[][] sky, float moonIllumination) {
-		UBOSkybox ubo = plugin.uboSkybox;
+	private void updateSkyUbo(DaylightCycleState state, float[][] sky, float moonIllumination) {
+		UBOSky ubo = plugin.uboSky;
 		ubo.skyGradientEnabled.set(1);
 		ubo.skyZenithColor.set(sky[0]);
 		ubo.skyHorizonColor.set(sky[1]);
@@ -588,6 +589,21 @@ public class SkyLighting {
 		// An all-int ternary selects the wrong uniform setter.
 		ubo.nebulaVisibility.set(config.enableNebulas() ? environmentManager.currentNebulaVisibility : 0f);
 		ubo.auroraVisibility.set(state.auroraStrength * environmentManager.currentAuroraVisibility);
+		ubo.upload();
+	}
+
+	private void disableSky() {
+		UBOSky ubo = plugin.uboSky;
+		ubo.skyGradientEnabled.set(0);
+		ubo.skyMoonDir.set(0, 0, 0);
+		ubo.skyMoonColor.set(0, 0, 0);
+		ubo.skyMoonIllumination.set(0);
+		ubo.starVisibility.set(1);
+		ubo.nebulaVisibility.set(0);
+		ubo.auroraVisibility.set(0);
+		ubo.moonSizeMult.set(1);
+		ubo.starHorizonHeight.set(1);
+		ubo.upload();
 	}
 
 	private static boolean isMoonLighting(float moonAltDeg, float moonIllumination) {

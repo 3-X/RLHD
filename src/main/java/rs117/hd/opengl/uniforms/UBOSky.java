@@ -5,8 +5,8 @@ import rs117.hd.utils.buffer.GLBuffer;
 
 import static org.lwjgl.opengl.GL33C.*;
 
-public class UBOSkybox extends UniformBuffer<GLBuffer> {
-	public UBOSkybox() {
+public class UBOSky extends UniformBuffer<GLBuffer> {
+	public UBOSky() {
 		super(GL_DYNAMIC_DRAW);
 	}
 
@@ -41,17 +41,4 @@ public class UBOSkybox extends UniformBuffer<GLBuffer> {
 	public Property starHorizonHeight = addProperty(PropertyType.Float, "starHorizonHeight");
 
 	public final Property[] nebulaClusters = addPropertyArray(PropertyType.FVec4, "nebulaClusters", StarField.CLUSTER_COUNT);
-	
-	public void reset() {
-		skyGradientEnabled.set(0);
-		skyMoonDir.set(0f, 0f, 0f);
-		skyMoonColor.set(0f, 0f, 0f);
-		skyMoonIllumination.set(0f);
-		starVisibility.set(1f);
-		nebulaVisibility.set(0f);
-		auroraVisibility.set(0f);
-		moonSizeMult.set(1f);
-		starHorizonHeight.set(1f);
-		upload();
-	}
 }

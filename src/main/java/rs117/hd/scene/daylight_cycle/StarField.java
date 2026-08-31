@@ -1,6 +1,7 @@
 package rs117.hd.scene.daylight_cycle;
 
 import java.awt.Color;
+import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.Random;
 import javax.inject.Inject;
@@ -10,7 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.lwjgl.BufferUtils;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
-import rs117.hd.renderer.zone.ZoneRenderer;
+import rs117.hd.opengl.shader.NebulaBakeShaderProgram;
+import rs117.hd.opengl.shader.ShaderException;
+import rs117.hd.opengl.shader.ShaderIncludes;
 import rs117.hd.utils.RenderState;
 import rs117.hd.utils.buffer.GLBuffer;
 
@@ -70,9 +73,10 @@ public final class StarField {
 	private HdPluginConfig config;
 
 	@Inject
-	private ZoneRenderer zoneRenderer;
+	private NebulaBakeShaderProgram nebulaBakeProgram;
 
 	private final Random random = new Random(SEED);
+	private final RenderState nebulaBakeRenderState = new RenderState();
 
 	private int texNebulaCubemap = 0;
 	private int fboNebulaBake = 0;
@@ -138,7 +142,15 @@ public final class StarField {
 
 	public void resetStarfield() { starfieldGenerated = false; }
 
-	public boolean shouldGenerateStarField() {
+	public void initializeShaders(ShaderIncludes includes) throws ShaderException, IOException {
+		nebulaBakeProgram.compile(includes);
+	}
+
+	public void destroyShaders() {
+		nebulaBakeProgram.destroy();
+	}
+
+	public boolean update() {
 		if (starfieldGenerated)
 			return false;
 
@@ -160,31 +172,29 @@ public final class StarField {
 		starCount = vertexData.position() / FLOATS_PER_STAR;
 		vboStars.upload(vertexData.flip());
 
-		var bakeShader = zoneRenderer.nebulaBakeProgram;
-		if (fboNebulaBake == 0 || texNebulaCubemap == 0 || !bakeShader.isValid() || !config.enableNebulas())
+		if (fboNebulaBake == 0 || texNebulaCubemap == 0 || !nebulaBakeProgram.isValid() || !config.enableNebulas())
 			return true;
 
-		final RenderState renderState = zoneRenderer.renderState;
-		renderState.framebuffer.set(GL_FRAMEBUFFER, fboNebulaBake);
-		renderState.viewport.set(0, 0, NEBULA_CUBE_MAP_RESOLUTION, NEBULA_CUBE_MAP_RESOLUTION);
-		renderState.vao.setVao(plugin.vaoTri);
-		renderState.disable.set(GL_DEPTH_TEST);
-		renderState.disable.set(GL_BLEND);
-		renderState.disable.set(GL_CULL_FACE);
-		renderState.apply();
+		nebulaBakeRenderState.framebuffer.set(GL_FRAMEBUFFER, fboNebulaBake);
+		nebulaBakeRenderState.viewport.set(0, 0, NEBULA_CUBE_MAP_RESOLUTION, NEBULA_CUBE_MAP_RESOLUTION);
+		nebulaBakeRenderState.vao.setVao(plugin.vaoTri);
+		nebulaBakeRenderState.disable.set(GL_DEPTH_TEST);
+		nebulaBakeRenderState.disable.set(GL_BLEND);
+		nebulaBakeRenderState.disable.set(GL_CULL_FACE);
+		nebulaBakeRenderState.apply();
 
-		plugin.uboSkybox.upload();
+		plugin.uboSky.upload();
 
-		zoneRenderer.nebulaBakeProgram.use();
+		nebulaBakeProgram.use();
 		for (int face = 0; face < 6; face++) {
-			bakeShader.uniCubeFace.set(face);
+			nebulaBakeProgram.uniCubeFace.set(face);
 
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, texNebulaCubemap, 0);
 			glDrawArrays(GL_TRIANGLES, 0, 3);
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		zoneRenderer.renderState.reset();
+		nebulaBakeRenderState.reset();
 		return true;
 	}
 
@@ -235,7 +245,7 @@ public final class StarField {
 			normalize(u, u);
 			cross(v, dir, u);
 
-			plugin.uboSkybox.nebulaClusters[c].set(dir[0], dir[1], dir[2], CLUSTER_ANGULAR_SPREAD * 0.5f);
+			plugin.uboSky.nebulaClusters[c].set(dir[0], dir[1], dir[2], CLUSTER_ANGULAR_SPREAD * 0.5f);
 		}
 
 		for (int i = 0; i < count; i++) {

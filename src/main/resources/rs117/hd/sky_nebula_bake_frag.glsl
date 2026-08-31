@@ -9,7 +9,7 @@
 // its star/starfield helpers, so pull those in even though the bake only needs
 // proceduralNebula().
 #include <uniforms/global.glsl>
-#include <uniforms/skybox.glsl>
+#include <uniforms/sky.glsl>
 
 #include <utils/constants.glsl>
 

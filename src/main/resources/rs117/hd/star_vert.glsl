@@ -6,7 +6,7 @@
 // (once per star) rather than per pixel.
 
 #include <uniforms/global.glsl>
-#include <uniforms/skybox.glsl>
+#include <uniforms/sky.glsl>
 
 layout(location = 0) in vec3 aStarDir;     // field-space unit direction
 layout(location = 1) in float aStarSize;   // relative size

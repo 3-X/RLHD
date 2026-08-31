@@ -41,6 +41,7 @@ import rs117.hd.opengl.uniforms.UBOLights;
 import rs117.hd.overlays.FrameTimer;
 import rs117.hd.overlays.Timer;
 import rs117.hd.renderer.Renderer;
+import rs117.hd.renderer.SkyRenderer;
 import rs117.hd.scene.AreaManager;
 import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
@@ -51,7 +52,6 @@ import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.areas.Area;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
-import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.HDUtils;
 import rs117.hd.utils.Mat4;
 import rs117.hd.utils.ModelHash;
@@ -132,6 +132,9 @@ public class LegacyRenderer implements Renderer {
 	private FrameTimer frameTimer;
 
 	@Inject
+	private SkyRenderer skyRenderer;
+
+	@Inject
 	private SceneShaderProgram.Legacy sceneProgram;
 
 	@Inject
@@ -198,6 +201,7 @@ public class LegacyRenderer implements Renderer {
 	@Override
 	public void initialize() {
 		modelPusher.startUp();
+		skyRenderer.initialize();
 
 		jobSystem.startUp(config.cpuUsageLimit());
 
@@ -223,6 +227,7 @@ public class LegacyRenderer implements Renderer {
 	@Override
 	public synchronized void destroy() {
 		modelPusher.shutDown();
+		skyRenderer.destroy();
 
 		if (vaoScene != 0)
 			glDeleteVertexArrays(vaoScene);
@@ -266,6 +271,8 @@ public class LegacyRenderer implements Renderer {
 
 	@Override
 	public void processConfigChanges(Set<String> keys) {
+		skyRenderer.processConfigChanges(keys);
+
 		if (keys.contains(KEY_MODEL_CACHING) || keys.contains(KEY_MODEL_CACHE_SIZE)) {
 			modelPusher.shutDown();
 			modelPusher.startUp();
@@ -289,6 +296,8 @@ public class LegacyRenderer implements Renderer {
 		shadowProgram.setMode(plugin.configShadowMode);
 		shadowProgram.compile(includes);
 
+		skyRenderer.initializeShaders(includes);
+
 		if (computeMode == ComputeMode.OPENCL) {
 			clManager.initializePrograms();
 		} else {
@@ -309,6 +318,7 @@ public class LegacyRenderer implements Renderer {
 	public void destroyShaders() {
 		sceneProgram.destroy();
 		shadowProgram.destroy();
+		skyRenderer.destroyShaders();
 
 		if (computeMode == ComputeMode.OPENGL) {
 			modelPassthroughComputeProgram.destroy();
@@ -998,7 +1008,7 @@ public class LegacyRenderer implements Renderer {
 				GL43C.glMemoryBarrier(GL43C.GL_SHADER_STORAGE_BARRIER_BIT);
 			}
 
-			float[] fogColor = ColorUtils.linearToSrgb(environmentManager.currentFogColor);
+			skyRenderer.update(plugin.uboGlobal);
 			float fogDepth = 0;
 			switch (config.fogDepthMode()) {
 				case USER_DEFINED:
@@ -1011,47 +1021,12 @@ public class LegacyRenderer implements Renderer {
 			fogDepth *= min(plugin.getDrawDistance(), 90) / 10.f;
 			plugin.uboGlobal.useFog.set(fogDepth > 0 ? 1 : 0);
 			plugin.uboGlobal.fogDepth.set(fogDepth);
-			plugin.uboGlobal.fogColor.set(fogColor);
 
 			plugin.uboGlobal.drawDistance.set((float) plugin.getDrawDistance());
 			plugin.uboGlobal.expandedMapLoadingChunks.set(sceneContext.expandedMapLoadingChunks);
 			plugin.uboGlobal.colorBlindnessIntensity.set(config.colorBlindnessIntensity() / 100.f);
 
-			float[] waterColorHsv = ColorUtils.srgbToHsv(environmentManager.currentWaterColor);
-			float lightBrightnessMultiplier = 0.8f;
-			float midBrightnessMultiplier = 0.45f;
-			float darkBrightnessMultiplier = 0.05f;
-			float[] waterColorLight = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
-				waterColorHsv[0],
-				waterColorHsv[1],
-				waterColorHsv[2] * lightBrightnessMultiplier
-			));
-			float[] waterColorMid = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
-				waterColorHsv[0],
-				waterColorHsv[1],
-				waterColorHsv[2] * midBrightnessMultiplier
-			));
-			float[] waterColorDark = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
-				waterColorHsv[0],
-				waterColorHsv[1],
-				waterColorHsv[2] * darkBrightnessMultiplier
-			));
-			plugin.uboGlobal.waterColorLight.set(waterColorLight);
-			plugin.uboGlobal.waterColorMid.set(waterColorMid);
-			plugin.uboGlobal.waterColorDark.set(waterColorDark);
-
 			plugin.uboGlobal.gammaCorrection.set(plugin.getGammaCorrection());
-			float ambientStrength = environmentManager.currentAmbientStrength;
-			float directionalStrength = environmentManager.currentDirectionalStrength;
-			if (config.useLegacyBrightness()) {
-				float factor = config.legacyBrightness() / 20f;
-				ambientStrength *= factor;
-				directionalStrength *= factor;
-			}
-			plugin.uboGlobal.ambientStrength.set(ambientStrength);
-			plugin.uboGlobal.ambientColor.set(environmentManager.currentAmbientColor);
-			plugin.uboGlobal.lightStrength.set(directionalStrength);
-			plugin.uboGlobal.lightColor.set(environmentManager.currentDirectionalColor);
 
 			plugin.uboGlobal.underglowStrength.set(environmentManager.currentUnderglowStrength);
 			plugin.uboGlobal.underglowColor.set(environmentManager.currentUnderglowColor);
@@ -1143,7 +1118,6 @@ public class LegacyRenderer implements Renderer {
 
 			plugin.uboGlobal.orthographicProjection.set(plugin.orthographicProjection ? 1 : 0);
 			plugin.uboGlobal.upload();
-			sceneProgram.use();
 
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, plugin.fboScene);
 			if (plugin.msaaSamples > 1) {
@@ -1153,21 +1127,10 @@ public class LegacyRenderer implements Renderer {
 			}
 			glViewport(0, 0, plugin.sceneResolution[0], plugin.sceneResolution[1]);
 
-			// Clear scene
-			frameTimer.begin(Timer.CLEAR_SCENE);
-
-			float[] gammaCorrectedFogColor = pow(fogColor, plugin.getGammaCorrection());
-			glClearColor(
-				gammaCorrectedFogColor[0],
-				gammaCorrectedFogColor[1],
-				gammaCorrectedFogColor[2],
-				1f
-			);
-			glClearDepth(0);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			frameTimer.end(Timer.CLEAR_SCENE);
+			skyRenderer.render();
 
 			frameTimer.begin(Timer.RENDER_SCENE);
+			sceneProgram.use();
 
 			// We just allow the GL to do face culling. Note this requires the priority renderer
 			// to have logic to disregard culled faces in the priority depth testing.
