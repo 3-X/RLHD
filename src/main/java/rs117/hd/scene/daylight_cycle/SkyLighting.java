@@ -388,7 +388,7 @@ public class SkyLighting {
 		if (sunAltDeg > 0) {
 			float desaturation = smoothstep(0, 90, sunAltDeg) * .75f;
 			float luma = dot(lightColor, SKY_LUMA_WEIGHTS);
-			mix(lightColor, lightColor, luma, desaturation);
+			mix(lightColor, lightColor, vec(luma), desaturation);
 		}
 
 		// Restore the authored color only at midday.

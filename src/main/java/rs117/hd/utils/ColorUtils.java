@@ -112,6 +112,7 @@ public class ColorUtils {
 	}
 
 	public static float[] linearToSrgb(float... c) {
+		assert c.length == 3;
 		float[] result = new float[3];
 		for (int i = 0; i < 3; i++)
 			result[i] = linearToSrgb(c[i]);
@@ -119,6 +120,7 @@ public class ColorUtils {
 	}
 
 	public static float[] srgbToLinear(float... c) {
+		assert c.length == 3;
 		float[] result = new float[3];
 		for (int i = 0; i < 3; i++)
 			result[i] = srgbToLinear(c[i]);
