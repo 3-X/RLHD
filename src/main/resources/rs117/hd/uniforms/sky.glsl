@@ -8,6 +8,8 @@ layout(std140) uniform UBOSky {
     vec3 skyHorizonColor;
     vec3 skySunColor;
     vec3 skySunDir;
+    vec3 skyCelestialPole;
+    float skyCelestialRotation;
 
     // Moon uniforms for day & night Cycle
     vec3 skyMoonDir;

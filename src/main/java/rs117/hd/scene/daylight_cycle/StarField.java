@@ -47,9 +47,8 @@ public final class StarField {
 	};
 
 	// Per-vertex layout written to the VBO, in floats:
-	//   position.xyz (unit direction), size, brightness, color.rgb, speed => 9 floats
-	// speed scales the celestial rotation so the layers parallax (depth effect).
-	private static final int FLOATS_PER_STAR = 10;
+	//   position.xyz (unit direction), size, brightness, color.rgb => 8 floats
+	private static final int FLOATS_PER_STAR = 8;
 
 	// Star counts per layer. The procedural field had ~18-24% of cells populated
 	// across grids of scale 80 and 200; these counts reproduce a similar on-sky
@@ -102,17 +101,15 @@ public final class StarField {
 		vboStars.bind();
 
 		int stride = FLOATS_PER_STAR * Float.BYTES;
-		// location 0: dir.xyz, 1: size, 2: brightness, 3: color.rgba, 4: speed
+		// location 0: dir.xyz, 1: size, 2: brightness, 3: color.rgb
 		glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0L);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(1, 1, GL_FLOAT, false, stride, 3L * Float.BYTES);
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(2, 1, GL_FLOAT, false, stride, 4L * Float.BYTES);
 		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(3, 4, GL_FLOAT, false, stride, 5L * Float.BYTES);
+		glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 5L * Float.BYTES);
 		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(4, 1, GL_FLOAT, false, stride, 9L * Float.BYTES);
-		glEnableVertexAttribArray(4);
 
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -159,15 +156,11 @@ public final class StarField {
 
 		FloatBuffer vertexData = BufferUtils.createFloatBuffer(MAX_STAR_COUNT * FLOATS_PER_STAR);
 
-		// Layer 0: bright, sparse, larger, full rotation speed (the "near" layer).
-		// Layer 1: dim, dense, smaller, rotating ~30% slower for a parallax depth feel.
-		// Layer 2: clustered stars, moderate brightness, same speed as the bright
-		// layer so clusters don't visibly drift apart from the rest of the sky.
-		generateLayer(vertexData, BRIGHT_STAR_COUNT, 1.2f, 1.0f, 1.0f);
-		generateLayer(vertexData, DIM_STAR_COUNT, 0.4f, 0.8f, 0.7f);
+		generateLayer(vertexData, BRIGHT_STAR_COUNT, 1.2f, 1.0f);
+		generateLayer(vertexData, DIM_STAR_COUNT, 0.4f, 0.8f);
 
 		if (config.enableNebulas())
-			generateClusteredLayer(vertexData, CLUSTER_STAR_COUNT, CLUSTER_COUNT, CLUSTER_ANGULAR_SPREAD, 0.5f, 0.5f, 1.0f);
+			generateClusteredLayer(vertexData, CLUSTER_STAR_COUNT, CLUSTER_COUNT, CLUSTER_ANGULAR_SPREAD, 0.5f, 0.5f);
 
 		starCount = vertexData.position() / FLOATS_PER_STAR;
 		vboStars.upload(vertexData.flip());
@@ -218,17 +211,17 @@ public final class StarField {
 		starfieldGenerated = false;
 	}
 
-	private void generateLayer(FloatBuffer vertexBuffer, int count, float maxBrightness, float sizeScale, float speed) {
+	private void generateLayer(FloatBuffer vertexBuffer, int count, float maxBrightness, float sizeScale) {
 		final float[] center = new float[3];
 		for (int i = 0; i < count; i++) {
 			randomPointOnSphere(center, random);
-			writeStar(vertexBuffer, center[0], center[1], center[2], maxBrightness, sizeScale, speed, 1.0f);
+			writeStar(vertexBuffer, center[0], center[1], center[2], maxBrightness, sizeScale, 1.0f);
 		}
 	}
 
 	private void generateClusteredLayer(
 		FloatBuffer vertexBuffer, int count, int clusterCount,
-		float angularSpread, float maxBrightness, float sizeScale, float speed
+		float angularSpread, float maxBrightness, float sizeScale
 	) {
 		final float[][] clusterCenters = new float[clusterCount][3];
 		final float[][] clusterTangentU = new float[clusterCount][3];
@@ -266,7 +259,7 @@ public final class StarField {
 			float dy = cosR * dir[1] + sinR * (cosT * u[1] + sinT * v[1]);
 			float dz = cosR * dir[2] + sinR * (cosT * u[2] + sinT * v[2]);
 
-			writeStar(vertexBuffer, dx, dy, dz, maxBrightness, sizeScale, speed, 0.5f);
+			writeStar(vertexBuffer, dx, dy, dz, maxBrightness, sizeScale, 0.5f);
 		}
 	}
 
@@ -277,12 +270,11 @@ public final class StarField {
 		float dz,
 		float maxBrightness,
 		float sizeScale,
-		float speed,
-		float alpha
+		float brightnessScale
 	) {
 		// Power-law brightness: many dim, few bright (matches pow(seed, 2.5)).
 		float brightnessSeed = random.nextFloat();
-		float brightness = (float) Math.pow(brightnessSeed, 2.5) * maxBrightness;
+		float brightness = min((float) Math.pow(brightnessSeed, 2.5) * maxBrightness, .4f) * brightnessScale;
 
 		// Per-star size variation, skewed toward the small end (squaring the
 		// random factor biases most stars small with only a few larger ones),
@@ -301,8 +293,6 @@ public final class StarField {
 			.put(brightness)
 			.put(starColor.getRed() / 255.0f)
 			.put(starColor.getGreen() / 255.0f)
-			.put(starColor.getBlue() / 255.0f)
-			.put(alpha)
-			.put(speed);
+			.put(starColor.getBlue() / 255.0f);
 	}
 }

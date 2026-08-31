@@ -16,6 +16,8 @@ public class UBOSky extends UniformBuffer<GLBuffer> {
 	public Property skyHorizonColor = addProperty(PropertyType.FVec3, "skyHorizonColor");
 	public Property skySunColor = addProperty(PropertyType.FVec3, "skySunColor");
 	public Property skySunDir = addProperty(PropertyType.FVec3, "skySunDir");
+	public Property skyCelestialPole = addProperty(PropertyType.FVec3, "skyCelestialPole");
+	public Property skyCelestialRotation = addProperty(PropertyType.Float, "skyCelestialRotation");
 
 	// Moon uniforms for day & night Cycle
 	public Property skyMoonDir = addProperty(PropertyType.FVec3, "skyMoonDir");

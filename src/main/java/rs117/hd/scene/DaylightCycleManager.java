@@ -380,6 +380,8 @@ public class DaylightCycleManager {
 			: state.moonAltitudeDegrees;
 		state.sunDirection = anglesToSkyDirection(state.sunAngles);
 		state.moonDirection = anglesToSkyDirection(state.moonAngles);
+		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
+		state.celestialRotation = (currentInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
 		state.hidesMoon = currentCycle.isHidesMoon();
 		state.auroraStrength = computeAuroraStrength();
 	}

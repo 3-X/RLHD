@@ -577,6 +577,13 @@ public class SkyLighting {
 		ubo.skyHorizonColor.set(sky[1]);
 		ubo.skySunColor.set(sky[2]);
 		ubo.skySunDir.set(state.sunDirection);
+		// Sky shaders invert Y when mapping celestial directions to view space.
+		ubo.skyCelestialPole.set(
+			state.celestialPole[0],
+			-state.celestialPole[1],
+			state.celestialPole[2]
+		);
+		ubo.skyCelestialRotation.set(state.celestialRotation);
 		ubo.skyMoonDir.set(state.moonDirection);
 		ubo.skyMoonColor.set(environmentManager.currentMoonColor);
 		ubo.skyMoonIllumination.set(moonIllumination);

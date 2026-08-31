@@ -11,29 +11,23 @@
 layout(location = 0) in vec3 aStarDir;     // field-space unit direction
 layout(location = 1) in float aStarSize;   // relative size
 layout(location = 2) in float aStarBright; // base brightness
-layout(location = 3) in vec4 aStarColor;   // tint
-layout(location = 4) in float aStarSpeed;  // rotation speed multiplier (parallax)
+layout(location = 3) in vec3 aStarColor;   // tint
 
-out vec4 vColor;
+out vec3 vColor;
 out float vBrightness;
 
 const float SKY_HORIZON_OFFSET = 0.087;
 
 void main() {
-    // The procedural field was sampled at starDir = R * viewDir, so a star fixed
-    // at field-direction aStarDir appears along viewDir = R^-1 * aStarDir. Apply
-    // the inverse of the sky shader's two rotations (negate the angles).
-    // aStarSpeed scales the rotation per layer so dim/distant stars drift slower
-    // than bright/near ones, giving the sky a subtle parallax depth.
-    float rotY = -elapsedTime * (2.0 * 3.14159265 / 3600.0) * aStarSpeed;
-    float rotX = -elapsedTime * (2.0 * 3.14159265 / 10800.0) * aStarSpeed;
-    float cosY = cos(rotY), sinY = sin(rotY);
-    float cosX = cos(rotX), sinX = sin(rotX);
+    // Apply the inverse celestial rotation so point stars remain aligned with the nebula.
+    float celestialAngle = -skyCelestialRotation;
+    vec3 celestialAxis = skyCelestialPole;
+    float celestialCos = cos(celestialAngle);
+    float celestialSin = sin(celestialAngle);
 
-    // Inverse order: undo X rotation first, then Y (sky applied Y then X).
     vec3 dir = aStarDir;
-    dir = vec3(dir.x, cosX * dir.y - sinX * dir.z, sinX * dir.y + cosX * dir.z);
-    dir = vec3(cosY * dir.x + sinY * dir.z, dir.y, -sinY * dir.x + cosY * dir.z);
+    dir = dir * celestialCos + cross(celestialAxis, dir) * celestialSin +
+        celestialAxis * dot(celestialAxis, dir) * (1.0 - celestialCos);
 
     // Occlude stars behind the moon disk. The moon is drawn opaque in the sky base
     // pass; without this, the additively-blended stars would show through it. Fade
@@ -116,7 +110,7 @@ void main() {
 
     // Compress the top end so the brightest stars don't read as harsh hotspots,
     // while leaving the dim/mid stars essentially untouched.
-    vBrightness = min(aStarBright, 0.4) * visibility * twinkle;
+    vBrightness = aStarBright * visibility * twinkle;
 
     // Point size in pixels. Scales with vertical resolution so stars keep a
     // consistent apparent size, plus a gentle brightness term so brighter stars
