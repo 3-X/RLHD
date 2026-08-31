@@ -78,7 +78,8 @@ public class ShadowMapOverlay extends ShaderOverlay<ShadowMapOverlay.Shader> imp
 
 	@Override
 	public MouseWheelEvent mouseWheelMoved(MouseWheelEvent e) {
-		if (client.isKeyPressed(KeyCode.KC_SHIFT)) {
+		var b = getBounds();
+		if (b != null && b.contains(e.getPoint())) {
 			e.consume();
 			showTerrainShadowMap = !showTerrainShadowMap;
 		}
