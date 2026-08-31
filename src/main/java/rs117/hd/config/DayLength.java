@@ -3,20 +3,21 @@ package rs117.hd.config;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Controls how the fixed total cycle time is split between day and night.
- * The full cycle still takes {@code cycleDurationMinutes}; this only changes
- * how much of that time the sun spends above vs. below the horizon, by warping
- * the cycle clock (slower during the favored period, faster during the other).
+ * Controls the real-time share of a Dynamic cycle spent in daylight. The full
+ * cycle still takes {@code cycleDurationMinutes}; the cycle clock is warped so
+ * the favored period advances more slowly.
  * <p>
- * {@code dayFraction} is the share of the cycle spent in daytime. The natural
- * (unwarped) split is 0.70 day / 0.30 night, which is what STANDARD uses.
+ * Dynamic applies this to the sun and moving moon. Fixed-sun modes apply it
+ * only to an unlocked moon; Real Time and Synced Days ignore it.
  */
 @RequiredArgsConstructor
 public enum DayLength
 {
-	STANDARD("Standard", .70f),
+	NORMAL("Normal", .5f),
+	LONG_DAYS("Long Days", .7f),
 	LONGER_DAYS("Longer Days", .85f),
-	LONGER_NIGHTS("Longer Nights", .45f),
+	LONG_NIGHTS("Long Nights", .3f),
+	LONGER_NIGHTS("Longer Nights", .15f),
 	;
 
 	private final String name;

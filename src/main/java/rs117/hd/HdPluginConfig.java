@@ -675,15 +675,18 @@ public interface HdPluginConfig extends Config
 		keyName = KEY_DAY_LENGTH,
 		name = "Day length",
 		description =
-			"Adjusts how the cycle time is split between day and night, without changing the total cycle duration.<br>" +
-			"• Standard = Natural daylight balance<br>" +
-			"• Longer Days = Sun stays up longer; nights pass quickly<br>" +
-			"• Longer Nights = Nights last longer; days pass quickly",
+			"Sets the daylight share of Dynamic cycles without changing their total duration. " +
+			"Also affects an unlocked moon in fixed-sun modes; Real Time and Synced Days ignore it.<br>" +
+			"• Normal = Equal day and night<br>" +
+			"• Long Days = 70% day / 30% night<br>" +
+			"• Longer Days = 85% day / 15% night<br>" +
+			"• Long Nights = 30% day / 70% night<br>" +
+			"• Longer Nights = 15% day / 85% night",
 		position = 3,
 		section = daylightCycleSettings
 	)
 	default DayLength dayLength() {
-		return DayLength.STANDARD;
+		return DayLength.NORMAL;
 	}
 
 	String KEY_MINIMUM_BRIGHTNESS = "minimumBrightness";

@@ -148,7 +148,7 @@ public class DaylightCycleManager {
 		);
 	}
 
-	/** Remap a linear cycle position so day and night occupy the configured shares. */
+	/** Remap a linear cycle position so daylight occupies Day Length's configured share. */
 	private double applyDayLengthWarp(double cyclePosition) {
 		float dayFraction = configDayLength.dayFraction;
 		if (abs(dayFraction - NATURAL_DAY_BOUNDARY) < 1e-6f)
@@ -162,7 +162,7 @@ public class DaylightCycleManager {
 		}
 	}
 
-	/** Fixed-sun modes can still apply Day Length to an unlocked moon. */
+	/** Fixed-sun modes can apply Day Length to an unlocked moon. */
 	private double getMoonCyclePosition() {
 		return currentCycle.usesDayLengthForMoon
 			? applyDayLengthWarp(accumulatedCycleTime)
@@ -435,8 +435,7 @@ public class DaylightCycleManager {
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
 				return syncedStartOfDay.plusMillis((long) (cyclePositionToHour(syncedCyclePosition) * HOUR_MS));
 			case DYNAMIC:
-				// Warp the linear cycle clock so day and night occupy the configured share,
-				// then feed it through the twilight-weighted sun mapping.
+				// Day Length controls the real-time daylight share before twilight-weighted mapping.
 				double cyclePosition = applyDayLengthWarp(accumulatedCycleTime);
 				double mappedHour = cyclePositionToHour(cyclePosition);
 				Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS)

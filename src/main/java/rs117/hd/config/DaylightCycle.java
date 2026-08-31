@@ -7,7 +7,7 @@ import rs117.hd.utils.HDUtils;
 @RequiredArgsConstructor
 @Getter
 public enum DaylightCycle {
-	// Moving sun and moon driven by the configured cycle duration and day length.
+	// Moving sun and moon driven by the configured cycle duration and Day Length.
 	DYNAMIC("Dynamic", false, false, false, true, Double.NaN, false, 0, 0, false, false, false, false, false, false),
 	// Moving sun and moon driven by the player's local wall clock.
 	REAL_TIME("Real Time", false, true, false, false, Double.NaN, false, 0, 0, false, false, false, false, false, false),
@@ -34,7 +34,7 @@ public enum DaylightCycle {
 	public final boolean usesLocalTime;
 	public final boolean usesUtcSyncedTime;
 	/**
-	 * Whether Day Length reshapes an unlocked moon's simulated cycle.
+	 * Whether this mode applies Day Length to a moving moon's simulated cycle.
 	 */
 	public final boolean usesDayLengthForMoon;
 	/**
