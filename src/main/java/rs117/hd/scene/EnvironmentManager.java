@@ -467,8 +467,7 @@ public class EnvironmentManager {
 			currentGroundFogStart = mix(startGroundFogStart, targetGroundFogStart, t);
 			currentGroundFogEnd = mix(startGroundFogEnd, targetGroundFogEnd, t);
 			currentGroundFogOpacity = mix(startGroundFogOpacity, targetGroundFogOpacity, t);
-			for (int i = 0; i < 2; i++)
-				currentSunAngles[i] = mix(startSunAngles[i], targetSunAngles[i], t);
+			mix(currentSunAngles, startSunAngles, targetSunAngles, t);
 			currentUnderwaterCausticsColor = mix(startUnderwaterCausticsColor, targetUnderwaterCausticsColor, t);
 			currentUnderwaterCausticsStrength = mix(startUnderwaterCausticsStrength, targetUnderwaterCausticsStrength, t);
 			currentWindAngle = mix(startWindAngle, targetWindAngle, t);
@@ -556,8 +555,7 @@ public class EnvironmentManager {
 		startSkyColorTakeoverAngle = currentSkyColorTakeoverAngle;
 		startSunlightStrength = currentSunlightStrength;
 		startMinBrightnessBoost = currentMinBrightnessBoost;
-		for (int i = 0; i < 2; i++)
-			startSunAngles[i] = mod(currentSunAngles[i], TWO_PI);
+		mod(startSunAngles, currentSunAngles, TWO_PI);
 
 		updateTargetSkyColor();
 

@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
@@ -104,7 +103,6 @@ public class DaylightCycleManager {
 	// Environment override and position policy for the current frame. The angle references are
 	// held in the per-frame state using EnvironmentManager's { altitude, azimuth } convention.
 	private boolean hasFixedSunOverride;
-	private boolean hasFixedMoonOverride;
 	private boolean moonPositionFixed;
 
 	// Night Synced mode: day offset advances only once the moon is low enough that its light
@@ -189,22 +187,6 @@ public class DaylightCycleManager {
 	}
 
 	/**
-	 * Set the per-environment fixed sun/moon angle overrides for this frame.
-	 * <p>
-	 * Inputs use the environment convention {altitude, azimuth} in radians, or null for no override.
-	 * <p>
-	 * Applied from {@link #update()}. Only takes effect under a fixed cycle
-	 * mode; the dynamic cycle ignores these.
-	 */
-	private void setFixedAngleOverrides(@Nullable float[] sunAngles, @Nullable float[] moonAngles) {
-		state.fixedSunAnglesOverride = sunAngles;
-		hasFixedMoonOverride = moonAngles != null;
-		state.fixedMoonAngles = moonAngles != null
-			? moonAngles
-			: FIXED_NIGHT_MOON_ANGLES;
-	}
-
-	/**
 	 * Resolve the observer latitude from the synchronized seasonal hemisphere: northern ->
 	 * New York City, southern -> Rio de Janeiro.
 	 *
@@ -220,27 +202,16 @@ public class DaylightCycleManager {
 		currentLatLong[1] = latLong[1];
 	}
 
-	/** Whether the moon, rather than the low sun, should drive directional shadows. */
-	private boolean shouldUseMoonShadows() {
-		return state.sunAngles[0] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG && state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG;
-	}
-
 	/**
 	 * Build a normalized direction vector FROM the camera TO the given {altitude, azimuth} sky
 	 * position, using the renderer/light convention.
 	 */
-	private float[] anglesToSkyDirection(float altitude, float azimuth) {
-		float x = sin(azimuth) * cos(altitude);
-		float y = sin(altitude);
-		float z = cos(azimuth) * cos(altitude);
-
-		float length = sqrt(x * x + y * y + z * z);
-		if (length > 0.0001f) {
-			x /= length;
-			y /= length;
-			z /= length;
-		}
-		return new float[] { x, y, z };
+	private float[] anglesToSkyDirection(float... angles) {
+		return normalize(
+			sin(angles[1]) * cos(angles[0]),
+			sin(angles[0]),
+			cos(angles[1]) * cos(angles[0])
+		);
 	}
 
 	/**
@@ -293,8 +264,7 @@ public class DaylightCycleManager {
 	}
 
 	private float[] getSunAngles(Instant instant) {
-		double[] angles = AstronomyUtils.getSunAngles(instant.toEpochMilli(), currentLatLong);
-		return new float[] { (float) angles[0], (float) angles[1] };
+		return vec(AstronomyUtils.getSunAngles(instant.toEpochMilli(), currentLatLong));
 	}
 
 	/**
@@ -303,35 +273,21 @@ public class DaylightCycleManager {
 	public void updateDirectionalCamera(Camera directionalCamera) {
 		// Fixed sun and moon overrides take precedence. Otherwise, the moon takes over after
 		// sunset while it remains above the lighting horizon.
-		float[] angles;
-		if (hasFixedSunOverride) {
-			angles = state.sunAngles;
-		} else if (moonPositionFixed) {
-			angles = state.moonAngles;
-		} else if (shouldUseMoonShadows()) {
-			angles = state.moonAngles;
-		} else {
-			angles = state.sunAngles;
-		}
+		boolean useMoonForShadows =
+			!hasFixedSunOverride && (
+				moonPositionFixed ||
+				state.sunAngles[0] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
+				state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG
+			);
+		float[] angles = useMoonForShadows ? state.moonAngles : state.sunAngles;
 
 		float[] orientation = { PI - angles[1], angles[0] };
-		// Environment fixedSunAngles retain their legacy shadow orientation for compatibility.
 		float diff = max(abs(angleDiff(orientation, directionalCamera.getOrientation())));
 		if (diff >= DIRECTIONAL_ANGLE_UPDATE_THRESHOLD * saturate(configCycleDuration / 300f))
 			directionalCamera.setOrientation(orientation);
 	}
 
-	private float[] computeSunDirectionForSky() {
-		float[] sunAngles = state.sunAngles;
-
-		return anglesToSkyDirection(sunAngles[0], sunAngles[1]);
-	}
-
 	// ===== Moon ==================================================================
-
-	private float[] computeMoonDirectionForSky() {
-		return anglesToSkyDirection(state.moonAngles[0], state.moonAngles[1]);
-	}
 
 	private float[] computeMoonAngles() {
 		// A fixed-mode moon override (or the default Fixed Night position) locks the moon
@@ -341,17 +297,14 @@ public class DaylightCycleManager {
 		if (configMoonBehavior == MoonBehavior.NIGHT_SYNCED)
 			return computeNightSyncedMoonAngles();
 
-		double[] angles = AstronomyUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong);
-		return new float[] { (float) angles[0], (float) angles[1] };
+		return vec(AstronomyUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong));
 	}
 
 	private float computeMoonIlluminationFraction() {
-		if (currentMoonPhase.isLocked()) {
+		if (currentMoonPhase.isLocked())
 			return currentMoonPhase.illumination; // Phase locked via config
-		}
-		if (currentCycle.isLocksMoonIllumination()) {
+		if (currentCycle.isLocksMoonIllumination())
 			return 1; // Always a full moon
-		}
 		// A realistic moon always uses its resolved astronomical date. Real Time also takes
 		// this path for Night Synced, keeping its phase continuous through daylight-saving changes.
 		if (configMoonBehavior != MoonBehavior.NIGHT_SYNCED || currentCycle.usesLocalTime)
@@ -493,7 +446,7 @@ public class DaylightCycleManager {
 	 * Mirror an environment-order {altitude, azimuth} position to its opposite point in the sky.
 	 */
 	private static float[] mirrorAngles(float[] angles) {
-		return new float[] { -angles[0], angles[1] + PI };
+		return vec(-angles[0], angles[1] + PI);
 	}
 
 	/**
@@ -571,8 +524,8 @@ public class DaylightCycleManager {
 		state.moonAltitudeDegreesForLighting = currentCycle.isUsesFixedMoonAltitudeForLighting()
 			? state.fixedMoonAngles[0] * RAD_TO_DEG
 			: state.moonAltitudeDegrees;
-		state.sunDirection = computeSunDirectionForSky();
-		state.moonDirection = computeMoonDirectionForSky();
+		state.sunDirection = anglesToSkyDirection(state.sunAngles);
+		state.moonDirection = anglesToSkyDirection(state.moonAngles);
 		state.hidesMoon = currentCycle.isHidesMoon();
 		state.auroraStrength = computeAuroraStrength();
 	}
@@ -585,13 +538,14 @@ public class DaylightCycleManager {
 		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
 		currentCycle = forcedMode != null ? forcedMode : configCycle;
 		currentMoonPhase = forcedMoonPhase != null ? forcedMoonPhase : configMoonPhase;
-		setFixedAngleOverrides(
-			environmentManager.getForcedFixedSunAngles(),
-			environmentManager.getForcedFixedMoonAngles()
-		);
+		float[] sunAngles = environmentManager.getForcedFixedSunAngles();
+		float[] moonAngles = environmentManager.getForcedFixedMoonAngles();
+		state.fixedSunAnglesOverride = sunAngles;
+		state.fixedMoonAngles = moonAngles != null
+			? moonAngles
+			: FIXED_NIGHT_MOON_ANGLES;
 		hasFixedSunOverride = currentCycle.isFixed && state.fixedSunAnglesOverride != null;
-		moonPositionFixed = currentCycle.isLocksMoonPosition() ||
-			currentCycle.isFixed && hasFixedMoonOverride;
+		moonPositionFixed = currentCycle.isLocksMoonPosition() || currentCycle.isFixed && moonAngles != null;
 	}
 
 	/** Advance the stateful dynamic-cycle clock. Fixed and real-time modes retain it for moons. */
@@ -601,9 +555,10 @@ public class DaylightCycleManager {
 
 		double cycleDurationMillis = configCycleDuration * 60.0 * 1000.0;
 		accumulatedCycleTime += (currentTimeMillis - lastUpdateTime) / cycleDurationMillis;
-		while (accumulatedCycleTime >= 1.0) {
-			accumulatedCycleTime -= 1.0;
-			completedCycles++;
+		long cyclesElapsed = (long) accumulatedCycleTime;
+		if (cyclesElapsed > 0) {
+			accumulatedCycleTime -= cyclesElapsed;
+			completedCycles += cyclesElapsed;
 		}
 		lastUpdateTime = currentTimeMillis;
 	}
@@ -652,16 +607,14 @@ public class DaylightCycleManager {
 
 		// Real Time mode: the moon's phase and position are astronomically real for
 		// today at the player's local hour, matching the real-clock sun.
-		if (currentCycle.usesLocalTime) {
+		if (currentCycle.usesLocalTime)
 			return currentInstant;
-		}
 
 		// Synced Days mode: use the same UTC-derived instant as the sun so the moon
 		// stays coherent with it and is identical for every player. One simulated
 		// day advances per completed UTC hour.
-		if (currentCycle.usesUtcSyncedTime) {
+		if (currentCycle.usesUtcSyncedTime)
 			return currentInstant;
-		}
 
 		// Total simulated days elapsed = completed whole cycles + current cycle progress.
 		// Warp only the within-cycle fraction so the realistic moon's position tracks
@@ -705,9 +658,10 @@ public class DaylightCycleManager {
 
 	/** Whether a time-restricted light is effectively off for the current day/night state. */
 	public boolean isHiddenByLightSchedule(Light light) {
-		return lightScheduleActive
-			&& light.def.timeOfDay != null
-			&& getNightStrengthScale(light.def, getScheduledNightFactor(light)) < .001f;
+		return
+			lightScheduleActive &&
+			light.def.timeOfDay != null &&
+			getNightStrengthScale(light.def, getScheduledNightFactor(light)) < .001f;
 	}
 
 	/** Apply the cycle's strength and radius response after LightManager's normal fades. */
@@ -726,9 +680,7 @@ public class DaylightCycleManager {
 		if (def.timeOfDay == null)
 			return nightFactor;
 
-		LightTimeOfDay phase = nightFactorIncreasing || def.timeOfDayOff == null
-			? def.timeOfDay
-			: def.timeOfDayOff;
+		LightTimeOfDay phase = nightFactorIncreasing || def.timeOfDayOff == null ? def.timeOfDay : def.timeOfDayOff;
 		float start = phase.start;
 		float end = phase.end;
 		if (def.staggered) {
@@ -755,7 +707,7 @@ public class DaylightCycleManager {
 
 	private float getNightStrengthScale(LightDefinition def, float scheduledNightFactor) {
 		float nightScale = mix(1, def.nightMultiplier, nightFactor);
-		return def.timeOfDay != null ? scheduledNightFactor * nightScale : nightScale;
+		return nightScale * (def.timeOfDay != null ? scheduledNightFactor : 1);
 	}
 
 	private float getNightRadiusScale(LightDefinition def, float scheduledNightFactor) {

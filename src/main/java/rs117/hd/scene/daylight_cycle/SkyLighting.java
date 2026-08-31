@@ -177,15 +177,15 @@ public class SkyLighting {
 		plugin.uboGlobal.fogColor.set(fogColorSrgb);
 
 		float[] waterColorHsv = ColorUtils.srgbToHsv(waterColor);
-		plugin.uboGlobal.waterColorLight.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+		plugin.uboGlobal.waterColorLight.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
 			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .8f
-		})));
-		plugin.uboGlobal.waterColorMid.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+		)));
+		plugin.uboGlobal.waterColorMid.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
 			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .45f
-		})));
-		plugin.uboGlobal.waterColorDark.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+		)));
+		plugin.uboGlobal.waterColorDark.set(ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
 			waterColorHsv[0], waterColorHsv[1], waterColorHsv[2] * .05f
-		})));
+		)));
 
 		float effectiveAmbientStrength = ambientStrength;
 		effectiveDirectionalStrength = directionalStrength;
@@ -429,8 +429,7 @@ public class SkyLighting {
 		if (sunAltDeg > 0) {
 			float desaturation = smoothstep(0, 90, sunAltDeg) * .75f;
 			float luma = dot(lightColor, SKY_LUMA_WEIGHTS);
-			for (int i = 0; i < 3; i++)
-				lightColor[i] = mix(lightColor[i], luma, desaturation);
+			mix(lightColor, lightColor, luma, desaturation);
 		}
 
 		// Only at midday does an opt-in light return to its authored color; sunrise, sunset,
@@ -473,17 +472,17 @@ public class SkyLighting {
 	}
 
 	private static float[] srgbKeyframe(float altitudeDegrees, int srgb) {
-		return new float[] {
+		return vec(
 			altitudeDegrees,
 			((srgb >> 16) & 0xFF) / 255f,
 			((srgb >> 8) & 0xFF) / 255f,
 			(srgb & 0xFF) / 255f
-		};
+		);
 	}
 
 	private static float[] linearKeyframe(float altitudeDegrees, int red, int green, int blue) {
 		float[] linear = rgb(new Color(red, green, blue));
-		return new float[] { altitudeDegrees, linear[0], linear[1], linear[2] };
+		return vec(altitudeDegrees, linear[0], linear[1], linear[2]);
 	}
 
 	private static float[] getDirectionalLightForAngles(float[] sunAngles) {
@@ -532,12 +531,12 @@ public class SkyLighting {
 			i++;
 		float[] from = keyframes[i];
 		if (i == end)
-			return srgbToLinear(new float[] { from[1], from[2], from[3] });
+			return srgbToLinear(slice(from, 1));
 		float[] to = keyframes[i + 1];
 		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
 		return mix(
-			srgbToLinear(new float[] { from[1], from[2], from[3] }),
-			srgbToLinear(new float[] { to[1], to[2], to[3] }),
+			srgbToLinear(slice(from, 1)),
+			srgbToLinear(slice(to, 1)),
 			t
 		);
 	}
@@ -549,20 +548,18 @@ public class SkyLighting {
 			i++;
 		float[] from = keyframes[i];
 		if (i == end)
-			return new float[] { from[1], from[2], from[3] };
+			return slice(from, 1);
 		float[] to = keyframes[i + 1];
 		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
-		return new float[] { mix(from[1], to[1], t), mix(from[2], to[2], t), mix(from[3], to[3], t) };
+		return mix(slice(from, 1), slice(to, 1), t);
 	}
 
 	private static void blendTowards(float[] dst, float[] src, float t) {
-		for (int i = 0; i < 3; i++)
-			dst[i] = mix(dst[i], src[i], t);
+		mix(dst, dst, src, t);
 	}
 
 	private static void fadeOut(float[] dst, float t) {
-		for (int i = 0; i < 3; i++)
-			dst[i] *= 1 - t;
+		multiply(dst, dst, 1 - t);
 	}
 
 	private float computeShadowVisibility(float sunAltDeg, float moonAltDeg, float moonIllumination) {
@@ -611,10 +608,8 @@ public class SkyLighting {
 	private void tintNightSky(float[][] sky, float moonInfluence) {
 		float[] nightSkyColor = environmentManager.currentNightSkyColor;
 		float skyTint = min(1, moonInfluence * NIGHT_SKY_TINT_SCALE * environmentManager.currentNightSkyColorStrength);
-		for (int i = 0; i < 3; i++) {
-			sky[0][i] = mix(sky[0][i], nightSkyColor[i], skyTint);
-			sky[1][i] = mix(sky[1][i], nightSkyColor[i], skyTint);
-		}
+		mix(sky[0], sky[0], nightSkyColor, skyTint);
+		mix(sky[1], sky[1], nightSkyColor, skyTint);
 	}
 
 	private void uploadSkyUniforms(DaylightCycleState state, float[][] sky, float moonIllumination) {
@@ -653,10 +648,7 @@ public class SkyLighting {
 	}
 
 	private static float[] mixColor(float[] a, float[] b, float t) {
-		float[] result = new float[3];
-		for (int i = 0; i < 3; i++)
-			result[i] = mix(a[i], b[i], t);
-		return result;
+		return mix(a, b, t);
 	}
 
 	private static final class OutdoorSkySample {

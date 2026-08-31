@@ -1021,21 +1021,21 @@ public class LegacyRenderer implements Renderer {
 			float lightBrightnessMultiplier = 0.8f;
 			float midBrightnessMultiplier = 0.45f;
 			float darkBrightnessMultiplier = 0.05f;
-			float[] waterColorLight = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+			float[] waterColorLight = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
 				waterColorHsv[0],
 				waterColorHsv[1],
 				waterColorHsv[2] * lightBrightnessMultiplier
-			}));
-			float[] waterColorMid = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+			));
+			float[] waterColorMid = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
 				waterColorHsv[0],
 				waterColorHsv[1],
 				waterColorHsv[2] * midBrightnessMultiplier
-			}));
-			float[] waterColorDark = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(new float[] {
+			));
+			float[] waterColorDark = ColorUtils.linearToSrgb(ColorUtils.hsvToSrgb(
 				waterColorHsv[0],
 				waterColorHsv[1],
 				waterColorHsv[2] * darkBrightnessMultiplier
-			}));
+			));
 			plugin.uboGlobal.waterColorLight.set(waterColorLight);
 			plugin.uboGlobal.waterColorMid.set(waterColorMid);
 			plugin.uboGlobal.waterColorDark.set(waterColorDark);

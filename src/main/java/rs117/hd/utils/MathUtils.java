@@ -53,6 +53,13 @@ public final class MathUtils {
 		return vec;
 	}
 
+	public static float[] vec(double... vec) {
+		float[] floats = new float[vec.length];
+		for (int i = 0; i < vec.length; i++)
+			floats[i] = (float) vec[i];
+		return floats;
+	}
+
 	public static float[] vec(int... vec) {
 		float[] floats = new float[vec.length];
 		for (int i = 0; i < vec.length; i++)

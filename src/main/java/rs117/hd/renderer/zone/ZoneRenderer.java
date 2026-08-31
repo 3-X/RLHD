@@ -587,7 +587,7 @@ public class ZoneRenderer implements Renderer {
 				// Calculate directional size from the AABB of the scene frustum corners
 				// Then snap to the nearest multiple of `LOCAL_HALF_TILE_SIZE` to prevent shimmering
 				int directionalSize = (int) max(abs(maxY - minY), abs(maxX - minX), abs(maxZ - minZ));
-				directionalSize = Math.round(directionalSize / (float) LOCAL_HALF_TILE_SIZE) * LOCAL_HALF_TILE_SIZE;
+				directionalSize = round(directionalSize / (float) LOCAL_HALF_TILE_SIZE) * LOCAL_HALF_TILE_SIZE;
 				directionalSize = max(8000, directionalSize); // Clamp the size to prevent going too small at reduced draw distances
 
 				// Ignore directional size changes below the change threshold to avoid inducing shimmering
@@ -604,9 +604,9 @@ public class ZoneRenderer implements Renderer {
 				sceneCenter[1] = (float) floor(sceneCenter[1] / texelSize + 0.5f) * texelSize;
 
 				directionalCamera.setPosition(directionalCamera.inverseTransformPoint(sceneCenter, sceneCenter));
-				directionalCamera.setNearPlane(Math.max(0.1f, radius * 0.05f));
-				directionalCamera.setFarPlane(radius * 2.0f);
-				directionalCamera.setZoom(1.0f);
+				directionalCamera.setNearPlane(max(.1f, radius * .05f));
+				directionalCamera.setFarPlane(radius * 2);
+				directionalCamera.setZoom(1);
 				directionalCamera.setViewportWidth(directionalSize);
 				directionalCamera.setViewportHeight(directionalSize);
 
