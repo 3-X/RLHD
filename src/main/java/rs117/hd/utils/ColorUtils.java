@@ -74,7 +74,7 @@ public class ColorUtils {
 	 * @param XYZ coordinates
 	 * @return linear RGB coordinates
 	 */
-	public static float[] XYZtoRGB(float[] XYZ) {
+	public static float[] XYZtoRGB(float... XYZ) {
 		float[] RGB = new float[3];
 		mat3MulVec3(RGB, XYZ_TO_RGB_MATRIX, XYZ);
 		return RGB;
@@ -85,7 +85,7 @@ public class ColorUtils {
 	 * @param RGB linear RGB color coordinates
 	 * @return XYZ color coordinates
 	 */
-	public static float[] RGBtoXYZ(float[] RGB) {
+	public static float[] RGBtoXYZ(float... RGB) {
 		float[] XYZ = new float[3];
 		mat3MulVec3(XYZ, RGB_TO_XYZ_MATRIX, RGB);
 		return XYZ;
@@ -114,15 +114,15 @@ public class ColorUtils {
 	}
 
 	public static float[] linearToSrgb(float... c) {
-		float[] result = new float[c.length];
-		for (int i = 0; i < c.length; i++)
+		float[] result = new float[3];
+		for (int i = 0; i < 3; i++)
 			result[i] = linearToSrgb(c[i]);
 		return result;
 	}
 
 	public static float[] srgbToLinear(float... c) {
-		float[] result = new float[c.length];
-		for (int i = 0; i < c.length; i++)
+		float[] result = new float[3];
+		for (int i = 0; i < 3; i++)
 			result[i] = srgbToLinear(c[i]);
 		return result;
 	}
@@ -134,7 +134,7 @@ public class ColorUtils {
 	 * @return hsl float[3]
 	 * @link <a href="https://web.archive.org/web/20230619214343/https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae">Wikipedia: HSL and HSV</a>
 	 */
-	public static float[] srgbToHsl(float[] srgb) {
+	public static float[] srgbToHsl(float... srgb) {
 		float V = max(srgb);
 		float X_min = min(srgb);
 		float C = V - X_min;
@@ -154,7 +154,7 @@ public class ColorUtils {
 		float L = (V + X_min) / 2;
 		float divisor = 1 - abs(2 * L - 1);
 		float S_L = abs(divisor) < EPS ? 0 : C / divisor;
-		return new float[] { H / 6, S_L, L };
+		return vec(H / 6, S_L, L);
 	}
 
 	/**
@@ -164,7 +164,7 @@ public class ColorUtils {
 	 * @return srgb float[3]
 	 * @link <a href="https://web.archive.org/web/20230619214343/https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae">Wikipedia: HSL and HSV</a>
 	 */
-	public static float[] hslToSrgb(float[] hsl) {
+	public static float[] hslToSrgb(float... hsl) {
 		float C = hsl[1] * (1 - abs(2 * hsl[2] - 1));
 		float H_prime = fract(hsl[0]) * 6;
 		float m = hsl[2] - C / 2;
@@ -181,7 +181,7 @@ public class ColorUtils {
 	 * @param hsl float[3]
 	 * @return hsv float[3]
 	 */
-	public static float[] hslToHsv(float[] hsl) {
+	public static float[] hslToHsv(float... hsl) {
 		float v = hsl[2] + hsl[1] * min(hsl[2], 1 - hsl[2]);
 		return vec(hsl[0], abs(v) < EPS ? 0 : 2 * (1 - hsl[2] / v), v);
 	}
@@ -192,7 +192,7 @@ public class ColorUtils {
 	 * @param hsv float[3]
 	 * @return hsl float[3]
 	 */
-	public static float[] hsvToHsl(float[] hsv) {
+	public static float[] hsvToHsl(float... hsv) {
 		float l = hsv[2] * (1 - hsv[1] / 2);
 		float divisor = min(l, 1 - l);
 		return vec(hsv[0], abs(divisor) < EPS ? 0 : (hsv[2] - l) / divisor, l);
@@ -205,7 +205,7 @@ public class ColorUtils {
 	 * @return hsv float[3]
 	 * @link <a href="https://web.archive.org/web/20230619214343/https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae">Wikipedia: HSL and HSV</a>
 	 */
-	public static float[] srgbToHsv(float[] srgb) {
+	public static float[] srgbToHsv(float... srgb) {
 		return hslToHsv(srgbToHsl(srgb));
 	}
 
@@ -216,7 +216,7 @@ public class ColorUtils {
 	 * @return srgb float[3]
 	 * @link <a href="https://web.archive.org/web/20230619214343/https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae">Wikipedia: HSL and HSV</a>
 	 */
-	public static float[] hsvToSrgb(float[] hsv) {
+	public static float[] hsvToSrgb(float... hsv) {
 		return hslToSrgb(hsvToHsl(hsv));
 	}
 
@@ -273,7 +273,7 @@ public class ColorUtils {
 	 * @return float[3] non-linear sRGB values from 0-1
 	 */
 	public static float[] srgb(float r, float g, float b) {
-		return new float[] { r / 255f, g / 255f, b / 255f };
+		return vec(r / 255f, g / 255f, b / 255f);
 	}
 
 	/**
@@ -363,7 +363,7 @@ public class ColorUtils {
 		return rgb[0] << 16 | rgb[1] << 8 | rgb[2];
 	}
 
-	public static int packSrgb(float[] srgb) {
+	public static int packSrgb(float... srgb) {
 		return packRawRgb(ivec(multiply(saturate(srgb), 0xFF)));
 	}
 
