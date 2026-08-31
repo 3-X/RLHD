@@ -23,21 +23,19 @@ public class ColorUtils {
 	private static final float EPS = 1e-4f;
 
 	/**
-	 * Row-major transformation matrices for conversion between RGB and XYZ color spaces.
-	 * Fairman, H. S., Brill, M. H., & Hemmendinger, H. (1997).
-	 * How the CIE 1931 color-matching functions were derived from Wright-Guild data.
-	 * Color Research & Application, 22(1), 11–23.
-	 * doi:10.1002/(sici)1520-6378(199702)22:1<11::aid-col4>3.0.co;2-7
+	 * Row-major transforms between CIE XYZ (D65) and linear sRGB.
+	 * Coefficients are the sRGB matrices from
+	 * <a href="https://www.w3.org/TR/css-color-4/#color-conversion-code">CSS Color Module Level 4</a>
 	 */
 	private static final float[] RGB_TO_XYZ_MATRIX = {
-		.49f, .31f, .2f,
-		.1769f, .8124f, .0107f,
-		.0f,    .0099f, .9901f
+		.4123908f, .35758434f, .1804808f,
+		.212639f, .7151687f, .07219232f,
+		.01933082f, .11919478f, .95053215f
 	};
 	private static final float[] XYZ_TO_RGB_MATRIX = {
-		2.36449f,    -.896553f,  -.467937f,
-		-.514935f,   1.42633f,    .0886025f,
-		 .00514883f, -.0142619f, 1.00911f
+		3.24097f, -1.5373832f, -.49861076f,
+		-.96924365f, 1.8759675f, .041555058f,
+		.05563008f, -.20397696f, 1.0569715f
 	};
 
 	/**
