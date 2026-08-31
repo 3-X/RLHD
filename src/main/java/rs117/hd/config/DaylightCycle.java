@@ -30,17 +30,8 @@ public enum DaylightCycle {
 	;
 
 	private final String name;
-	/**
-	 * Whether the sun remains at a fixed angle.
-	 */
 	public final boolean isFixed;
-	/**
-	 * Whether the sun and moon follow the player's local wall clock.
-	 */
 	public final boolean usesLocalTime;
-	/**
-	 * Whether the sun and moon follow the UTC-synchronized clock.
-	 */
 	public final boolean usesUtcSyncedTime;
 	/**
 	 * Whether Day Length reshapes an unlocked moon's simulated cycle.
@@ -56,9 +47,6 @@ public enum DaylightCycle {
 	 */
 	private final float fixedSunAltitudeDegrees;
 	private final float fixedSunAzimuthDegrees;
-	/**
-	 * UTC-synced skies always use the northern latitude so they match for all players.
-	 */
 	private final boolean forcesNorthernHemisphere;
 	/**
 	 * Locks the moon disk and moon-shadow direction to the Fixed Night position.
@@ -68,17 +56,11 @@ public enum DaylightCycle {
 	 * Uses a permanently full moon unless an environment/config phase lock takes priority.
 	 */
 	private final boolean locksMoonIllumination;
-	/**
-	 * Hides the moon disk in locked daytime skies.
-	 */
 	private final boolean hidesMoon;
 	/**
 	 * Uses the Fixed Night moon altitude for light-only calculations.
 	 */
 	private final boolean usesFixedMoonAltitudeForLighting;
-	/**
-	 * Keeps the sun permanently below the horizon.
-	 */
 	private final boolean permanentNight;
 
 	public float[] getFixedSunAngles() {

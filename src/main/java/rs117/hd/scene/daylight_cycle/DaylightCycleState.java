@@ -1,14 +1,8 @@
 package rs117.hd.scene.daylight_cycle;
 
-/**
- * The celestial state shared by all daylight-cycle lighting work in one frame.
- *
- * <p>DaylightCycleManager resolves and mutates this once at the end of its update. Array
- * fields are shared with the manager, so consumers must treat them as read-only.
- */
+/** Per-frame celestial state. DaylightCycleManager mutates it; consumers treat arrays as read-only. */
 final class DaylightCycleState {
-	// Fixed-angle references resolved from the current environment. They use EnvironmentManager's
-	// {altitude, azimuth} convention; fixedMoonAngles also supplies Always Night lighting.
+	// Environment {altitude, azimuth} overrides; fixedMoonAngles also supports Always Night.
 	float[] fixedSunAnglesOverride;
 	float[] fixedMoonAngles;
 	float[] sunAngles;

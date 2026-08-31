@@ -18,88 +18,74 @@ import static rs117.hd.utils.ColorUtils.rgb;
 import static rs117.hd.utils.ColorUtils.srgbToLinear;
 import static rs117.hd.utils.MathUtils.*;
 
-/**
- * Converts the current celestial state into scene lighting.
- *
- * <p>{@link DaylightCycleManager} owns the clock, cycle mode, and sun/moon positions. This class owns the
- * lighting policy built on top of those positions: procedural sky colors, regional blending,
- * brightness, and the response of outdoor lights. For ZoneRenderer it also owns the resolved
- * frame lighting and skybox UBO upload, so the renderer consumes one coherent cycle result.
- */
+/** Converts {@link DaylightCycleManager}'s celestial state into scene and sky lighting. */
 @Singleton
 public class SkyLighting {
-	// Sun altitude below which the moon begins taking over shadows and light.
 	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
 	private static final float SUN_SHADOW_MIDPOINT_DEG = 12;
 	private static final float SUN_SHADOW_FULL_DEG = 15;
 	private static final float SUN_SHADOW_MIDPOINT_VISIBILITY = .6f;
 	private static final float SUN_SHADOW_DAYTIME_FLOOR = .9f;
 
-	// Moon altitude below which the moon neither casts light nor shadows.
 	private static final float MOON_HORIZON_CUTOFF_DEG = -10;
 	private static final float MIN_MOON_ILLUMINATION = .01f;
 	private static final float MOON_ELEVATION_FADE_START_DEG = -10;
 	private static final float MOON_ELEVATION_FADE_END_DEG = 20;
 	private static final float MOON_SHADOW_STRENGTH = .2f;
-	// A square root keeps shadows readable through waxing and waning phases without making a
-	// new moon cast any; shadow presence follows directional quality more than brightness.
+	// Square-root phase response keeps waxing and waning shadows visible.
 	private static final float MOON_SHADOW_PHASE_EXPONENT = .5f;
-	// Moonlight never fully replaces an area's requested ambient night floor, even overhead.
+	// Preserve part of the authored ambient floor even under a full moon.
 	private static final float MIN_BRIGHTNESS_BOOST_RESIDUAL = .2f;
 	private static final float MAX_MOON_COLOR_INFLUENCE = .8f;
 	private static final float MOON_INFLUENCE_AT_HORIZON = .05f;
 	private static final float MOON_TINT_SUN_START_DEG = 5;
 	private static final float MOON_TINT_SUN_END_DEG = -15;
-	// The base tint is deliberately subtle; environments scale it with nightSkyColorStrength.
+	// Environments scale this subtle base tint with nightSkyColorStrength.
 	private static final float NIGHT_SKY_TINT_SCALE = .05f;
 	private static final float SKY_FILL_FADE_END_DEG = 45;
 
-	// Pre-linearized deep-night sky color.
-	// Read-only: every consumer only reads components into fresh blend arrays.
 	private static final float[] NIGHT_SKY_LINEAR = rgb(5, 7, 15);
 	private static final float[] SKY_LUMA_WEIGHTS = { .2126f, .7152f, .0722f };
 
-	// Sky color keyframe tables, as { sunAltitudeDegrees, sRGB 0xRRGGBB }. Read-only
-	// constant data; interpolateSrgb only reads them and returns a fresh linear float[] per call.
-	// Rows must stay sorted by ascending altitude.
+	// {sun altitude degrees, sRGB}; rows must remain sorted.
 	private static final float[][] ZENITH_KEYFRAMES = {
-		srgbKeyframe(-30, 0x010104), // Deep night - near black
-		srgbKeyframe(-15, 0x03040A), // Late night
-		srgbKeyframe(-8, 0x2D2346), // Early twilight - purple tint
-		srgbKeyframe(-3, 0x503C64), // Twilight
-		srgbKeyframe(0, 0x645078), // Horizon sun
-		srgbKeyframe(5, 0x788CB4), // Early sunrise
-		srgbKeyframe(15, 0x6496C8), // Morning
-		srgbKeyframe(30, 0x5A91C8), // Mid-morning
-		srgbKeyframe(50, 0x558CC3), // Midday
-		srgbKeyframe(90, 0x5087BE), // High noon
+		srgbKeyframe(-30, 0x010104),
+		srgbKeyframe(-15, 0x03040A),
+		srgbKeyframe(-8, 0x2D2346),
+		srgbKeyframe(-3, 0x503C64),
+		srgbKeyframe(0, 0x645078),
+		srgbKeyframe(5, 0x788CB4),
+		srgbKeyframe(15, 0x6496C8),
+		srgbKeyframe(30, 0x5A91C8),
+		srgbKeyframe(50, 0x558CC3),
+		srgbKeyframe(90, 0x5087BE),
 	};
 
 	private static final float[][] HORIZON_KEYFRAMES = {
-		srgbKeyframe(-30, 0x010205), // Deep night - near black
-		srgbKeyframe(-15, 0x04050C), // Late night
-		srgbKeyframe(-8, 0x3C2D41), // Early twilight
-		srgbKeyframe(-3, 0x8C5046), // Twilight - orange/red
-		srgbKeyframe(0, 0xDC8250), // Sunrise/sunset - golden
-		srgbKeyframe(5, 0xE6AA78), // Early morning golden
-		srgbKeyframe(10, 0xC8B4A0), // Morning warm
-		srgbKeyframe(20, 0xAAAFB9), // Late morning
-		srgbKeyframe(30, 0x96A5BE), // Midday haze
-		srgbKeyframe(50, 0x8CA0BE), // Afternoon
-		srgbKeyframe(90, 0x879BB9), // High noon
+		srgbKeyframe(-30, 0x010205),
+		srgbKeyframe(-15, 0x04050C),
+		srgbKeyframe(-8, 0x3C2D41),
+		srgbKeyframe(-3, 0x8C5046),
+		srgbKeyframe(0, 0xDC8250),
+		srgbKeyframe(5, 0xE6AA78),
+		srgbKeyframe(10, 0xC8B4A0),
+		srgbKeyframe(20, 0xAAAFB9),
+		srgbKeyframe(30, 0x96A5BE),
+		srgbKeyframe(50, 0x8CA0BE),
+		srgbKeyframe(90, 0x879BB9),
 	};
 
 	private static final float[][] SUN_GLOW_KEYFRAMES = {
-		srgbKeyframe(-30, 0x000000), // No glow at night
-		srgbKeyframe(-10, 0x140A1E), // Very faint purple
-		srgbKeyframe(-5, 0x50283C), // Purple/pink
-		srgbKeyframe(-2, 0xB45032), // Deep orange/red
-		srgbKeyframe(0, 0xFF9650), // Bright orange
-		srgbKeyframe(5, 0xFFC882), // Golden yellow
-		srgbKeyframe(15, 0xFFE6B4), // Warm white
-		srgbKeyframe(30, 0xFFFADC), // Nearly white
-		srgbKeyframe(50, 0xFFFFF0), // White with slight warmth
-		srgbKeyframe(90, 0xFFFFFA), // Pure white
+		srgbKeyframe(-30, 0x000000),
+		srgbKeyframe(-10, 0x140A1E),
+		srgbKeyframe(-5, 0x50283C),
+		srgbKeyframe(-2, 0xB45032),
+		srgbKeyframe(0, 0xFF9650),
+		srgbKeyframe(5, 0xFFC882),
+		srgbKeyframe(15, 0xFFE6B4),
+		srgbKeyframe(30, 0xFFFADC),
+		srgbKeyframe(50, 0xFFFFF0),
+		srgbKeyframe(90, 0xFFFFFA),
 	};
 
 	// Sun altitude in degrees mapped to color temperature in kelvin.
@@ -128,32 +114,26 @@ public class SkyLighting {
 	@Inject
 	private DaylightCycleManager daylightCycleManager;
 
-	// The lighting values a frame is built from. Seeded from the environment, then the cycle
-	// overwrites the values it drives. Colors are linear except fogColorSrgb, which matches the
-	// skybox. The arrays are owned and reused by this service, never aliasing environment state.
+	// Frame lighting; colors are linear except fogColorSrgb.
 	public final float[] directionalColor = new float[3];
 	public final float[] ambientColor = new float[3];
 	public final float[] fogColorSrgb = new float[3];
 	public final float[] waterColor = new float[3];
 	public float directionalStrength;
 	public float ambientStrength;
-	// The directional strength after the legacy-brightness compatibility multiplier.
 	public float effectiveDirectionalStrength;
 
 	@Getter
 	@Accessors(fluent = true)
 	private boolean shouldRenderSky;
 
-	// The resolved environment, current frame, and minimum brightness fully determine the
-	// outdoor sky sample. This keeps one shared sample per environment per frame.
+	// One outdoor-sky sample per environment, frame, and minimum brightness.
 	private OutdoorSkySample cachedOutdoorSkySample;
 	private Environment cachedOutdoorSkyEnvironment;
 	private int cachedOutdoorSkyMinBrightness;
 	private int cachedOutdoorSkyFrame = -1;
 
-	/**
-	 * Resolve this frame's lighting and write its global/skybox UBO properties.
-	 */
+	/** Resolve this frame's lighting and UBO properties. */
 	public void update() {
 		boolean wasActive = shouldRenderSky;
 		shouldRenderSky = daylightCycleManager.isCycleActive();
@@ -170,9 +150,7 @@ public class SkyLighting {
 			plugin.uboSkybox.upload();
 	}
 
-	/**
-	 * Write the global lighting properties; ZoneRenderer performs the actual UBO upload.
-	 */
+	/** Write global lighting; ZoneRenderer uploads it. */
 	private void writeGlobalLighting() {
 		plugin.uboGlobal.fogColor.set(fogColorSrgb);
 
@@ -200,7 +178,6 @@ public class SkyLighting {
 		plugin.uboGlobal.lightColor.set(directionalColor);
 	}
 
-	/** Copy the environment's current lighting in as this frame's starting point. */
 	private void seedFromEnvironment() {
 		copyTo(directionalColor, environmentManager.currentDirectionalColor);
 		copyTo(ambientColor, environmentManager.currentAmbientColor);
@@ -210,7 +187,7 @@ public class SkyLighting {
 		ambientStrength = environmentManager.currentAmbientStrength;
 	}
 
-	/** Derive the frame's lighting from the current sun and moon, then upload the skybox UBO. */
+	/** Derive this frame's lighting from the sun and moon. */
 	private void computeCycleLighting() {
 		var state = daylightCycleManager.getState();
 		copyTo(directionalColor, getRegionalDirectionalLight(state, environmentManager.currentDirectionalColor));
@@ -218,8 +195,7 @@ public class SkyLighting {
 
 		float brightnessMultiplier = getBrightnessMultiplier(state, plugin.configMinimumBrightness);
 		float baseDirectionalStrength = environmentManager.currentDirectionalStrength;
-		// Ignore seasonal ambientStrength while the cycle is active: its brightness response alone
-		// controls how dark nights get, rather than competing with the authored seasonal values.
+		// The cycle controls night brightness instead of seasonal ambient strength.
 		ambientStrength = brightnessMultiplier;
 
 		float sunAltDeg = state.sunAngles[0] * RAD_TO_DEG;
@@ -233,7 +209,7 @@ public class SkyLighting {
 			environmentManager.currentSkyColorTakeoverAngle
 		);
 
-		// Lighting can keep a new moon present; the visible disk still uses the true phase.
+		// Lighting can enforce a minimum moon phase without changing the visible disk.
 		float litMoonIllumination = max(moonIllumination, environmentManager.currentMinMoonIllumination);
 		float shadowVisibility = computeShadowVisibility(sunAltDeg, moonAltDeg, litMoonIllumination);
 		float moonInfluence = computeMoonInfluence(sunAltDeg, moonAltDeg, litMoonIllumination);
@@ -241,7 +217,7 @@ public class SkyLighting {
 
 		directionalStrength =
 			baseDirectionalStrength * brightnessMultiplier * environmentManager.currentSunlightStrength;
-		// The horizon color doubles as fog, so geometry meets the skybox seamlessly there.
+		// Horizon color doubles as fog so geometry meets the skybox.
 		copyTo(fogColorSrgb, sky[1]);
 		copyTo(waterColor, ColorUtils.srgbToLinear(sky[1]));
 
@@ -256,14 +232,13 @@ public class SkyLighting {
 
 		mix(directionalColor, environmentManager.currentMoonLightColor, moonInfluence);
 		tintNightSky(sky, moonInfluence);
-		// Color influence is capped, but a fully active moon can still reach its configured strength.
+		// Cap color influence without capping configured moonlight strength.
 		float strengthBlend = min(1, moonInfluence / MAX_MOON_COLOR_INFLUENCE);
 		return mix(baseDirectionalStrength, environmentManager.currentMoonDirectionalStrength, strengthBlend);
 	}
 
 	private void applyAmbientFloor(float moonAltDeg, float moonIllumination) {
-		// The floor replaces moonlight the sky genuinely lacks, so it uses the raw illumination
-		// rather than the environment's lighting-only minimum.
+		// Use true illumination so the floor replaces only light missing from the sky.
 		float boostFraction = MIN_BRIGHTNESS_BOOST_RESIDUAL +
 			(1 - MIN_BRIGHTNESS_BOOST_RESIDUAL) * (1 - moonPresence(moonAltDeg, moonIllumination));
 		float boostedFloor = plugin.configMinimumBrightness / 100f *
@@ -272,31 +247,24 @@ public class SkyLighting {
 	}
 
 	private void applySkyFill(float sunAltDeg, float shadowVisibility) {
-		// Sky fill is strongest at night and twilight, then fades out under a high, harsh sun.
 		float skyFill = 1 - smoothstep(0, SKY_FILL_FADE_END_DEG, sunAltDeg);
 		add(ambientColor, ambientColor, multiply(directionalColor, (1 - shadowVisibility) * skyFill));
 		directionalStrength *= shadowVisibility;
 	}
 
-	/** The directional color from the cycle, blended toward the area's authored color by day. */
 	private float[] getRegionalDirectionalLight(DaylightCycleState state, float[] regionalDirectionalColor) {
 		float[] sunAngles = state.sunAngles;
 		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
 		return mixColor(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
 	}
 
-	/** The ambient color from the cycle, using the same regional blend as directional light. */
 	private float[] getRegionalAmbientLight(DaylightCycleState state, float[] regionalAmbientColor) {
 		float[] sunAngles = state.sunAngles;
 		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
 		return mixColor(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
 	}
 
-	/**
-	 * Sky gradient colors for the current time as { zenith, horizon, sunGlow } in sRGB.
-	 * Procedural keyframes are adjusted in sequence by regional sun suppression, regional
-	 * sunrise/sunset suppression, the daytime regional takeover, then the generic night sky.
-	 */
+	/** Return {zenith, horizon, sun glow} sRGB after regional and night-sky blending. */
 	private float[][] getSkyGradientColors(
 		DaylightCycleState state,
 		float[] regionalFogColor,
@@ -305,8 +273,7 @@ public class SkyLighting {
 		float skyColorTakeoverAngle
 	) {
 		float sunAltitude = state.sunAngles[0] * RAD_TO_DEG;
-		// Keep the twilight-suppression window and daytime takeover bound together. Otherwise
-		// raw blue keyframes leak through between them after sunrise.
+		// Bind twilight suppression to daytime takeover to avoid a blue gap after sunrise.
 		float takeover = max(0, skyColorTakeoverAngle);
 		float[] regionalLin = regionalFogColor != null ? srgbToLinear(regionalFogColor) : null;
 
@@ -314,8 +281,7 @@ public class SkyLighting {
 		float[] horizon = interpolateSrgb(sunAltitude, HORIZON_KEYFRAMES);
 		float[] sunGlow = interpolateSrgb(sunAltitude, SUN_GLOW_KEYFRAMES);
 
-		// 1. Suppress the procedural sunset for dark regional environments. Below the horizon,
-		// blend the suppression target toward the generic night sky to avoid a hard color jump.
+		// Suppress procedural sunset colors in dark regional environments.
 		if (regionalLin != null && sunStrength < 1) {
 			float window = sunAltitude >= 0 ? 1 : smoothstep(-25, 0, sunAltitude);
 			float suppression = (1 - sunStrength) * window;
@@ -327,7 +293,7 @@ public class SkyLighting {
 			}
 		}
 
-		// 2. Preserve a strongly authored regional sky through its twilight window.
+		// Preserve strongly authored regional skies through twilight.
 		if (regionalLin != null && sunriseSunsetStrength < 1) {
 			float window = sunAltitude < 0
 				? smoothstep(-15, 0, sunAltitude)
@@ -340,7 +306,7 @@ public class SkyLighting {
 			}
 		}
 
-		// 3. Hand the daytime sky over to the environment's regional color.
+		// Hand the daytime sky to the environment.
 		if (regionalLin != null) {
 			float blend = sunAltitude < 0 ? 0 : takeover == 0 ? 1 : smoothstep(0, takeover, sunAltitude);
 			if (blend > 0) {
@@ -349,7 +315,7 @@ public class SkyLighting {
 			}
 		}
 
-		// 4. Resolve deep night to a common base, leaving downstream moon tint and stars in charge.
+		// Use a common deep-night base before moon tint and stars.
 		float nightBlend = smoothstep(0, -15, sunAltitude);
 		if (nightBlend > 0) {
 			blendTowards(zenith, NIGHT_SKY_LINEAR, nightBlend);
@@ -359,14 +325,12 @@ public class SkyLighting {
 		return new float[][] { linearToSrgb(zenith), linearToSrgb(horizon), linearToSrgb(sunGlow) };
 	}
 
-	/** Reference horizon color at peak daytime, in the same sRGB space as the sky gradient. */
 	private float[] getReferenceHorizonColor(float[] regionalFogColor) {
 		return regionalFogColor != null
 			? regionalFogColor
 			: linearToSrgb(interpolateSrgb(90, HORIZON_KEYFRAMES));
 	}
 
-	/** Brightness response driven by sun altitude, including the user's minimum brightness. */
 	private float getBrightnessMultiplier(DaylightCycleState state, int minimumBrightness) {
 		float sunAltitudeDegrees = state.sunAngles[0] * RAD_TO_DEG;
 		float minBrightness = minimumBrightness / 100f;
@@ -390,16 +354,10 @@ public class SkyLighting {
 		return mix(earlyDayBrightness, 1.2f, normalizedSine);
 	}
 
-	/**
-	 * Apply the current sky's color and strength response to an outdoor light. Light definitions
-	 * remain the source of the authored daytime color; this only applies the day/night response
-	 * for definitions that opt in.
-	 */
+	/** Apply the sampled outdoor sky to an opted-in light. */
 	public void updateOutdoorLight(Light light, int[] worldPos, int minimumBrightness) {
 		copyTo(light.color, light.def.color);
-		// Outdoor lights retain the day/night response underground, so cave openings can be lit
-		// by the outdoor sky. This intentionally checks only the user setting rather than the
-		// current environment's cycleActive state.
+		// Apply outdoor light through cave openings even when the local environment has no cycle.
 		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
 			return;
 
@@ -425,15 +383,13 @@ public class SkyLighting {
 			}
 		}
 
-		// High sun produces whiter, less saturated outdoor light.
 		if (sunAltDeg > 0) {
 			float desaturation = smoothstep(0, 90, sunAltDeg) * .75f;
 			float luma = dot(lightColor, SKY_LUMA_WEIGHTS);
 			mix(lightColor, lightColor, luma, desaturation);
 		}
 
-		// Only at midday does an opt-in light return to its authored color; sunrise, sunset,
-		// and night are filtered through the sampled outdoor sky instead.
+		// Restore the authored color only at midday.
 		float horizonLuma = dot(lightColor, SKY_LUMA_WEIGHTS);
 		float middayFactor = smoothstep(15, 30, sunAltDeg);
 		if (middayFactor > 0)
@@ -590,7 +546,7 @@ public class SkyLighting {
 				pow(moonIllumination, MOON_SHADOW_PHASE_EXPONENT) * MOON_SHADOW_STRENGTH *
 				moonElevationFade(moonAltitude) * environmentManager.currentMoonShadowStrength;
 		}
-		// Clamp because unbounded moonShadowStrength feeds the ambient and sky-fill complements.
+		// moonShadowStrength also feeds ambient and sky-fill complements.
 		return saturate(smoothstep(SUN_SHADOW_CUTOFF_DEG, MOON_TINT_SUN_END_DEG, sunAltitude) * moonBaseShadow);
 	}
 
@@ -622,13 +578,13 @@ public class SkyLighting {
 		ubo.skyMoonDir.set(state.moonDirection);
 		ubo.skyMoonColor.set(environmentManager.currentMoonColor);
 		ubo.skyMoonIllumination.set(moonIllumination);
-		// An environment can force the moon for a cutscene, but locked daytime modes still hide it.
+		// Environments can force the moon, but locked daytime modes still hide it.
 		boolean moonEnabled = config.enableMoon() || environmentManager.forceMoonActive();
 		ubo.moonVisibility.set(!state.hidesMoon && moonEnabled ? environmentManager.currentMoonVisibility : 0);
 		ubo.moonSizeMult.set(environmentManager.currentMoonSizeMult);
 		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);
 		ubo.starVisibility.set(config.enableStarMap() ? environmentManager.currentStarVisibility : 0);
-		// The float literal is intentional: an all-int ternary binds the wrong uniform setter.
+		// An all-int ternary selects the wrong uniform setter.
 		ubo.nebulaVisibility.set(config.enableNebulas() ? environmentManager.currentNebulaVisibility : 0f);
 		ubo.auroraVisibility.set(state.auroraStrength * environmentManager.currentAuroraVisibility);
 	}
