@@ -62,8 +62,8 @@ public class DaylightCycleManager {
 	private static final float[] FIXED_NIGHT_MOON_ANGLES = HDUtils.sunAngles(25, 135);
 
 	// Representative seasonal latitudes; longitude is irrelevant to the simulated clock.
-	private static final double[] NORTHERN_LAT_LONG = { 40.7128, 0.0 };  // New York City
-	private static final double[] SOUTHERN_LAT_LONG = { -22.9068, 0.0 }; // Rio de Janeiro
+	private static final double[] NORTHERN_LAT_LONG = { 52.2347902, 0.1407562 }; // Jagex office, Cambridge
+	private static final double[] SOUTHERN_LAT_LONG = { -33.8472331, 150.6016524 }; // Sidney, Australia
 
 	private boolean hasFixedSunOverride;
 	private boolean moonPositionFixed;
