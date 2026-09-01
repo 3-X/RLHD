@@ -17,8 +17,8 @@ import rs117.hd.utils.GsonUtils.DegreesToRadians;
 import rs117.hd.utils.HDUtils;
 
 import static rs117.hd.utils.ColorUtils.SrgbToLinearAdapter;
-import static rs117.hd.utils.ColorUtils.SrgbAdapter;
 import static rs117.hd.utils.ColorUtils.rgb;
+import static rs117.hd.utils.MathUtils.*;
 
 @Slf4j
 @Setter(value = AccessLevel.PRIVATE)
@@ -187,35 +187,32 @@ public class Environment {
 		public Keyframe[] zenith;
 		public Keyframe[] horizon;
 		public Keyframe[] sunGlow;
+	}
 
-		public static class Keyframe {
-			public float altitude;
-			@JsonAdapter(SrgbAdapter.class)
-			public float[] color;
+	/**
+	 * A value sampled at a sun altitude in degrees.
+	 */
+	public static class Keyframe {
+		public float altitude;
+		@JsonAdapter(SrgbToLinearAdapter.class)
+		public float[] color;
+		public float value;
+
+		public float[] values() {
+			return color != null ? color : vec(value);
 		}
 	}
 
 	/** Tunable procedural lighting curves for the day & night cycle. */
 	public static class SkyLightingProfile {
-		public ColorKeyframe[] ambientColor;
-		public ScalarKeyframe[] directionalTemperature;
-		public ScalarKeyframe[] regionalBlend;
+		public Keyframe[] ambientColor;
+		public Keyframe[] directionalTemperature;
+		public Keyframe[] regionalBlend;
 		@JsonAdapter(SrgbToLinearAdapter.class)
 		public float[] nightSkyColor;
 		public float directionalBaseTemperature;
 		public float directionalBaseStrength;
 		public BrightnessCurve brightness;
-
-		public static class ColorKeyframe {
-			public float altitude;
-			@JsonAdapter(SrgbToLinearAdapter.class)
-			public float[] color;
-		}
-
-		public static class ScalarKeyframe {
-			public float altitude;
-			public float value;
-		}
 
 		public static class BrightnessCurve {
 			public float nightAltitude;
