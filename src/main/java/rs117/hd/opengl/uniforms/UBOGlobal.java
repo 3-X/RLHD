@@ -29,7 +29,7 @@ public class UBOGlobal extends UniformBuffer<GLBuffer> {
 	public Property colorFilter = addProperty(PropertyType.Int, "colorFilter");
 	public Property colorFilterFade = addProperty(PropertyType.Float, "colorFilterFade");
 
-	public Property viewportSize = addProperty(PropertyType.IVec4, "viewportSize");
+	public Property viewportSize = addProperty(PropertyType.IVec2, "viewportSize");
 	public Property sceneResolution = addProperty(PropertyType.IVec2, "sceneResolution");
 	public Property tiledLightingResolution = addProperty(PropertyType.IVec2, "tiledLightingResolution");
 

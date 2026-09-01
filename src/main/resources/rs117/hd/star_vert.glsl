@@ -131,7 +131,7 @@ void main() {
     // the same light spread over more screen area - so reduced render scales
     // show faint soft dots instead of full-brightness blobs. At 100% render
     // scale this reduces exactly to a plain clamp to [2, 3.5].
-    float viewportHeight = max(float(viewportSize.w), 1.0);
+    float viewportHeight = max(float(viewportSize.y), 1.0);
     float screenSize = clamp(aStarSize * viewportHeight * 0.003 * (0.9 + 0.15 * vBrightness), 2.0, 3.5);
     float renderScale = float(sceneResolution.y) / viewportHeight;
     float sizePixels = max(screenSize * renderScale, 2.0);
