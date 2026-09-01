@@ -241,9 +241,6 @@ public class LightManager {
 
 			// Whatever the light is attached to is presumed to exist if it's not marked for removal yet
 			boolean parentExists = !light.markedForRemoval;
-			// Re-evaluate plane occlusion from a clean baseline. Keeping the previous plane hide
-			// here made a static light permanently hidden: the guard below then prevented the
-			// new player plane from ever being considered.
 			boolean hiddenTemporarily = light.hiddenTemporarily && !light.hiddenByPlane;
 			boolean hiddenByPlane = false;
 
@@ -665,10 +662,6 @@ public class LightManager {
 				addWorldLight(sceneContext, light);
 		}
 
-		scanSceneObjectLights(sceneContext);
-	}
-
-	private void scanSceneObjectLights(SceneContext sceneContext) {
 		for (Tile[][] plane : sceneContext.scene.getExtendedTiles()) {
 			for (Tile[] column : plane) {
 				for (Tile tile : column) {

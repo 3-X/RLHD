@@ -156,8 +156,8 @@ public class CommandBuffer {
 		ensureCapacity(3);
 
 		cmd[writeHead++] = GL_BLEND_FUNC_TYPE & 0xFF;
-		cmd[writeHead++] = ((long) sfactorRGB & INT_MASK) | (((long) dfactorRGB & INT_MASK) << 32);
-		cmd[writeHead++] = ((long) sfactorAlpha & INT_MASK) | (((long) dfactorAlpha & INT_MASK) << 32);
+		cmd[writeHead++] = ((long) sfactorRGB & INT_MASK) | ((long) dfactorRGB & INT_MASK) << 32;
+		cmd[writeHead++] = ((long) sfactorAlpha & INT_MASK) | ((long) dfactorAlpha & INT_MASK) << 32;
 	}
 
 	public void MultiDrawArrays(int mode, int[] offsets, int[] counts) {

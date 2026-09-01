@@ -122,8 +122,7 @@ public class DeveloperTools implements KeyListener {
 
 	@Subscribe
 	public void onCommandExecuted(CommandExecuted commandExecuted) {
-		String command = commandExecuted.getCommand();
-		if (!command.equalsIgnoreCase("117hd"))
+		if (!commandExecuted.getCommand().equalsIgnoreCase("117hd"))
 			return;
 
 		String[] args = commandExecuted.getArguments();
@@ -184,7 +183,7 @@ public class DeveloperTools implements KeyListener {
 		assert client.isClientThread();
 		String usage = "Usage: ::117hd " + type + " get <name|id> | ::117hd " + type + " set <name|id> <value>";
 		if (args.length < 2) {
-			chat(usage);
+			postMessage(usage);
 			return;
 		}
 
@@ -198,11 +197,11 @@ public class DeveloperTools implements KeyListener {
 				expectedArgs = 4;
 				break;
 			default:
-				chat(usage);
+				postMessage(usage);
 				return;
 		}
 		if (args.length != expectedArgs) {
-			chat(usage);
+			postMessage(usage);
 			return;
 		}
 
@@ -225,12 +224,12 @@ public class DeveloperTools implements KeyListener {
 			}
 		}
 		if (id == null) {
-			chat("Unknown " + type + ": " + nameOrId);
+			postMessage("Unknown " + type + ": " + nameOrId);
 			return;
 		}
 
+		int[] varps = client.getVarps();
 		if (expectedArgs == 3) {
-			int[] varps = client.getVarps();
 			int value;
 			switch (type) {
 				case "varbit":
@@ -242,7 +241,7 @@ public class DeveloperTools implements KeyListener {
 				default:
 					throw new IllegalStateException("Unhandled variable kind: " + type);
 			}
-			chat(type + " " + nameOrId + " (" + id + ") = " + value);
+			postMessage(type + " " + nameOrId + " (" + id + ") = " + value);
 			return;
 		}
 
@@ -250,7 +249,7 @@ public class DeveloperTools implements KeyListener {
 		try {
 			value = Integer.parseInt(args[3]);
 		} catch (NumberFormatException e) {
-			chat("Invalid value: " + args[3]);
+			postMessage("Invalid value: " + args[3]);
 			return;
 		}
 
@@ -258,12 +257,12 @@ public class DeveloperTools implements KeyListener {
 		changed.setValue(value);
 		switch (type) {
 			case "varbit":
-				client.setVarbitValue(client.getVarps(), id, value);
+				client.setVarbitValue(varps, id, value);
 				client.queueChangedVarp(client.getVarbit(id).getIndex());
 				changed.setVarbitId(id);
 				break;
 			case "varp":
-				client.getVarps()[id] = value;
+				varps[id] = value;
 				client.queueChangedVarp(id);
 				changed.setVarpId(id);
 				break;
@@ -271,10 +270,10 @@ public class DeveloperTools implements KeyListener {
 				throw new IllegalStateException("Unhandled variable kind: " + type);
 		}
 		eventBus.post(changed);
-		chat("Set " + type + " " + nameOrId + " (" + id + ") = " + value);
+		postMessage("Set " + type + " " + nameOrId + " (" + id + ") = " + value);
 	}
 
-	private void chat(String message) {
+	private void postMessage(String message) {
 		clientThread.invoke(() -> client.addChatMessage(
 			ChatMessageType.GAMEMESSAGE,
 			"117 HD",

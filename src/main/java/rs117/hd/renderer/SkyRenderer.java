@@ -31,13 +31,13 @@ public class SkyRenderer {
 	private HdPlugin plugin;
 
 	@Inject
+	private FrameTimer frameTimer;
+
+	@Inject
 	private SkyLighting skyLighting;
 
 	@Inject
 	private StarField starField;
-
-	@Inject
-	private FrameTimer frameTimer;
 
 	@Inject
 	private SkyShaderProgram skyProgram;
@@ -45,8 +45,8 @@ public class SkyRenderer {
 	@Inject
 	private StarShaderProgram starProgram;
 
-	private final CommandBuffer commandBuffer = new CommandBuffer("Skybox");
-	private final RenderState immediateRenderState = new RenderState();
+	private final CommandBuffer commandBuffer = new CommandBuffer("Sky");
+	private final RenderState localRenderState = new RenderState();
 
 	public void initialize() {
 		commandBuffer.setFrameTimer(frameTimer);
@@ -92,10 +92,11 @@ public class SkyRenderer {
 	}
 
 	public void clear(boolean hasVanillaSkybox) {
-		boolean renderSky = canRenderSky(hasVanillaSkybox);
 		frameTimer.begin(Timer.CLEAR_SCENE);
+
 		glClearDepth(0);
-		if (renderSky) {
+
+		if (canRenderSky(hasVanillaSkybox)) {
 			glClear(GL_DEPTH_BUFFER_BIT);
 		} else {
 			float[] fogColor = hasVanillaSkybox ? BLACK : skyLighting.fogColorSrgb;
@@ -108,6 +109,7 @@ public class SkyRenderer {
 			);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		}
+
 		frameTimer.end(Timer.CLEAR_SCENE);
 	}
 
@@ -116,13 +118,9 @@ public class SkyRenderer {
 	}
 
 	public void render() {
-		boolean renderSky = canRenderSky(false);
 		clear(false);
-		if (renderSky) {
-			glDisable(GL_DEPTH_TEST);
-			glDisable(GL_CULL_FACE);
-			commandBuffer.execute(immediateRenderState);
-		}
+		if (canRenderSky(false))
+			commandBuffer.execute(localRenderState);
 	}
 
 	private void updateCommandBuffer() {
@@ -131,7 +129,7 @@ public class SkyRenderer {
 			return;
 
 		commandBuffer.reset();
-		commandBuffer.PushTimer(Timer.RENDER_SKYBOX);
+		commandBuffer.PushTimer(Timer.RENDER_SKY);
 		commandBuffer.SetShader(skyProgram);
 		commandBuffer.DepthMask(false);
 		commandBuffer.BindVertexArray(plugin.vaoTri);
@@ -154,6 +152,6 @@ public class SkyRenderer {
 		}
 
 		commandBuffer.DepthMask(true);
-		commandBuffer.PopTimer(Timer.RENDER_SKYBOX);
+		commandBuffer.PopTimer(Timer.RENDER_SKY);
 	}
 }

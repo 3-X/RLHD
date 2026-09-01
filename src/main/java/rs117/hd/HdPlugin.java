@@ -184,7 +184,7 @@ public class HdPlugin extends Plugin {
 
 	public static int UNIFORM_BLOCK_COUNT = 0;
 	public static final int UNIFORM_BLOCK_GLOBAL = UNIFORM_BLOCK_COUNT++;
-	public static final int UNIFORM_BLOCK_SKYBOX = UNIFORM_BLOCK_COUNT++;
+	public static final int UNIFORM_BLOCK_SKY = UNIFORM_BLOCK_COUNT++;
 	public static final int UNIFORM_BLOCK_MATERIALS = UNIFORM_BLOCK_COUNT++;
 	public static final int UNIFORM_BLOCK_WATER_TYPES = UNIFORM_BLOCK_COUNT++;
 	public static final int UNIFORM_BLOCK_LIGHTS = UNIFORM_BLOCK_COUNT++;
@@ -439,7 +439,7 @@ public class HdPlugin extends Plugin {
 	public boolean configTiledLighting;
 	public boolean configTiledLightingImageLoadStore;
 	public boolean configOverrideSky;
-	public boolean configEnableDayNightCycle;
+	public boolean configDaylightCycle;
 	public int configDetailDrawDistance;
 	public int configExpandedMapLoadingChunks;
 	public int configMinimumBrightness;
@@ -963,6 +963,7 @@ public class HdPlugin extends Plugin {
 			.define("ZONE_RENDERER", renderer instanceof ZoneRenderer)
 			.define("MAX_SIMULTANEOUS_WORLD_VIEWS", 0)
 			.define("WORLD_VIEW_GETTER", "")
+			.define("NEBULA_CLUSTER_COUNT", StarField.CLUSTER_COUNT)
 			.addInclude(
 				"MATERIAL_CONSTANTS", () -> {
 					StringBuilder include = new StringBuilder();
@@ -979,7 +980,6 @@ public class HdPlugin extends Plugin {
 			)
 			.addInclude("MATERIAL_GETTER", () -> generateGetter("Material", MaterialManager.MATERIALS.length))
 			.addInclude("WATER_TYPE_GETTER", () -> generateGetter("WaterType", waterTypeManager.uboWaterTypes.getCount()))
-			.define("NEBULA_CLUSTER_COUNT", StarField.CLUSTER_COUNT)
 			.addUniformBuffer(uboGlobal)
 			.addUniformBuffer(uboSky)
 			.addUniformBuffer(uboLights)
@@ -1163,7 +1163,7 @@ public class HdPlugin extends Plugin {
 		uboGlobal.initialize(UNIFORM_BLOCK_GLOBAL);
 
 		uboSky = new UBOSky();
-		uboSky.initialize(UNIFORM_BLOCK_SKYBOX);
+		uboSky.initialize(UNIFORM_BLOCK_SKY);
 
 		uboUI = new UBOUI();
 		uboUI.initialize(UNIFORM_BLOCK_UI);
@@ -1432,7 +1432,7 @@ public class HdPlugin extends Plugin {
 
 	private void initializeShadowMapFbo() {
 		if (!configShadowsEnabled) {
-			initializeDummyShadowMap();
+			initializeDummyShadowMaps();
 			return;
 		}
 
@@ -1516,7 +1516,7 @@ public class HdPlugin extends Plugin {
 		glBindFramebuffer(GL_FRAMEBUFFER, awtContext.getFramebuffer(false));
 	}
 
-	private void initializeDummyShadowMap() {
+	private void initializeDummyShadowMaps() {
 		// Create dummy texture
 		texShadowMap = glGenTextures();
 		glActiveTexture(TEXTURE_UNIT_SHADOW_MAP);
@@ -1760,7 +1760,7 @@ public class HdPlugin extends Plugin {
 		configTiledLighting = config.tiledLighting();
 		configTiledLightingImageLoadStore = config.tiledLightingImageLoadStore();
 		configOverrideSky = config.overrideSky();
-		configEnableDayNightCycle = config.enableDaylightCycle();
+		configDaylightCycle = config.enableDaylightCycle();
 		configDetailDrawDistance = config.detailDrawDistance();
 		configExpandShadowDraw = config.expandShadowDraw();
 		configUseFasterModelHashing = config.fasterModelHashing();

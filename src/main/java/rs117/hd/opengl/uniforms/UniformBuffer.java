@@ -55,17 +55,6 @@ public abstract class UniformBuffer<GLBUFFER extends GLBuffer> {
 			log.warn("{}.{} - {}", owner.glBuffer.name, name, message);
 		}
 
-		// A setter used against the wrong property type silently skips the write, leaving the
-		// property at its previous value, so the failure surfaces as a stale uniform rather than
-		// an error. Java makes this very easy to hit: an all-int expression like
-		// `floatProp.set(cond ? 1 : 0)` binds set(int) over set(float), because int->int is an
-		// exact match, and it compiles cleanly. Assert so dev builds fail at the offending call
-		// instead of days later via a shader reading the wrong value. Assertions are off in
-		// production, where the warning alone is the right behavior.
-		//
-		// Deliberately separate from log(): the uninitialized-property path also logs, but that
-		// one legitimately occurs around shader recompiles and buffer teardown, when offset is
-		// reset to -1, so it must stay a warning.
 		private void logTypeMismatch(String message) {
 			log(message);
 			assert false : owner.glBuffer.name + "." + name + " - " + message;

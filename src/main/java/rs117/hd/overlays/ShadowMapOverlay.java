@@ -7,7 +7,6 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.event.MouseWheelEvent;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.*;
 import net.runelite.client.input.MouseManager;
 import net.runelite.client.input.MouseWheelListener;
 
@@ -34,9 +33,6 @@ public class ShadowMapOverlay extends ShaderOverlay<ShadowMapOverlay.Shader> imp
 			uniTerrainShadowMap.set(TEXTURE_UNIT_TERRAIN_SHADOW_MAP);
 		}
 	}
-
-	@Inject
-	private Client client;
 
 	@Inject
 	private MouseManager mouseManager;

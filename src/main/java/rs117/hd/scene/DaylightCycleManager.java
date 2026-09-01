@@ -417,7 +417,7 @@ public class DaylightCycleManager {
 	}
 
 	private void resolveEnvironmentState() {
-		cycleActive = environmentManager.isOverworld() && plugin.configEnableDayNightCycle;
+		cycleActive = environmentManager.isOverworld() && plugin.configDaylightCycle;
 
 		DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
 		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
@@ -508,7 +508,7 @@ public class DaylightCycleManager {
 	}
 
 	public boolean isLightAllowedByConfiguration(Light light) {
-		return !light.def.dayNightOnly || plugin.configEnableDayNightCycle;
+		return !light.def.dayNightOnly || plugin.configDaylightCycle;
 	}
 
 	public float getScheduledLightCullingRadius(Light light) {

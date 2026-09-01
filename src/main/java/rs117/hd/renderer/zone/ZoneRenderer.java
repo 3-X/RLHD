@@ -321,10 +321,12 @@ public class ZoneRenderer implements Renderer {
 			return;
 
 		try {
+			boolean isTopLevel = scene.getWorldViewId() == WorldView.TOPLEVEL;
+
 			WorldViewContext ctx = sceneManager.getContext(scene);
 			if (ctx == null || !sceneManager.isRoot(ctx) && ctx.isLoading) {
 				// When triggering plugin restarts in rapid succession, it can end up in a state where no scene is loaded initially
-				if (scene.getWorldViewId() == WorldView.TOPLEVEL && client.getGameState() == GameState.LOGGED_IN)
+				if (isTopLevel && client.getGameState() == GameState.LOGGED_IN)
 					clientThread.invokeLater(() -> client.setGameState(GameState.LOADING));
 				return;
 			}
@@ -340,7 +342,7 @@ public class ZoneRenderer implements Renderer {
 			if (ctx.uboWorldViewStruct != null)
 				ctx.uboWorldViewStruct.update();
 
-			if (scene.getWorldViewId() == WorldView.TOPLEVEL)
+			if (isTopLevel)
 				preSceneDrawTopLevel(scene, cameraX, cameraY, cameraZ, cameraPitch, cameraYaw);
 
 			ctx.completeInvalidation();
@@ -354,7 +356,7 @@ public class ZoneRenderer implements Renderer {
 
 			ctx.map();
 
-			if (scene.getWorldViewId() == WorldView.TOPLEVEL && shouldRenderVanillaSkybox) {
+			if (isTopLevel && shouldRenderVanillaSkybox) {
 				Model skybox = scene.getSkybox();
 				if (skybox != null) {
 					skybox.calculateBoundsCylinder();
@@ -449,9 +451,9 @@ public class ZoneRenderer implements Renderer {
 				environmentManager.update(ctx.sceneContext);
 				frameTimer.end(Timer.UPDATE_ENVIRONMENT);
 
-				frameTimer.begin(Timer.UPDATE_TIME_OF_DAY);
+				frameTimer.begin(Timer.UPDATE_DAYLIGHT_CYCLE);
 				daylightCycleManager.update();
-				frameTimer.end(Timer.UPDATE_TIME_OF_DAY);
+				frameTimer.end(Timer.UPDATE_DAYLIGHT_CYCLE);
 
 				frameTimer.begin(Timer.UPDATE_LIGHTS);
 				lightManager.update(ctx.sceneContext, plugin.cameraShift, plugin.cameraFrustum);
@@ -466,7 +468,6 @@ public class ZoneRenderer implements Renderer {
 				return;
 			}
 
-			// The day & night cycle overrides the environment's static sun angles when active.
 			if (daylightCycleManager.isCycleActive()) {
 				daylightCycleManager.updateDirectionalCamera(directionalCamera);
 			} else {
@@ -604,16 +605,11 @@ public class ZoneRenderer implements Renderer {
 
 		skyRenderer.update(plugin.uboGlobal);
 
-		// Hide the game's own skybox models so the cycle's sky shows in their place. Needs
-		// all three: the gradient sky must actually be rendering (otherwise hiding leaves a
-		// flat fog-colored sky), the area must opt in, and the config acts as a master switch
-		// to force vanilla skyboxes back on everywhere. Reporting the skybox as absent lets
-		// the existing !shouldRenderRSSkybox paths do the swap.
-		boolean hideVanillaSkyboxes =
+		boolean replaceVanillaSkybox =
 			skyRenderer.shouldRender() &&
 			config.hideVanillaSkyboxes() &&
 			environmentManager.hideVanillaSkyboxes();
-		shouldRenderVanillaSkybox = scene.getSkybox() != null && !hideVanillaSkyboxes;
+		shouldRenderVanillaSkybox = scene.getSkybox() != null && !replaceVanillaSkybox;
 
 		float fogDepth = 0;
 		if (!shouldRenderVanillaSkybox) {
@@ -808,7 +804,6 @@ public class ZoneRenderer implements Renderer {
 
 		// Render terrain-only shadow map
 		if (plugin.configTerrainShadows && plugin.fboTerrainShadowMap != 0) {
-
 			frameTimer.begin(Timer.RENDER_TERRAIN_SHADOWS);
 
 			renderState.framebuffer.set(GL_FRAMEBUFFER, plugin.fboTerrainShadowMap);
@@ -850,7 +845,6 @@ public class ZoneRenderer implements Renderer {
 
 		frameTimer.begin(Timer.RENDER_SCENE);
 
-		// Blend will be enabled before & after alpha draws
 		renderState.enable.set(GL_CULL_FACE);
 		renderState.enable.set(GL_DEPTH_TEST);
 		renderState.depthFunc.set(GL_GEQUAL);
@@ -1087,7 +1081,7 @@ public class ZoneRenderer implements Renderer {
 						!plugin.orthographicProjection &&
 						sceneManager.isRoot(ctx)
 					) {
-						// Draw Skybox after drawing Top Level Scene Opaque
+						// Draw the sky after drawing top-level scene opaque
 						skyRenderer.renderTo(sceneCmd);
 						sceneCmd.SetShader(sceneProgram);
 					}

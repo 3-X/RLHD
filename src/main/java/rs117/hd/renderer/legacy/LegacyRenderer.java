@@ -702,9 +702,9 @@ public class LegacyRenderer implements Renderer {
 						environmentManager.update(sceneContext);
 						frameTimer.end(Timer.UPDATE_ENVIRONMENT);
 
-						// Environment resolution supplies the effective per-area overrides.
-						// Synchronize those before update() establishes this frame's snapshot.
+						frameTimer.begin(Timer.UPDATE_DAYLIGHT_CYCLE);
 						daylightCycleManager.update();
+						frameTimer.end(Timer.UPDATE_DAYLIGHT_CYCLE);
 
 						frameTimer.begin(Timer.UPDATE_LIGHTS);
 						lightManager.update(sceneContext, plugin.cameraShift, plugin.cameraFrustum);
@@ -1009,6 +1009,7 @@ public class LegacyRenderer implements Renderer {
 			}
 
 			skyRenderer.update(plugin.uboGlobal);
+
 			float fogDepth = 0;
 			switch (config.fogDepthMode()) {
 				case USER_DEFINED:

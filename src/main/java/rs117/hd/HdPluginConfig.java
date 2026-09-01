@@ -714,7 +714,7 @@ public interface HdPluginConfig extends Config
 	@ConfigItem(
 		keyName = KEY_ENABLE_STAR_MAP,
 		name = "Stars",
-		description = "Show the star map texture in the night sky. When disabled, the night sky uses only the gradient skybox.",
+		description = "Show the star map texture in the night sky. When disabled, the night sky uses only the gradient sky.",
 		position = 5,
 		section = daylightCycleSettings
 	)
@@ -726,7 +726,7 @@ public interface HdPluginConfig extends Config
 	@ConfigItem(
 		keyName = KEY_ENABLE_NEBULAS,
 		name = "Nebulas",
-		description = "Show procedural nebula clouds in the night sky. When disabled, the night sky shows only stars and the gradient skybox.",
+		description = "Show procedural nebula clouds in the night sky. When disabled, the night sky shows only stars and the gradient sky.",
 		position = 6,
 		section = daylightCycleSettings
 	)

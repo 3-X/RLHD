@@ -36,8 +36,6 @@ public class SkyLighting {
 	private static final float MOON_ELEVATION_FADE_START_DEG = -10;
 	private static final float MOON_ELEVATION_FADE_END_DEG = 20;
 	private static final float MOON_SHADOW_STRENGTH = .2f;
-	// Square-root phase response keeps waxing and waning shadows visible.
-	private static final float MOON_SHADOW_PHASE_EXPONENT = .5f;
 	// Preserve part of the authored ambient floor even under a full moon.
 	private static final float MIN_BRIGHTNESS_BOOST_RESIDUAL = .2f;
 	private static final float MAX_MOON_COLOR_INFLUENCE = .8f;
@@ -55,16 +53,15 @@ public class SkyLighting {
 	private HdPluginConfig config;
 
 	@Inject
-	private EnvironmentManager environmentManager;
-
-	@Inject
 	private DaylightCycleManager daylightCycleManager;
 
-	// Frame lighting; colors are linear except fogColorSrgb.
+	@Inject
+	private EnvironmentManager environmentManager;
+
 	public final float[] directionalColor = new float[3];
 	public final float[] ambientColor = new float[3];
-	public final float[] fogColorSrgb = new float[3];
 	public final float[] waterColor = new float[3];
+	public final float[] fogColorSrgb = new float[3];
 	public float directionalStrength;
 	public float ambientStrength;
 	public float effectiveDirectionalStrength;
@@ -73,7 +70,6 @@ public class SkyLighting {
 	@Accessors(fluent = true)
 	private boolean shouldRenderSky;
 
-	// One outdoor-sky sample per environment, frame, and minimum brightness.
 	private OutdoorSkySample cachedOutdoorSkySample;
 	private Environment cachedOutdoorSkyEnvironment;
 	private int cachedOutdoorSkyMinBrightness;
@@ -133,7 +129,6 @@ public class SkyLighting {
 		ubo.lightColor.set(directionalColor);
 	}
 
-	/** Derive this frame's lighting from the sun and moon. */
 	private void updateSky() {
 		var state = daylightCycleManager.getState();
 		SkyLightingProfile profile = environmentManager.getSkyLighting();
@@ -145,7 +140,7 @@ public class SkyLighting {
 
 		float brightnessMultiplier = getBrightnessMultiplier(state, plugin.configMinimumBrightness, profile);
 		float baseDirectionalStrength = directionalStrength;
-		// The cycle controls night brightness instead of seasonal ambient strength.
+		// The cycle controls night brightness instead of seasonal ambient strength
 		ambientStrength = brightnessMultiplier;
 
 		float moonAltDeg = state.moonAltitudeDegrees;
@@ -168,7 +163,7 @@ public class SkyLighting {
 
 		directionalStrength =
 			baseDirectionalStrength * brightnessMultiplier * environmentManager.currentSunlightStrength;
-		// Horizon color doubles as fog so geometry meets the skybox.
+		// Horizon color doubles as fog so geometry meets the sky.
 		copyTo(fogColorSrgb, sky[1]);
 		copyTo(waterColor, ColorUtils.srgbToLinear(sky[1]));
 
@@ -290,7 +285,7 @@ public class SkyLighting {
 	public void updateOutdoorLight(Light light, int[] worldPos, int minimumBrightness) {
 		copyTo(light.color, light.def.color);
 		// Apply outdoor light through cave openings even when the local environment has no cycle.
-		if (!light.def.followDayNight || !plugin.configEnableDayNightCycle)
+		if (!light.def.followDayNight || !plugin.configDaylightCycle)
 			return;
 
 		DaylightCycleState state = daylightCycleManager.getState();
@@ -423,7 +418,8 @@ public class SkyLighting {
 		float moonBaseShadow = 0;
 		if (isMoonLighting(moonAltitude, moonIllumination)) {
 			moonBaseShadow =
-				pow(moonIllumination, MOON_SHADOW_PHASE_EXPONENT) * MOON_SHADOW_STRENGTH *
+				// Square-root phase response keeps waxing and waning shadows visible.
+				sqrt(moonIllumination) * MOON_SHADOW_STRENGTH *
 				moonElevationFade(moonAltitude) * environmentManager.currentMoonShadowStrength;
 		}
 		// moonShadowStrength also feeds ambient and sky-fill complements.
