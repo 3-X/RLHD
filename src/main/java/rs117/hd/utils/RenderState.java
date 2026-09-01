@@ -145,7 +145,7 @@ public final class RenderState {
 		}
 
 		@Override
-		protected void applyValues(float[] values) { glPolygonOffset(values[0],values[1]); }
+		protected void applyValues(float[] values) { glPolygonOffset(values[0], values[1]); }
 	}
 
 	public static final class GLColorMask extends GLState.BoolArray {

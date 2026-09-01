@@ -12,7 +12,7 @@ public enum ShadowFiltering {
 	PIXELATED(Mode.AVERAGE, 2);
 
 	public final Mode filtering;
-	public final int kernalSize;
+	public final int kernelSize;
 
 	public enum Mode {
 		PCF,

@@ -391,9 +391,10 @@ public class HdPlugin extends Plugin {
 	private int rboSceneResolveColor;
 
 	public int shadowMapResolution;
-	public int terrainShadowMapResolution;
 	public int fboShadowMap;
 	private int texShadowMap;
+
+	public int terrainShadowMapResolution;
 	public int fboTerrainShadowMap;
 	private int texTerrainShadowMap;
 
@@ -945,7 +946,7 @@ public class HdPlugin extends Plugin {
 			.define("TERRAIN_ONLY_PASS", false)
 			.define("SHADOW_TRANSPARENCY", config.shadowTransparency())
 			.define("SHADOW_FILTERING", config.shadowFiltering().filtering)
-			.define("SHADOW_FILTERING_KERNAL", config.shadowFiltering().kernalSize)
+			.define("SHADOW_FILTERING_KERNAL", config.shadowFiltering().kernelSize)
 			.define("SHADOW_RESOLUTION", config.shadowResolution())
 			.define("VANILLA_COLOR_BANDING", config.vanillaColorBanding())
 			.define("UNDO_VANILLA_SHADING", configShadingMode.undoVanillaShading)
