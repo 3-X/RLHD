@@ -196,7 +196,7 @@ public class Environment {
 		public float altitude;
 		@JsonAdapter(SrgbToLinearAdapter.class)
 		public float[] color;
-		public float value;
+		public Float value;
 
 		public float[] values() {
 			return color != null ? color : vec(value);
