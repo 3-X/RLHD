@@ -1090,7 +1090,7 @@ public class ZoneRenderer implements Renderer {
 						sceneManager.isRoot(ctx)
 					) {
 						// Draw Skybox after drawing Top Level Scene Opaque
-						skyRenderer.render(sceneCmd);
+						skyRenderer.renderTo(sceneCmd);
 						sceneCmd.SetShader(sceneProgram);
 					}
 					break;

@@ -111,7 +111,7 @@ public class SkyRenderer {
 		frameTimer.end(Timer.CLEAR_SCENE);
 	}
 
-	public void render(CommandBuffer target) {
+	public void renderTo(CommandBuffer target) {
 		target.ExecuteSubCommandBuffer(commandBuffer);
 	}
 
