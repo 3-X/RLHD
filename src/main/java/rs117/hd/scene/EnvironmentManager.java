@@ -792,58 +792,24 @@ public class EnvironmentManager {
 	}
 
 	private static final int OUTDOOR_WORLD_Y_OFFSET = 3602;
-
-	private int[] getOutdoorWorldPos(int[] worldPos) {
-		return new int[] {
-			worldPos[0],
-			worldPos[1] - OUTDOOR_WORLD_Y_OFFSET,
-			0
-		};
-	}
-
-	@Nonnull
-	private Environment getOverworldEnvironmentForTheme() {
-		return getOverworldEnvironment();
-	}
-
-	/**
-	 * Find the environment whose area contains {@code worldPos}.
-	 * When {@code preferOverworld} is true, returns the first matching overworld environment,
-	 * otherwise the first match of any kind. Falls back to the seasonal overworld or DEFAULT.
-	 */
-	@Nonnull
-	private Environment getEnvironmentAt(int[] worldPos, boolean preferOverworld) {
-		Environment anyMatch = null;
-		Environment overworldMatch = null;
-
-		if (environments != null) {
-			for (var environment : environments) {
-				if (environment == Environment.DEFAULT)
-					continue;
-				if (!environment.area.containsPoint(worldPos))
-					continue;
-				if (anyMatch == null)
-					anyMatch = environment;
-				if (environment.isOverworld)
-					overworldMatch = environment;
-			}
-		}
-
-		if (preferOverworld) {
-			if (overworldMatch != null)
-				return overworldMatch;
-			return getOverworldEnvironment();
-		}
-
-		if (anyMatch != null)
-			return anyMatch;
-		return Environment.DEFAULT;
-	}
+	private final int[] outdoorWorldPos = new int[3];
 
 	/** Resolve the overworld environment corresponding to a local light's world position. */
 	@Nonnull
 	public Environment getOutdoorEnvironment(int[] worldPos) {
-		return getEnvironmentAt(getOutdoorWorldPos(worldPos), true);
+		outdoorWorldPos[0] = worldPos[0];
+		outdoorWorldPos[1] = worldPos[1] - OUTDOOR_WORLD_Y_OFFSET;
+		outdoorWorldPos[2] = 0;
+
+		Environment outdoorEnvironment = null;
+		if (environments != null) {
+			for (var environment : environments) {
+				if (environment.isOverworld && environment.area.containsPoint(outdoorWorldPos))
+					outdoorEnvironment = environment;
+			}
+		}
+
+		return outdoorEnvironment != null ? outdoorEnvironment : getOverworldEnvironment();
 	}
 
 	/**
@@ -862,7 +828,7 @@ public class EnvironmentManager {
 			return regionalFogSrgb;
 		}
 
-		Environment themeEnv = getOverworldEnvironmentForTheme();
+		Environment themeEnv = getOverworldEnvironment();
 		float[] themeFog = themeEnv.fogColor != null ? themeEnv.fogColor : Environment.DEFAULT.fogColor;
 		return ColorUtils.linearToSrgb(themeFog);
 	}
