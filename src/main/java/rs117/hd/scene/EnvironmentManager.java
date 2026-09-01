@@ -822,10 +822,10 @@ public class EnvironmentManager {
 
 		if (env.allowSkyOverride) {
 			DefaultSkyColor sky = config.defaultSkyColor();
-			float[] regionalFogSrgb = sky.getRgb(client);
+			float[] regionalFogLinear = sky.getRgb(client);
 			if (sky == DefaultSkyColor.OSRS)
-				regionalFogSrgb = DefaultSkyColor.DEFAULT.getRgb(client);
-			return regionalFogSrgb;
+				regionalFogLinear = DefaultSkyColor.DEFAULT.getRgb(client);
+			return ColorUtils.linearToSrgb(regionalFogLinear);
 		}
 
 		Environment themeEnv = getOverworldEnvironment();

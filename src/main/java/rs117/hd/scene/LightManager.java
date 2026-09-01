@@ -463,9 +463,6 @@ public class LightManager {
 			if (light.visible && light.hiddenTemporarily)
 				light.visible = light.changedVisibilityAt != -1 && light.elapsedTime - light.changedVisibilityAt < Light.VISIBILITY_FADE;
 
-			if (light.visible && !daylightCycleManager.isLightAllowedByConfiguration(light))
-				light.visible = false;
-
 			if (light.visible) {
 				// Prioritize lights closer to the focal point
 				float distX = plugin.cameraFocalPoint[0] - light.pos[0];

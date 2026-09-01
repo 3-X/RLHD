@@ -19,7 +19,6 @@ public class LightDefinition {
 	public float strength = 5;
 	@JsonAdapter(ColorUtils.SrgbToLinearAdapter.class)
 	public float[] color;
-	public boolean followDayNight;
 	public LightType type = LightType.STATIC;
 	public float duration;
 	public float range;
@@ -34,10 +33,9 @@ public class LightDefinition {
 	public int renderableIndex = -1;
 	public boolean waitForAnimation;
 	public float nightMultiplier = 1;
-	public LightTimeOfDay timeOfDay;
-	public LightTimeOfDay timeOfDayOff;
-	public boolean staggered;
-	public boolean dayNightOnly;
+	@JsonAdapter(LightSchedule.Adapter.class)
+	public LightSchedule schedule;
+	public boolean followOutdoorLighting;
 
 	@JsonAdapter(AABB.ArrayAdapter.class)
 	public AABB[] areas = {};
@@ -68,5 +66,7 @@ public class LightDefinition {
 			color = new float[3];
 		if (type == null)
 			type = LightType.STATIC;
+		if (schedule != null && !schedule.normalize())
+			schedule = null;
 	}
 }

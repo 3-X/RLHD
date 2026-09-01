@@ -286,7 +286,7 @@ public class SkyLighting {
 	public void updateOutdoorLight(Light light, int[] worldPos, int minimumBrightness) {
 		copyTo(light.color, light.def.color);
 		// Apply outdoor light through cave openings even when the local environment has no cycle.
-		if (!light.def.followDayNight || !plugin.configDaylightCycle)
+		if (!light.def.followOutdoorLighting || !plugin.configDaylightCycle)
 			return;
 
 		DaylightCycleState state = daylightCycleManager.getState();

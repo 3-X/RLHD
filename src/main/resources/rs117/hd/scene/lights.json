@@ -17826,7 +17826,7 @@
     "height": 600,
     "radius": 1200,
     "strength": 5,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -18100,7 +18100,7 @@
     "offset": [ 0, 400, 0 ],
     "radius": 1500,
     "strength": 20,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       249.4737,
@@ -21479,9 +21479,7 @@
     "type": "FLICKER",
     "duration": 0,
     "range": 20,
-    "timeOfDay": "DUSK",
-    "staggered": true,
-    "dayNightOnly": true,
+    "schedule": "NIGHT",
     "objectIds": [
       "FAI_VARROCK_POSH_CANDLESTICK",
       "FAI_VARROCK_TWO_CANDLES"
@@ -21517,9 +21515,7 @@
     ],
     "type": "FLICKER",
     "range": 60,
-    "timeOfDay": "DUSK",
-    "staggered": true,
-    "dayNightOnly": true,
+    "schedule": "NIGHT",
     "nightMultiplier": 1.4,
     "objectIds": [
       "FAI_VARROCK_RUNE_SHOP_SIGN"
@@ -21537,9 +21533,7 @@
     ],
     "type": "FLICKER",
     "range": 50,
-    "timeOfDay": "DUSK",
-    "staggered": true,
-    "dayNightOnly": true,
+    "schedule": "NIGHT",
     "nightMultiplier": 1.4,
     "objectIds": [
       "FAI_VARROCK_RUNE_SHOP_SIGN"
@@ -21557,9 +21551,7 @@
     ],
     "type": "FLICKER",
     "range": 60,
-    "timeOfDay": "DUSK",
-    "staggered": true,
-    "dayNightOnly": true,
+    "schedule": "NIGHT",
     "nightMultiplier": 1.4,
     "objectIds": [
       "FAI_VARROCK_RUNE_SHOP_SIGN"
@@ -21578,9 +21570,7 @@
     "type": "FLICKER",
     "duration": 0,
     "range": 20,
-    "timeOfDay": "DUSK",
-    "staggered": true,
-    "dayNightOnly": true,
+    "schedule": "NIGHT",
     "nightMultiplier": 1.5,
     "objectIds": [
       "FAI_VARROCK_OILLAMP"
@@ -21599,9 +21589,7 @@
     "type": "FLICKER",
     "duration": 0,
     "range": 20,
-    "timeOfDay": "DUSK",
-    "staggered": true,
-    "dayNightOnly": true,
+    "schedule": "NIGHT",
     "nightMultiplier": 1.5,
     "objectIds": [
       "FAI_VARROCK_SWING_LANTERN_UNLIT"
@@ -21621,9 +21609,7 @@
     "type": "FLICKER",
     "duration": 0,
     "range": 20,
-    "timeOfDay": "DUSK",
-    "dayNightOnly": true,
-    "staggered": true,
+    "schedule": "NIGHT",
     "objectIds": [
       "GOLDCANDLES",
       "CANDLES"
@@ -21642,9 +21628,7 @@
     "type": "FLICKER",
     "duration": 0,
     "range": 20,
-    "timeOfDay": "DUSK",
-    "staggered": true,
-    "dayNightOnly": true,
+    "schedule": "NIGHT",
     "nightMultiplier": 1.5,
     "objectIds": [
       "LANTERN_OFF"
@@ -22047,7 +22031,10 @@
       3
     ],
     "type": "FLICKER",
-    "timeOfDay": "DAWN",
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "duration": 0,
     "range": 40,
     "objectIds": [
@@ -22066,7 +22053,10 @@
       3
     ],
     "type": "FLICKER",
-    "timeOfDay": "DAWN",
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "duration": 0,
     "range": 40,
     "objectIds": [
@@ -22696,7 +22686,7 @@
     "description": "CRASH_ISLAND_ROPE",
     "height": 450,
     "alignment": "CENTER",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "radius": 700,
     "strength": 25,
     "color": [
@@ -25392,7 +25382,7 @@
     "alignment": "CENTER",
     "radius": 350,
     "strength": 15,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -26489,7 +26479,7 @@
     "offset": [ 0, 100, 25 ],
     "radius": 400,
     "strength": 25,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       224,
@@ -26507,7 +26497,7 @@
     "offset": [ 0, 100, 25 ],
     "radius": 350,
     "strength": 65,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       224,
@@ -27554,7 +27544,7 @@
     "offset": [ 0, 70, -130 ],
     "radius": 450,
     "strength": 10,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -27573,7 +27563,7 @@
     "alignment": "CENTER",
     "radius": 800,
     "strength": 12,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -29242,8 +29232,7 @@
     "areas": [ "EAST_ARDOUGNE_LANTERNS" ],
     "radius": 450,
     "strength": 7.5,
-    "timeOfDay": "DAWN",
-    "staggered": true,
+    "schedule": "NIGHT",
     "color": [
       255,
       190,
@@ -36979,7 +36968,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_TOP",
     "offset": [ 40, 800, 0 ],
     "alignment": "CENTER",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "radius": 1200,
     "strength": 20,
     "color": [
@@ -36996,7 +36985,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_MIDDLE_1",
     "offset": [ 45, 500, 0 ],
     "alignment": "CENTER",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "radius": 300,
     "strength": 20,
     "color": [
@@ -37013,7 +37002,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_MIDDLE_2",
     "offset": [ 45, 250, 0 ],
     "alignment": "CENTER",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "radius": 300,
     "strength": 15,
     "color": [
@@ -37030,7 +37019,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_FLOOR_HIGHLIGHT",
     "offset": [ 35, 100, 0 ],
     "alignment": "CENTER",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "radius": 300,
     "strength": 13,
     "color": [
@@ -37047,7 +37036,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_FLOOR_SPOTLIGHT",
     "offset": [ -14, 150, 0 ],
     "alignment": "CENTER",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "radius": 400,
     "strength": 4,
     "color": [
@@ -38682,7 +38671,7 @@
     "offset": [ 0, 210, 30 ],
     "radius": 575,
     "strength": 15,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -42596,7 +42585,7 @@
     "color": "#ffffff",
     "type": "FLICKER",
     "range": 13,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "objectIds": [
       "CHINCHOMPA_JUNGLE_CAVE_EXIT"
     ]
@@ -42609,7 +42598,7 @@
     "color": "#ffffff",
     "type": "FLICKER",
     "range": 13,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "objectIds": [
       "CHINCHOMPA_JUNGLE_CAVE_EXIT"
     ]
@@ -42688,8 +42677,10 @@
     "type": "FLICKER",
     "duration": 0,
     "range": 20,
-    "timeOfDay": "DUSK",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "objectIds": [
       "FAI_VARROCK_PRETTY_OILLAMP"
     ]
@@ -42717,7 +42708,7 @@
     "objectIds": [ "TROLL_STRONGHOLD_WINDOW", "TROLL_STRONGHOLD_TOP_EXIT_MID" ],
     "radius": 450,
     "areas": [ "TROLL_STRONGHOLD" ],
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "strength": 10,
     "color": "#ffffff",
     "offset": [ 0, 150, 70 ]
@@ -42926,7 +42917,7 @@
     ],
     "radius": 500,
     "strength": 10,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 40, 40, 0 ]
   },
@@ -42937,7 +42928,7 @@
     ],
     "radius": 450,
     "strength": 10,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 40, 150, 0 ]
   },
@@ -42948,7 +42939,7 @@
     ],
     "radius": 1150,
     "strength": 8,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 40, 600, 0 ]
   },
@@ -43230,7 +43221,7 @@
     ],
     "radius": 550,
     "strength": 15,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 0, 200, -70 ]
   },
@@ -44445,7 +44436,7 @@
     "offset": [ 50, 300, 30 ],
     "radius": 400,
     "strength": 4.5,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -44462,7 +44453,7 @@
     "alignment": "CENTER",
     "radius": 275,
     "strength": 18,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -44517,7 +44508,7 @@
     "alignment": "CENTER",
     "radius": 400,
     "strength": 17,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -44536,7 +44527,7 @@
     "alignment": "CENTER",
     "radius": 500,
     "strength": 10,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -44553,7 +44544,7 @@
     "alignment": "CENTER",
     "radius": 600,
     "strength": 35,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -44570,7 +44561,7 @@
     "offset": [ -50, 200, -50 ],
     "radius": 600,
     "strength": 10,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -44696,7 +44687,7 @@
     "type": "STATIC",
     "duration": 0,
     "range": 0,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "objectIds": [
       "SLAYER_CAVE_EXIT_LEFT",
       "EYEGLO_DUNGEON_EXIT_LEFT"
@@ -48698,7 +48689,7 @@
       255
     ],
     "type": "STATIC",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "objectIds": [
       "DEEPFIN_CAVE_EXIT",
       "LAGUNA_CAVE_EXIT"
@@ -48923,7 +48914,7 @@
       255
     ],
     "type": "STATIC",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "objectIds": [
       "GRIMSTONE_CAVE_EXIT"
     ]
@@ -48939,7 +48930,7 @@
       255
     ],
     "type": "STATIC",
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "objectIds": [
       "GRIMSTONE_CAVE_EXIT"
     ]
@@ -49057,7 +49048,7 @@
     "offset": [ 0, 125, 0 ],
     "radius": 750,
     "strength": 6,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -50571,7 +50562,10 @@
     "description": "Sunstone Rocks Small",
     "offset": [ 0, 105, 0 ],
     "alignment": "CENTER",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "nightMultiplier": 2.25,
     "radius": 185,
     "strength": 3,
@@ -50590,7 +50584,10 @@
     "description": "Sunstone Rocks Large 1",
     "offset": [ -75, 175, 145 ],
     "alignment": "CENTER",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "nightMultiplier": 2.5,
     "radius": 350,
     "strength": 3.5,
@@ -50608,7 +50605,10 @@
     "description": "Sunstone Rocks Large 2",
     "offset": [ 35, 150, -175 ],
     "alignment": "CENTER",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "nightMultiplier": 2.5,
     "radius": 225,
     "strength": 3.5,
@@ -50626,7 +50626,10 @@
     "description": "Sunstone Rocks Large 3",
     "offset": [ 190, 105, -15 ],
     "alignment": "CENTER",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "nightMultiplier": 1.5,
     "radius": 225,
     "strength": 4,
@@ -50644,7 +50647,10 @@
     "description": "Sunstone Rocks Large 4",
     "offset": [ 160, 450, 75 ],
     "alignment": "CENTER",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "nightMultiplier": 2.5,
     "radius": 225,
     "strength": 4,
@@ -50662,7 +50668,10 @@
     "description": "Sunstone Rocks Large 5",
     "offset": [ -20, 400, -8 ],
     "alignment": "CENTER",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "nightMultiplier": 2.5,
     "radius": 175,
     "strength": 4,
@@ -50680,7 +50689,10 @@
     "description": "Sunstone Rocks Large 6",
     "offset": [ 100, 435, 45 ],
     "alignment": "CENTER",
-    "dayNightOnly": true,
+    "schedule": {
+      "during": "NIGHT",
+      "randomOffset": 0
+    },
     "nightMultiplier": 2.5,
     "radius": 100,
     "strength": 4,
@@ -50719,7 +50731,7 @@
     "alignment": "CENTER",
     "radius": 1500,
     "strength": 10,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,
@@ -50736,7 +50748,7 @@
     "alignment": "CENTER",
     "radius": 750,
     "strength": 20,
-    "followDayNight": true,
+    "followOutdoorLighting": true,
     "color": [
       255,
       255,

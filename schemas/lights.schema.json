@@ -94,10 +94,6 @@
           "type": "number"
         }
       },
-      "followDayNight": {
-        "type": "boolean",
-        "description": "Whether to use the outdoor sky color and time-of-day strength while the day & night cycle is enabled, including in dungeons. The light color controls peak midday brightness. Defaults to false."
-      },
       "type": {
         "type": "string",
         "description": "Specify the animation to apply to the light. Defaults to STATIC.",
@@ -160,24 +156,44 @@
         "minimum": 0,
         "description": "Overworld night brightness multiplier while the day & night cycle is active. Defaults to 1; 0 disables the light and values above 1 brighten it."
       },
-      "timeOfDay": {
-        "type": "string",
-        "enum": [ "DAY", "DAWN", "DUSK", "TWILIGHT", "NIGHT", "DEEP_NIGHT" ],
-        "description": "Overworld cycle phase when this light starts fading in."
+      "schedule": {
+        "description": "When the light turns on or off based on the sun's altitude. Scheduled lights are disabled when the day & night cycle is disabled.",
+        "oneOf": [
+          { "$ref": "#/$defs/lightScheduleRange" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "during" ],
+            "properties": {
+              "turn": {
+                "type": "string",
+                "enum": [ "ON", "OFF" ],
+                "default": "ON",
+                "description": "Whether the listed ranges enable or disable the light."
+              },
+              "during": {
+                "oneOf": [
+                  { "$ref": "#/$defs/lightScheduleRange" },
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/lightScheduleRange" }
+                  }
+                ]
+              },
+              "randomOffset": {
+                "type": "number",
+                "minimum": 0,
+                "default": 2.7,
+                "description": "Stable per-instance altitude offset in degrees, applied in either direction. Defaults to 2.7."
+              }
+            }
+          }
+        ]
       },
-      "timeOfDayOff": {
-        "type": "string",
-        "enum": [ "DAY", "DAWN", "DUSK", "TWILIGHT", "NIGHT", "DEEP_NIGHT" ],
-        "description": "Overworld cycle phase when this light starts fading out. Defaults to the inverse of `timeOfDay`."
-      },
-      "staggered": {
+      "followOutdoorLighting": {
         "type": "boolean",
-        "description": "Whether instances stagger their `timeOfDay` transitions by world position. Requires `timeOfDay`. Overworld only. Defaults to false."
-      },
-      "dayNightOnly": {
-        "type": "boolean",
-        "default": false,
-        "description": "Whether to disable the light when the day & night cycle is off. `timeOfDay` scheduling is overworld-only; elsewhere the light is static."
+        "description": "Whether to use the outdoor sky color and time-of-day strength while the day & night cycle is enabled, including in dungeons. The light color controls peak midday brightness. Defaults to false."
       },
       "areas": {
         "type": "array",
@@ -228,6 +244,39 @@
           "type": [ "string", "number" ]
         }
       }
+    }
+  },
+  "$defs": {
+    "lightSchedulePhase": {
+      "type": "string",
+      "enum": [ "DAWN", "DAY", "DUSK", "NIGHT", "DEEP_NIGHT", "TWILIGHT" ]
+    },
+    "lightScheduleEndpoint": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [ "DAWN", "DAY", "DUSK", "NIGHT", "DEEP_NIGHT" ]
+        },
+        {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        }
+      ]
+    },
+    "lightScheduleRange": {
+      "oneOf": [
+        { "$ref": "#/$defs/lightSchedulePhase" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "from", "through" ],
+          "properties": {
+            "from": { "$ref": "#/$defs/lightScheduleEndpoint" },
+            "through": { "$ref": "#/$defs/lightScheduleEndpoint" }
+          }
+        }
+      ]
     }
   }
 }

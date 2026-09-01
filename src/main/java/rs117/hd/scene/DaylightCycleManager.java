@@ -18,7 +18,6 @@ import rs117.hd.scene.daylight_cycle.DaylightCycleState;
 import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
-import rs117.hd.scene.lights.LightTimeOfDay;
 import rs117.hd.utils.AstronomyUtils;
 import rs117.hd.utils.Camera;
 import rs117.hd.utils.HDUtils;
@@ -39,7 +38,6 @@ public class DaylightCycleManager {
 	private EnvironmentManager environmentManager;
 
 	private static final float NIGHT_RADIUS_BOOST_FRACTION = .25f;
-	private static final float NIGHT_STAGGER_RAMP_WIDTH = .08f;
 
 	// One UTC-synchronized simulated day per real hour.
 	private static final long SYNCED_DAYS_PERIOD_MS = 60L * 60 * 1000;
@@ -113,10 +111,11 @@ public class DaylightCycleManager {
 	private long realTimeStartEpochMillis = Long.MIN_VALUE;
 	private long realTimeSessionStartMillis;
 
-	private boolean lightScheduleActive;
+	private float scheduleSunAltitude;
+	private float previousScheduleSunAltitude = Float.NaN;
+	private boolean sunDescending;
+	private long scheduleNightIndex;
 	private float nightFactor = 1;
-	private boolean nightFactorIncreasing = true;
-	private float previousNightFactor = -1;
 
 	@Getter
 	private boolean cycleActive;
@@ -496,66 +495,49 @@ public class DaylightCycleManager {
 	// ===== Light schedule ========================================================
 
 	private void resolveLightSchedule() {
-		lightScheduleActive = cycleActive;
-		if (!lightScheduleActive) {
-			previousNightFactor = -1;
-			return;
-		}
-
-		nightFactor = smoothstep(5, -18, state.sunAngles[0] * RAD_TO_DEG);
-		nightFactorIncreasing = previousNightFactor < 0 || nightFactor >= previousNightFactor;
-		previousNightFactor = nightFactor;
-	}
-
-	public boolean isLightAllowedByConfiguration(Light light) {
-		return !light.def.dayNightOnly || plugin.configDaylightCycle;
+		scheduleSunAltitude = state.sunAngles[0] * RAD_TO_DEG;
+		sunDescending = Float.isNaN(previousScheduleSunAltitude) || scheduleSunAltitude <= previousScheduleSunAltitude;
+		previousScheduleSunAltitude = scheduleSunAltitude;
+		// Change offsets at noon, keeping each dusk-to-dawn schedule stable through midnight.
+		scheduleNightIndex = Math.floorDiv(currentInstant.toEpochMilli() - DAY_MS / 2, DAY_MS);
+		if (cycleActive)
+			nightFactor = smoothstep(5, -18, scheduleSunAltitude);
 	}
 
 	public float getScheduledLightCullingRadius(Light light) {
-		if (!lightScheduleActive)
-			return light.def.radius;
-
-		float scheduledNightFactor = getScheduledNightFactor(light);
-		return light.def.radius * getNightRadiusScale(light.def, scheduledNightFactor);
+		return light.def.radius * getNightRadiusScale(light.def, getScheduleActivation(light));
 	}
 
 	public boolean isHiddenByLightSchedule(Light light) {
-		return
-			lightScheduleActive &&
-			light.def.timeOfDay != null &&
-			getNightStrengthScale(light.def, getScheduledNightFactor(light)) < .001f;
+		return light.def.schedule != null && getScheduleActivation(light) < .001f;
 	}
 
 	public void applyLightSchedule(Light light) {
-		if (!lightScheduleActive)
+		LightDefinition def = light.def;
+		if (!cycleActive && def.schedule == null)
 			return;
 
-		float scheduledNightFactor = getScheduledNightFactor(light);
-		light.strength *= getNightStrengthScale(light.def, scheduledNightFactor);
-		light.radius *= getNightRadiusScale(light.def, scheduledNightFactor);
+		float scheduleActivation = getScheduleActivation(light);
+		light.strength *= getNightStrengthScale(def, scheduleActivation);
+		light.radius *= getNightRadiusScale(def, scheduleActivation);
 	}
 
-	private float getScheduledNightFactor(Light light) {
-		LightDefinition def = light.def;
-		if (def.timeOfDay == null)
-			return nightFactor;
+	private float getScheduleActivation(Light light) {
+		if (light.def.schedule == null)
+			return 1;
+		if (!plugin.configDaylightCycle)
+			return 0;
 
-		LightTimeOfDay phase = nightFactorIncreasing || def.timeOfDayOff == null ? def.timeOfDay : def.timeOfDayOff;
-		float start = phase.start;
-		float end = phase.end;
-		if (def.staggered) {
-			float rampWidth = min(NIGHT_STAGGER_RAMP_WIDTH, end - start);
-			start += getNightStaggerOffset(light) * max(0, end - start - rampWidth);
-			end = start + rampWidth;
-		}
-		return smoothstep(start, end, nightFactor);
+		float randomOffset = (getScheduleRandomOffset(light) * 2 - 1) * light.def.schedule.randomOffset;
+		return light.def.schedule.getActivation(scheduleSunAltitude, sunDescending, randomOffset);
 	}
 
-	private static float getNightStaggerOffset(Light light) {
+	private float getScheduleRandomOffset(Light light) {
 		int hash = Float.floatToIntBits(light.pos[0]);
 		hash ^= Float.floatToIntBits(light.pos[1]) * 374761393;
 		hash ^= Float.floatToIntBits(light.pos[2]) * 668265263;
 		hash ^= light.plane * 912271;
+		hash ^= Long.hashCode(scheduleNightIndex) * 104395301;
 		hash ^= hash >>> 16;
 		hash *= 0x85ebca6b;
 		hash ^= hash >>> 13;
@@ -564,19 +546,21 @@ public class DaylightCycleManager {
 		return (hash & 0x7FFFFFFF) / 2147483647f;
 	}
 
-	private float getNightStrengthScale(LightDefinition def, float scheduledNightFactor) {
-		float nightScale = mix(1, def.nightMultiplier, nightFactor);
-		return nightScale * (def.timeOfDay != null ? scheduledNightFactor : 1);
+	private float getNightStrengthScale(LightDefinition def, float scheduleActivation) {
+		float nightScale = cycleActive ? mix(1, def.nightMultiplier, nightFactor) : 1;
+		return nightScale * scheduleActivation;
 	}
 
-	private float getNightRadiusScale(LightDefinition def, float scheduledNightFactor) {
+	private float getNightRadiusScale(LightDefinition def, float scheduleActivation) {
 		float multiplier = def.nightMultiplier;
+		if (!cycleActive)
+			return scheduleActivation;
 		if (multiplier <= 0)
-			return def.timeOfDay != null ? 0 : mix(1, 0, nightFactor);
+			return def.schedule != null ? 0 : mix(1, 0, nightFactor);
 
 		// Unscheduled lights retain their authored culling radius unless boosted at night.
-		float scheduleScale = def.timeOfDay != null ? scheduledNightFactor : 1;
-		return scheduleScale * (multiplier > 1
+		return scheduleActivation * (
+			multiplier > 1
 			? mix(1, multiplier, nightFactor * NIGHT_RADIUS_BOOST_FRACTION)
 			: 1);
 	}
