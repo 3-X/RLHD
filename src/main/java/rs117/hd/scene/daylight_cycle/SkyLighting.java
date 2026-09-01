@@ -17,6 +17,7 @@ import rs117.hd.scene.environments.Environment.SkyLightingProfile;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.utils.ColorUtils;
 
+import static rs117.hd.utils.ColorUtils.linearSrgbLuma;
 import static rs117.hd.utils.ColorUtils.linearToSrgb;
 import static rs117.hd.utils.ColorUtils.srgbToLinear;
 import static rs117.hd.utils.MathUtils.*;
@@ -46,8 +47,6 @@ public class SkyLighting {
 	// Environments scale this subtle base tint with nightSkyColorStrength.
 	private static final float NIGHT_SKY_TINT_SCALE = .05f;
 	private static final float SKY_FILL_FADE_END_DEG = 45;
-
-	private static final float[] SKY_LUMA_WEIGHTS = { .2126f, .7152f, .0722f };
 
 	@Inject
 	private HdPlugin plugin;
@@ -297,8 +296,8 @@ public class SkyLighting {
 		DaylightCycleState state = daylightCycleManager.getState();
 		OutdoorSkySample sky = sampleOutdoorSky(state, worldPos, minimumBrightness);
 		float[] authoredColor = light.def.color;
-		float defLuma = dot(authoredColor, SKY_LUMA_WEIGHTS);
-		float noonLuma = dot(sky.noonHorizonLinear, SKY_LUMA_WEIGHTS);
+		float defLuma = linearSrgbLuma(authoredColor);
+		float noonLuma = linearSrgbLuma(sky.noonHorizonLinear);
 		float[] lightColor = copy(sky.horizonLinear);
 		float sunAltDeg = state.sunAngles[0] * RAD_TO_DEG;
 
@@ -318,12 +317,12 @@ public class SkyLighting {
 
 		if (sunAltDeg > 0) {
 			float desaturation = smoothstep(0, 90, sunAltDeg) * .75f;
-			float luma = dot(lightColor, SKY_LUMA_WEIGHTS);
+			float luma = linearSrgbLuma(lightColor);
 			mix(lightColor, lightColor, vec(luma), desaturation);
 		}
 
 		// Restore the authored color only at midday.
-		float horizonLuma = dot(lightColor, SKY_LUMA_WEIGHTS);
+		float horizonLuma = linearSrgbLuma(lightColor);
 		float middayFactor = smoothstep(15, 30, sunAltDeg);
 		if (middayFactor > 0)
 			lightColor = mix(lightColor, authoredColor, middayFactor);

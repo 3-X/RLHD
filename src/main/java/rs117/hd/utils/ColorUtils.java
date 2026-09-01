@@ -22,6 +22,8 @@ import static rs117.hd.utils.MathUtils.*;
 public class ColorUtils {
 	private static final float EPS = 1e-4f;
 
+	private static final float[] LINEAR_SRGB_LUMA_COEFFICIENTS = { .2126f, .7152f, .0722f };
+
 	/**
 	 * Row-major transforms between CIE XYZ (D65) and linear sRGB.
 	 * Coefficients are the sRGB matrices from
@@ -125,6 +127,13 @@ public class ColorUtils {
 		for (int i = 0; i < c.length; i++)
 			result[i] = srgbToLinear(c[i]);
 		return result;
+	}
+
+	/**
+	 * Return the luminance of a linear sRGB color.
+	 */
+	public static float linearSrgbLuma(float[] linearSrgb) {
+		return dot(linearSrgb, LINEAR_SRGB_LUMA_COEFFICIENTS, 3);
 	}
 
 	/**
