@@ -45,6 +45,7 @@ public class SkyLighting {
 	// Environments scale this subtle base tint with nightSkyColorStrength.
 	private static final float NIGHT_SKY_TINT_SCALE = .05f;
 	private static final float SKY_FILL_FADE_END_DEG = 45;
+	private static final float MAX_OUTDOOR_LIGHT_SCALE = 4;
 
 	@Inject
 	private HdPlugin plugin;
@@ -325,7 +326,12 @@ public class SkyLighting {
 		copyTo(light.color, lightColor);
 		float peakScale = defLuma / max(noonLuma, 1e-4f);
 		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1) * sky.brightnessMultiplier, moonStrengthFloor);
-		light.strength *= mix(peakScale * timeScale, 1, middayFactor);
+		float outdoorLightScale = peakScale * timeScale;
+		if (outdoorLightScale > 1) {
+			float scaleRange = MAX_OUTDOOR_LIGHT_SCALE - 1;
+			outdoorLightScale = 1 + scaleRange * (1 - exp(-(outdoorLightScale - 1) / scaleRange));
+		}
+		light.strength *= mix(outdoorLightScale, 1, middayFactor);
 	}
 
 	private OutdoorSkySample sampleOutdoorSky(DaylightCycleState state, int[] worldPos, int minimumBrightness) {
