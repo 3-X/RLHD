@@ -504,22 +504,25 @@ public class DaylightCycleManager {
 			nightFactor = smoothstep(5, -18, scheduleSunAltitude);
 	}
 
-	public float getScheduledLightCullingRadius(Light light) {
-		return light.def.radius * getNightRadiusScale(light.def, getScheduleActivation(light));
+	public void resolveLightDaylightCycle(Light light) {
+		light.daylightCycleActivation = getScheduleActivation(light);
 	}
 
-	public boolean isHiddenByLightSchedule(Light light) {
-		return light.def.schedule != null && getScheduleActivation(light) < .001f;
+	public float getDaylightCycleCullingRadius(Light light) {
+		return light.def.radius * getNightRadiusScale(light.def, light.daylightCycleActivation);
 	}
 
-	public void applyLightSchedule(Light light) {
+	public boolean isHiddenByDaylightCycle(Light light) {
+		return light.def.schedule != null && light.daylightCycleActivation < .001f;
+	}
+
+	public void applyDaylightCycleLighting(Light light) {
 		LightDefinition def = light.def;
 		if (!cycleActive && def.schedule == null)
 			return;
 
-		float scheduleActivation = getScheduleActivation(light);
-		light.strength *= getNightStrengthScale(def, scheduleActivation);
-		light.radius *= getNightRadiusScale(def, scheduleActivation);
+		light.strength *= getNightStrengthScale(def, light.daylightCycleActivation);
+		light.radius *= getNightRadiusScale(def, light.daylightCycleActivation);
 	}
 
 	private float getScheduleActivation(Light light) {

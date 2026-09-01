@@ -79,7 +79,32 @@ public class LightSchedule {
 	}
 
 	public boolean normalize() {
-		return during != null && during.length > 0;
+		if (turn == null)
+			turn = Turn.ON;
+
+		if (during == null || during.length == 0) {
+			log.error("Light schedule has no ranges");
+			return false;
+		}
+		if (!Float.isFinite(randomOffset) || randomOffset < 0) {
+			log.error("Light schedule has an invalid random offset: {}", randomOffset);
+			return false;
+		}
+
+		for (Range range : during) {
+			if (range == null || range.mode == null ||
+				!Float.isFinite(range.from) || !Float.isFinite(range.through) ||
+				range.from < -90 || range.from > 90 || range.through < -90 || range.through > 90) {
+				log.error("Light schedule has an invalid range");
+				return false;
+			}
+			if (range.from == range.through) {
+				log.warn("Light schedule range from {} through {} covers all solar altitudes; skipping light", range.from, range.through);
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private static float getRangeActivation(Range range, float sunAltitude, boolean sunDescending) {

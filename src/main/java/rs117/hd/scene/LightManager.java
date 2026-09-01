@@ -140,7 +140,10 @@ public class LightManager {
 			GRAPHICS_OBJECT_LIGHTS.clear();
 
 			for (LightDefinition lightDef : lights) {
-				lightDef.normalize();
+				if (!lightDef.normalize()) {
+					log.error("Skipping invalid light definition: {}", lightDef.description);
+					continue;
+				}
 				if (lightDef.worldX != null && lightDef.worldY != null) {
 					Light light = new Light(lightDef);
 					light.worldPoint = new WorldPoint(lightDef.worldX, lightDef.worldY, lightDef.plane);
@@ -469,8 +472,9 @@ public class LightManager {
 				float distZ = plugin.cameraFocalPoint[1] - light.pos[2];
 				light.distanceSquared = distX * distX + distZ * distZ;
 
-				float maxRadius = daylightCycleManager.getScheduledLightCullingRadius(light);
-				if (daylightCycleManager.isHiddenByLightSchedule(light))
+				daylightCycleManager.resolveLightDaylightCycle(light);
+				float maxRadius = daylightCycleManager.getDaylightCycleCullingRadius(light);
+				if (daylightCycleManager.isHiddenByDaylightCycle(light))
 					light.visible = false;
 				switch (light.def.type) {
 					case FLICKER:
@@ -564,7 +568,7 @@ public class LightManager {
 			if (light.fadeOutDuration > 0 && light.lifetime != -1)
 				light.strength *= saturate((light.lifetime - light.elapsedTime) / light.fadeOutDuration);
 
-			daylightCycleManager.applyLightSchedule(light);
+			daylightCycleManager.applyDaylightCycleLighting(light);
 
 			light.applyTemporaryVisibilityFade();
 		}

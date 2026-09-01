@@ -52,7 +52,7 @@ public class LightDefinition {
 	@JsonAdapter(GamevalManager.AnimationAdapter.class)
 	public HashSet<Integer> animationIds = new HashSet<>();
 
-	public void normalize() {
+	public boolean normalize() {
 		if (description == null)
 			description = "N/A";
 		if (alignment == null || alignment == Alignment.CENTER)
@@ -66,7 +66,6 @@ public class LightDefinition {
 			color = new float[3];
 		if (type == null)
 			type = LightType.STATIC;
-		if (schedule != null && !schedule.normalize())
-			schedule = null;
+		return schedule == null || schedule.normalize();
 	}
 }
