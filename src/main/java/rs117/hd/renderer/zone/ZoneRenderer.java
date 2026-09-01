@@ -375,11 +375,9 @@ public class ZoneRenderer implements Renderer {
 					);
 				}
 
-				sceneCmd.Enable(GL_BLEND);
 				sceneCmd.DepthMask(false);
 				ctx.drawAll(VAO_PRESCENE, sceneCmd);
 				sceneCmd.DepthMask(true);
-				sceneCmd.Disable(GL_BLEND);
 			}
 
 			frameTimer.end(Timer.DRAW_PRESCENE);
