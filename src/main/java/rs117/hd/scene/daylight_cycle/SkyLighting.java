@@ -1,6 +1,5 @@
 package rs117.hd.scene.daylight_cycle;
 
-import java.awt.Color;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
@@ -13,11 +12,11 @@ import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.environments.Environment.SkyGradient;
+import rs117.hd.scene.environments.Environment.SkyLightingProfile;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.utils.ColorUtils;
 
 import static rs117.hd.utils.ColorUtils.linearToSrgb;
-import static rs117.hd.utils.ColorUtils.rgb;
 import static rs117.hd.utils.ColorUtils.srgbToLinear;
 import static rs117.hd.utils.MathUtils.*;
 
@@ -47,22 +46,7 @@ public class SkyLighting {
 	private static final float NIGHT_SKY_TINT_SCALE = .05f;
 	private static final float SKY_FILL_FADE_END_DEG = 45;
 
-	private static final float[] NIGHT_SKY_LINEAR = rgb(5, 7, 15);
 	private static final float[] SKY_LUMA_WEIGHTS = { .2126f, .7152f, .0722f };
-
-	// Sun altitude in degrees mapped to color temperature in kelvin.
-	private static final float[][] DIRECTIONAL_TEMPERATURE_KEYFRAMES = {
-		{ 3, 2500 }, { 5, 2600 }, { 10, 3000 }, { 15, 3300 }, { 20, 3600 },
-		{ 30, 4000 }, { 40, 4300 }, { 50, 4750 }, { 60, 5250 }, { 70, 5500 },
-		{ 80, 5750 }, { 90, 6000 }
-	};
-
-	// Procedural ambient colors in { sunAltitudeDegrees, linearR, linearG, linearB }.
-	private static final float[][] AMBIENT_COLOR_KEYFRAMES = {
-		linearKeyframe(-5, 113, 140, 180),
-		linearKeyframe(25, 192, 185, 255),
-		linearKeyframe(40, 185, 214, 255),
-	};
 
 	@Inject
 	private HdPlugin plugin;
@@ -152,10 +136,11 @@ public class SkyLighting {
 	/** Derive this frame's lighting from the sun and moon. */
 	private void updateSky() {
 		var state = daylightCycleManager.getState();
-		copyTo(directionalColor, getRegionalDirectionalLight(state, directionalColor));
-		copyTo(ambientColor, getRegionalAmbientLight(state, ambientColor));
+		SkyLightingProfile profile = environmentManager.getSkyLighting();
+		copyTo(directionalColor, getRegionalDirectionalLight(state, directionalColor, profile));
+		copyTo(ambientColor, getRegionalAmbientLight(state, ambientColor, profile));
 
-		float brightnessMultiplier = getBrightnessMultiplier(state, plugin.configMinimumBrightness);
+		float brightnessMultiplier = getBrightnessMultiplier(state, plugin.configMinimumBrightness, profile);
 		float baseDirectionalStrength = directionalStrength;
 		// The cycle controls night brightness instead of seasonal ambient strength.
 		ambientStrength = brightnessMultiplier;
@@ -166,6 +151,7 @@ public class SkyLighting {
 		float[][] sky = getSkyGradientColors(
 			state,
 			environmentManager.getSkyGradient(),
+			profile,
 			fogColorSrgb,
 			environmentManager.currentSunStrength,
 			environmentManager.currentSunriseSunsetStrength,
@@ -215,22 +201,27 @@ public class SkyLighting {
 		directionalStrength *= shadowVisibility;
 	}
 
-	private float[] getRegionalDirectionalLight(DaylightCycleState state, float[] regionalDirectionalColor) {
+	private float[] getRegionalDirectionalLight(
+		DaylightCycleState state, float[] regionalDirectionalColor, SkyLightingProfile profile
+	) {
 		float[] sunAngles = state.sunAngles;
-		float[] dynamicLight = getDirectionalLightForAngles(sunAngles);
-		return mix(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
+		float[] dynamicLight = getDirectionalLightForAngles(sunAngles, profile);
+		return mix(dynamicLight, regionalDirectionalColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG, profile));
 	}
 
-	private float[] getRegionalAmbientLight(DaylightCycleState state, float[] regionalAmbientColor) {
+	private float[] getRegionalAmbientLight(
+		DaylightCycleState state, float[] regionalAmbientColor, SkyLightingProfile profile
+	) {
 		float[] sunAngles = state.sunAngles;
-		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles);
-		return mix(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG));
+		float[] dynamicAmbient = getAmbientColorForAngles(sunAngles, profile);
+		return mix(dynamicAmbient, regionalAmbientColor, regionalBlendFactor(sunAngles[0] * RAD_TO_DEG, profile));
 	}
 
 	/** Return {zenith, horizon, sun glow} sRGB after regional and night-sky blending. */
 	private float[][] getSkyGradientColors(
 		DaylightCycleState state,
 		SkyGradient profile,
+		SkyLightingProfile lightingProfile,
 		float[] regionalFogColor,
 		float sunStrength,
 		float sunriseSunsetStrength,
@@ -250,7 +241,7 @@ public class SkyLighting {
 			float window = sunAltitude >= 0 ? 1 : smoothstep(-25, 0, sunAltitude);
 			float suppression = (1 - sunStrength) * window;
 			if (suppression > 0) {
-				float[] target = mix(regionalLin, NIGHT_SKY_LINEAR, smoothstep(5, -5, sunAltitude));
+				float[] target = mix(regionalLin, lightingProfile.nightSkyColor, smoothstep(5, -5, sunAltitude));
 				blendTowards(zenith, target, suppression);
 				blendTowards(horizon, target, suppression);
 				fadeOut(sunGlow, suppression);
@@ -282,8 +273,8 @@ public class SkyLighting {
 		// Use a common deep-night base before moon tint and stars.
 		float nightBlend = smoothstep(0, -15, sunAltitude);
 		if (nightBlend > 0) {
-			blendTowards(zenith, NIGHT_SKY_LINEAR, nightBlend);
-			blendTowards(horizon, NIGHT_SKY_LINEAR, nightBlend);
+			blendTowards(zenith, lightingProfile.nightSkyColor, nightBlend);
+			blendTowards(horizon, lightingProfile.nightSkyColor, nightBlend);
 		}
 
 		return new float[][] { linearToSrgb(zenith), linearToSrgb(horizon), linearToSrgb(sunGlow) };
@@ -295,27 +286,28 @@ public class SkyLighting {
 			: linearToSrgb(interpolateSrgb(90, profile.horizon));
 	}
 
-	private float getBrightnessMultiplier(DaylightCycleState state, int minimumBrightness) {
+	private float getBrightnessMultiplier(DaylightCycleState state, int minimumBrightness, SkyLightingProfile profile) {
 		float sunAltitudeDegrees = state.sunAngles[0] * RAD_TO_DEG;
 		float minBrightness = minimumBrightness / 100f;
-		float horizonBrightness = minBrightness + .10f;
+		var curve = profile.brightness;
+		float horizonBrightness = minBrightness + curve.horizonBoost;
 
-		if (sunAltitudeDegrees <= -18)
+		if (sunAltitudeDegrees <= curve.nightAltitude)
 			return minBrightness;
-		if (sunAltitudeDegrees <= -5) {
-			float twilightBrightness = minBrightness + .07f;
-			return mix(minBrightness, twilightBrightness, smoothstep(-18, -5, sunAltitudeDegrees));
+		if (sunAltitudeDegrees <= curve.twilightAltitude) {
+			float twilightBrightness = minBrightness + curve.twilightBoost;
+			return mix(minBrightness, twilightBrightness, smoothstep(curve.nightAltitude, curve.twilightAltitude, sunAltitudeDegrees));
 		}
-		if (sunAltitudeDegrees <= 5) {
-			float twilightBrightness = minBrightness + .07f;
-			float earlyDayBrightness = horizonBrightness + .05f;
-			return mix(twilightBrightness, earlyDayBrightness, smoothstep(-5, 5, sunAltitudeDegrees));
+		if (sunAltitudeDegrees <= curve.horizonAltitude) {
+			float twilightBrightness = minBrightness + curve.twilightBoost;
+			float earlyDayBrightness = horizonBrightness + curve.earlyDayBoost;
+			return mix(twilightBrightness, earlyDayBrightness, smoothstep(curve.twilightAltitude, curve.horizonAltitude, sunAltitudeDegrees));
 		}
 
-		float earlyDayBrightness = horizonBrightness + .05f;
-		float sineAt5 = sin(5 * DEG_TO_RAD);
-		float normalizedSine = max(0, (sin(sunAltitudeDegrees * DEG_TO_RAD) - sineAt5) / (1 - sineAt5));
-		return mix(earlyDayBrightness, 1.2f, normalizedSine);
+		float earlyDayBrightness = horizonBrightness + curve.earlyDayBoost;
+		float sineAtHorizon = sin(curve.horizonAltitude * DEG_TO_RAD);
+		float normalizedSine = max(0, (sin(sunAltitudeDegrees * DEG_TO_RAD) - sineAtHorizon) / (1 - sineAtHorizon));
+		return mix(earlyDayBrightness, curve.daytimeStrength, normalizedSine);
 	}
 
 	/** Apply the sampled outdoor sky to an opted-in light. */
@@ -376,6 +368,7 @@ public class SkyLighting {
 		float[][] skyGradient = getSkyGradientColors(
 			state,
 			profile,
+			environmentManager.getSkyLighting(),
 			regionalFogSrgb,
 			environment.sunStrength,
 			environment.sunriseSunsetStrength,
@@ -384,7 +377,7 @@ public class SkyLighting {
 		OutdoorSkySample sample = new OutdoorSkySample(
 			ColorUtils.srgbToLinear(skyGradient[1]),
 			ColorUtils.srgbToLinear(getReferenceHorizonColor(regionalFogSrgb, profile)),
-			getBrightnessMultiplier(state, minimumBrightness)
+			getBrightnessMultiplier(state, minimumBrightness, environmentManager.getSkyLighting())
 		);
 		cachedOutdoorSkySample = sample;
 		cachedOutdoorSkyEnvironment = environment;
@@ -393,15 +386,13 @@ public class SkyLighting {
 		return sample;
 	}
 
-	private static float[] linearKeyframe(float altitudeDegrees, int red, int green, int blue) {
-		float[] linear = rgb(new Color(red, green, blue));
-		return vec(altitudeDegrees, linear[0], linear[1], linear[2]);
-	}
-
-	private static float[] getDirectionalLightForAngles(float[] sunAngles) {
-		float[] directionalLight = multiply(ColorUtils.colorTemperatureToLinearRgb(4100), .1f);
+	private static float[] getDirectionalLightForAngles(float[] sunAngles, SkyLightingProfile profile) {
+		float[] directionalLight = multiply(
+			ColorUtils.colorTemperatureToLinearRgb(profile.directionalBaseTemperature),
+			profile.directionalBaseStrength
+		);
 		if (sunAngles[0] >= 0) {
-			float temperature = interpolate(sunAngles[0] * RAD_TO_DEG, DIRECTIONAL_TEMPERATURE_KEYFRAMES);
+			float temperature = interpolate(sunAngles[0] * RAD_TO_DEG, profile.directionalTemperature);
 			float strength = sin(sunAngles[0]);
 			strength *= strength * 3;
 			add(directionalLight, directionalLight, multiply(ColorUtils.colorTemperatureToLinearRgb(temperature), strength));
@@ -409,32 +400,24 @@ public class SkyLighting {
 		return directionalLight;
 	}
 
-	private static float[] getAmbientColorForAngles(float[] sunAngles) {
-		return interpolateLinear(sunAngles[0] * RAD_TO_DEG, AMBIENT_COLOR_KEYFRAMES);
+	private static float[] getAmbientColorForAngles(float[] sunAngles, SkyLightingProfile profile) {
+		return interpolateLinear(sunAngles[0] * RAD_TO_DEG, profile.ambientColor);
 	}
 
-	private static float regionalBlendFactor(float sunAltitudeDegrees) {
-		if (sunAltitudeDegrees >= 30)
-			return 1;
-		if (sunAltitudeDegrees >= 15)
-			return .75f + (sunAltitudeDegrees - 15) / 15 * .25f;
-		if (sunAltitudeDegrees >= 5)
-			return .5f + (sunAltitudeDegrees - 5) / 10 * .25f;
-		if (sunAltitudeDegrees >= 0)
-			return .3f + sunAltitudeDegrees / 5 * .2f;
-		return max(0, .3f + sunAltitudeDegrees / 10 * .3f);
+	private static float regionalBlendFactor(float sunAltitudeDegrees, SkyLightingProfile profile) {
+		return interpolate(sunAltitudeDegrees, profile.regionalBlend);
 	}
 
-	private static float interpolate(float x, float[][] keyframes) {
+	private static float interpolate(float x, SkyLightingProfile.ScalarKeyframe[] keyframes) {
 		int end = keyframes.length - 1;
 		int i = 0;
-		while (i < end && x > keyframes[i + 1][0])
+		while (i < end && x > keyframes[i + 1].altitude)
 			i++;
 		if (i == end)
-			return keyframes[end][1];
-		float[] from = keyframes[i];
-		float[] to = keyframes[i + 1];
-		return mix(from[1], to[1], clamp((x - from[0]) / (to[0] - from[0]), 0, 1));
+			return keyframes[end].value;
+		SkyLightingProfile.ScalarKeyframe from = keyframes[i];
+		SkyLightingProfile.ScalarKeyframe to = keyframes[i + 1];
+		return mix(from.value, to.value, clamp((x - from.altitude) / (to.altitude - from.altitude), 0, 1));
 	}
 
 	private static float[] interpolateSrgb(float x, SkyGradient.Keyframe[] keyframes) {
@@ -452,17 +435,17 @@ public class SkyLighting {
 		return mix(srgbToLinear(from.color), srgbToLinear(to.color), t);
 	}
 
-	private static float[] interpolateLinear(float x, float[][] keyframes) {
+	private static float[] interpolateLinear(float x, SkyLightingProfile.ColorKeyframe[] keyframes) {
 		int end = keyframes.length - 1;
 		int i = 0;
-		while (i < end && x > keyframes[i + 1][0])
+		while (i < end && x > keyframes[i + 1].altitude)
 			i++;
-		float[] from = keyframes[i];
+		SkyLightingProfile.ColorKeyframe from = keyframes[i];
 		if (i == end)
-			return slice(from, 1);
-		float[] to = keyframes[i + 1];
-		float t = clamp((x - from[0]) / (to[0] - from[0]), 0, 1);
-		return mix(slice(from, 1), slice(to, 1), t);
+			return copy(from.color);
+		SkyLightingProfile.ColorKeyframe to = keyframes[i + 1];
+		float t = clamp((x - from.altitude) / (to.altitude - from.altitude), 0, 1);
+		return mix(from.color, to.color, t);
 	}
 
 	private static void blendTowards(float[] dst, float[] src, float t) {

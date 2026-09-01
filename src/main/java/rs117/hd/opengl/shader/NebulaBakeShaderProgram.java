@@ -2,8 +2,6 @@ package rs117.hd.opengl.shader;
 
 import static org.lwjgl.opengl.GL33C.*;
 
-// One-time bake of the procedural nebula into a cubemap. Rendered once per cube
-// face; the vertex shader derives the face basis from this OpenGL cubemap face index.
 public class NebulaBakeShaderProgram extends ShaderProgram {
 	public final Uniform1i uniCubeFace = addUniform1i("cubeFace");
 

@@ -2,7 +2,6 @@ package rs117.hd.opengl.shader;
 
 import static org.lwjgl.opengl.GL33C.*;
 
-// Point-sprite star pass. Draws the pre-generated star list as GL_POINTS.
 public class StarShaderProgram extends ShaderProgram {
 	public StarShaderProgram() {
 		super(t -> t

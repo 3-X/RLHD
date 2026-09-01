@@ -45,6 +45,7 @@ import rs117.hd.config.DefaultSkyColor;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.environments.Environment.SkyGradient;
+import rs117.hd.scene.environments.Environment.SkyLightingProfile;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.ExpressionParser;
 import rs117.hd.utils.ExpressionPredicate;
@@ -795,6 +796,16 @@ public class EnvironmentManager {
 			return overworld.skyGradient;
 
 		return Objects.requireNonNull(Environment.OVERWORLD.skyGradient, "OVERWORLD environment must define a skyGradient");
+	}
+
+	/** Resolve the procedural day & night lighting profile for the active seasonal theme. */
+	@Nonnull
+	public SkyLightingProfile getSkyLighting() {
+		Environment overworld = getOverworldEnvironment();
+		if (overworld.skyLighting != null)
+			return overworld.skyLighting;
+
+		return Objects.requireNonNull(Environment.OVERWORLD.skyLighting, "OVERWORLD environment must define skyLighting");
 	}
 
 	public boolean isOverworld() {

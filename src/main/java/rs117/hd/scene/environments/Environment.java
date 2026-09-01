@@ -116,6 +116,8 @@ public class Environment {
 	public float skyColorTakeoverAngle = 40;
 	@Nullable
 	public SkyGradient skyGradient;
+	@Nullable
+	public SkyLightingProfile skyLighting;
 	public float sunlightStrength = 1;
 	public float minBrightnessBoost = 0;
 	public boolean hideVanillaSkyboxes = false;
@@ -190,6 +192,39 @@ public class Environment {
 			public float altitude;
 			@JsonAdapter(SrgbAdapter.class)
 			public float[] color;
+		}
+	}
+
+	/** Tunable procedural lighting curves for the day & night cycle. */
+	public static class SkyLightingProfile {
+		public ColorKeyframe[] ambientColor;
+		public ScalarKeyframe[] directionalTemperature;
+		public ScalarKeyframe[] regionalBlend;
+		@JsonAdapter(SrgbToLinearAdapter.class)
+		public float[] nightSkyColor;
+		public float directionalBaseTemperature;
+		public float directionalBaseStrength;
+		public BrightnessCurve brightness;
+
+		public static class ColorKeyframe {
+			public float altitude;
+			@JsonAdapter(SrgbToLinearAdapter.class)
+			public float[] color;
+		}
+
+		public static class ScalarKeyframe {
+			public float altitude;
+			public float value;
+		}
+
+		public static class BrightnessCurve {
+			public float nightAltitude;
+			public float twilightAltitude;
+			public float horizonAltitude;
+			public float twilightBoost;
+			public float horizonBoost;
+			public float earlyDayBoost;
+			public float daytimeStrength;
 		}
 	}
 }

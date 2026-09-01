@@ -36,6 +36,45 @@
           }
         }
       }
+    },
+    "skyLightingScalarKeyframes": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [ "altitude", "value" ],
+        "properties": {
+          "altitude": {
+            "type": "number",
+            "description": "Sun altitude in degrees. Keyframes must be ordered from low to high altitude."
+          },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "skyLightingColorKeyframes": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [ "altitude", "color" ],
+        "properties": {
+          "altitude": {
+            "type": "number",
+            "description": "Sun altitude in degrees. Keyframes must be ordered from low to high altitude."
+          },
+          "color": {
+            "type": [ "string", "array" ],
+            "description": "sRGB color, specified as a hex code or an array in the range 0-255.",
+            "pattern": "^#[A-Fa-f0-9]{6}$",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": { "type": "number" }
+          }
+        }
+      }
     }
   },
   "type": "array",
@@ -383,6 +422,50 @@
       },
       "skyGradient": {
         "$ref": "#/$defs/skyGradient"
+      },
+      "skyLighting": {
+        "type": "object",
+        "description": "Procedural day & night lighting curves. Environments without a profile inherit the active seasonal overworld profile.",
+        "additionalProperties": false,
+        "required": [ "ambientColor", "directionalTemperature", "regionalBlend", "nightSkyColor", "directionalBaseTemperature", "directionalBaseStrength", "brightness" ],
+        "properties": {
+          "ambientColor": { "$ref": "#/$defs/skyLightingColorKeyframes" },
+          "directionalTemperature": { "$ref": "#/$defs/skyLightingScalarKeyframes" },
+          "regionalBlend": { "$ref": "#/$defs/skyLightingScalarKeyframes" },
+          "nightSkyColor": {
+            "type": [ "string", "array" ],
+            "description": "Deep-night sky color in sRGB, specified as a hex code or an array in the range 0-255.",
+            "pattern": "^#[A-Fa-f0-9]{6}$",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": { "type": "number" }
+          },
+          "directionalBaseTemperature": {
+            "type": "number",
+            "description": "Directional-light color temperature in kelvin while the sun is below the horizon.",
+            "minimum": 1000
+          },
+          "directionalBaseStrength": {
+            "type": "number",
+            "description": "Directional-light strength while the sun is below the horizon.",
+            "minimum": 0
+          },
+          "brightness": {
+            "type": "object",
+            "description": "Curve applied to the player's minimum-brightness setting across the day.",
+            "additionalProperties": false,
+            "required": [ "nightAltitude", "twilightAltitude", "horizonAltitude", "twilightBoost", "horizonBoost", "earlyDayBoost", "daytimeStrength" ],
+            "properties": {
+              "nightAltitude": { "type": "number", "description": "Sun altitude in degrees where the minimum-brightness floor begins." },
+              "twilightAltitude": { "type": "number", "description": "Sun altitude in degrees where the twilight ramp ends." },
+              "horizonAltitude": { "type": "number", "description": "Sun altitude in degrees where the daytime ramp begins." },
+              "twilightBoost": { "type": "number", "description": "Added to minimum brightness at the end of the night-to-twilight ramp." },
+              "horizonBoost": { "type": "number", "description": "Added to minimum brightness at the horizon." },
+              "earlyDayBoost": { "type": "number", "description": "Added after the horizon boost before the daytime ramp." },
+              "daytimeStrength": { "type": "number", "description": "Brightness multiplier at the top of the daytime curve." }
+            }
+          }
+        }
       },
       "sunlightStrength": {
         "type": "number",

@@ -1,12 +1,17 @@
 package rs117.hd.tests;
 
 import com.google.gson.Gson;
+import java.io.InputStreamReader;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Objects;
 import org.junit.Test;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.environments.Environment;
+import rs117.hd.scene.environments.Environment.SkyLightingProfile;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -22,14 +27,26 @@ import static rs117.hd.utils.MathUtils.*;
  * the constant keyframe tables; any drift beyond 1e-6 indicates a behavior change.
  */
 public class SkyLightingTest {
+	private static final SkyLightingProfile LIGHTING_PROFILE = loadLightingProfile();
+
+	private static SkyLightingProfile loadLightingProfile() {
+		var resource = Objects.requireNonNull(SkyLightingTest.class.getResourceAsStream("/rs117/hd/scene/environments.json"));
+		Environment[] environments = new Gson().fromJson(new InputStreamReader(resource, StandardCharsets.UTF_8), Environment[].class);
+		return Arrays.stream(environments)
+			.filter(environment -> "OVERWORLD".equals(environment.key))
+			.findFirst()
+			.orElseThrow()
+			.skyLighting;
+	}
+
 	private static float[] angles(float altitudeDegrees) {
 		return new float[] { altitudeDegrees * DEG_TO_RAD, 0 };
 	}
 
 	private static float[] invokeColorHelper(String name, float altitudeDegrees) throws ReflectiveOperationException {
-		Method method = SkyLighting.class.getDeclaredMethod(name, float[].class);
+		Method method = SkyLighting.class.getDeclaredMethod(name, float[].class, SkyLightingProfile.class);
 		method.setAccessible(true);
-		return (float[]) method.invoke(null, (Object) angles(altitudeDegrees));
+		return (float[]) method.invoke(null, angles(altitudeDegrees), LIGHTING_PROFILE);
 	}
 
 	@Test
