@@ -115,6 +115,7 @@ void main() {
     if (skyMoonIllumination > 0.001) {
         // Apply the same horizon offset transformation as the sun
         vec3 moonDir = normalize(vec3(skyMoonDir.x, -skyMoonDir.y + HORIZON_OFFSET, skyMoonDir.z));
+        vec3 moonSunDir = normalize(vec3(skyMoonSunDir.x, -skyMoonSunDir.y + HORIZON_OFFSET, skyMoonSunDir.z));
 
         float moonDot = dot(viewDir, moonDir);
 
@@ -163,7 +164,7 @@ void main() {
 
                 // Orient the terminator toward the sun. The phase amount can remain
                 // independent, which lets Night Synced use its separate phase clock.
-                vec2 moonToSun = vec2(dot(sky.sunDir, moonRight), dot(sky.sunDir, moonUp));
+                vec2 moonToSun = vec2(dot(moonSunDir, moonRight), dot(moonSunDir, moonUp));
                 float moonToSunLength = length(moonToSun);
                 moonToSun = moonToSunLength > 1e-4 ? moonToSun / moonToSunLength : vec2(1.0, 0.0);
 
@@ -179,8 +180,13 @@ void main() {
                 // Limb darkening: edges of the moon are slightly darker
                 float limbDarkening = mix(0.85, 1.0, normDist);
 
-                // Procedural moon surface detail
-                vec2 moonUV = vec2(localX, localY) * 4.0 + vec2(50.0, 50.0);
+                // The visible lunar surface rocks by several degrees over each month.
+                // Shift the detail independently of the terminator, which remains
+                // physically oriented toward the sun.
+                vec2 moonSurface = moonLocal + skyMoonLibration * (2.0 / PI);
+                float librationRoll = (skyMoonLibration.x + skyMoonLibration.y) * 0.25;
+                mat2 librationRotation = mat2(cos(librationRoll), -sin(librationRoll), sin(librationRoll), cos(librationRoll));
+                vec2 moonUV = librationRotation * moonSurface * 4.0 + vec2(50.0, 50.0);
 
                 // Large-scale terrain - broad tonal variation
                 float largeTerrain = moonFbm(moonUV * 0.4);

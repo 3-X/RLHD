@@ -76,6 +76,10 @@ public class DaylightCycleManager {
 	// Moon lighting fades out at −10°, so phase changes below this threshold are invisible.
 	private static final float MOON_PHASE_ADVANCE_ALTITUDE_RAD = -10 * DEG_TO_RAD;
 	private static final double NIGHT_SYNCED_MOON_START_HOUR = 3.4;
+	private static final double ANOMALISTIC_MONTH_DAYS = 27.55455;
+	private static final double DRACONIC_MONTH_DAYS = 27.21222;
+	private static final float LONGITUDE_LIBRATION_DEG = 7.9f;
+	private static final float LATITUDE_LIBRATION_DEG = 6.7f;
 
 	// Hand shadows to a still-lit moon before sunset to avoid an orientation pop.
 	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
@@ -234,6 +238,27 @@ public class DaylightCycleManager {
 		return state.moonAngles[0] * RAD_TO_DEG;
 	}
 
+	/** Always Night keeps the sky sun hidden, but the moon still follows Dynamic's solar geometry. */
+	private float[] computeMoonSunDirection() {
+		return currentCycle == DaylightCycle.ALWAYS_NIGHT
+			? anglesToSkyDirection(getSunAngles(getMoonDate()))
+			: state.sunDirection;
+	}
+
+	/**
+	 * Approximate the Moon's visible east/west and north/south rocking over a month.
+	 */
+	private float[] computeMoonLibration() {
+		if (configMoonBehavior != MoonBehavior.REALISTIC)
+			return vec(0, 0);
+
+		double days = getMoonDate().toEpochMilli() / (double) DAY_MS;
+		return vec(
+			sin((float) (days / ANOMALISTIC_MONTH_DAYS) * TWO_PI) * LONGITUDE_LIBRATION_DEG * DEG_TO_RAD,
+			sin((float) (days / DRACONIC_MONTH_DAYS) * TWO_PI) * LATITUDE_LIBRATION_DEG * DEG_TO_RAD
+		);
+	}
+
 	// ===== Aurora ================================================================
 
 	/**
@@ -380,8 +405,13 @@ public class DaylightCycleManager {
 			: state.moonAltitudeDegrees;
 		state.sunDirection = anglesToSkyDirection(state.sunAngles);
 		state.moonDirection = anglesToSkyDirection(state.moonAngles);
+		state.moonSunDirection = computeMoonSunDirection();
+		state.moonLibration = computeMoonLibration();
 		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
-		state.celestialRotation = (currentInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
+		// Always Night fixes the visible sun at midnight, but its moon and stars still
+		// advance on the simulated Dynamic-cycle date.
+		Instant celestialInstant = currentCycle == DaylightCycle.ALWAYS_NIGHT ? getMoonDate() : currentInstant;
+		state.celestialRotation = (celestialInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
 		state.hidesMoon = currentCycle.isHidesMoon();
 		state.auroraStrength = computeAuroraStrength();
 	}

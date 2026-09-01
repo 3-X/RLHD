@@ -23,6 +23,8 @@ public class UBOSky extends UniformBuffer<GLBuffer> {
 	public Property skyMoonDir = addProperty(PropertyType.FVec3, "skyMoonDir");
 	public Property skyMoonColor = addProperty(PropertyType.FVec3, "skyMoonColor");
 	public Property skyMoonIllumination = addProperty(PropertyType.Float, "skyMoonIllumination");
+	public Property skyMoonSunDir = addProperty(PropertyType.FVec3, "skyMoonSunDir");
+	public Property skyMoonLibration = addProperty(PropertyType.FVec2, "skyMoonLibration");
 
 	// Star visibility (from environment override)
 	public Property starVisibility = addProperty(PropertyType.Float, "starVisibility");
