@@ -78,17 +78,15 @@ public class EnvironmentManager {
 	@Inject
 	private GamevalManager gamevalManager;
 
-	private final Map<Integer, Integer> varbitOverrides = new HashMap<>();
-	private final Map<Integer, Integer> varpOverrides = new HashMap<>();
 	private final Map<String, Integer> varbitConditionVars = new HashMap<>();
 	private final Map<String, Integer> varpConditionVars = new HashMap<>();
 	private final VariableSupplier varbitVariableSupplier = name -> {
 		Integer id = varbitConditionVars.get(name);
-		return id == null ? null : getVarbitValue(id);
+		return id == null ? null : client.getVarbitValue(id);
 	};
 	private final VariableSupplier varpVariableSupplier = name -> {
 		Integer id = varpConditionVars.get(name);
-		return id == null ? null : getVarpValue(id);
+		return id == null ? null : client.getVarpValue(id);
 	};
 
 	private static final float TRANSITION_DURATION = 3; // seconds
@@ -338,37 +336,6 @@ public class EnvironmentManager {
 		startUp();
 		forceNextTransition = true;
 		currentEnvironment = previous;
-	}
-
-	public int getVarbitValue(int id) {
-		Integer override = varbitOverrides.get(id);
-		return override != null ? override : client.getVarbitValue(id);
-	}
-
-	public int getVarpValue(int id) {
-		Integer override = varpOverrides.get(id);
-		return override != null ? override : client.getVarpValue(id);
-	}
-
-	public void setVarbitOverride(int id, int state) {
-		varbitOverrides.put(id, state);
-	}
-
-	public void setVarpOverride(int id, int state) {
-		varpOverrides.put(id, state);
-	}
-
-	public void clearVarbitOverrides() {
-		varbitOverrides.clear();
-	}
-
-	public void clearVarpOverrides() {
-		varpOverrides.clear();
-	}
-
-	public void clearVarOverrides() {
-		clearVarbitOverrides();
-		clearVarpOverrides();
 	}
 
 	private void bindConditionVars(GamevalManager.Handle gamevals) {

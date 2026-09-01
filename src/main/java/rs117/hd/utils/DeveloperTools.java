@@ -19,7 +19,6 @@ import rs117.hd.overlays.LightGizmoOverlay;
 import rs117.hd.overlays.ShadowMapOverlay;
 import rs117.hd.overlays.TileInfoOverlay;
 import rs117.hd.overlays.TiledLightingOverlay;
-import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.GamevalManager;
 
 import static java.awt.event.InputEvent.CTRL_DOWN_MASK;
@@ -60,9 +59,6 @@ public class DeveloperTools implements KeyListener {
 
 	@Inject
 	private GamevalManager gamevalManager;
-
-	@Inject
-	private EnvironmentManager environmentManager;
 
 	@Inject
 	private TileInfoOverlay tileInfoOverlay;
@@ -122,33 +118,11 @@ public class DeveloperTools implements KeyListener {
 		lightGizmoOverlay.setActive(false);
 		tiledLightingOverlay.setActive(false);
 		hideUiEnabled = false;
-		environmentManager.clearVarOverrides();
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged) {
-		switch (gameStateChanged.getGameState()) {
-			case LOGIN_SCREEN:
-			case HOPPING:
-				environmentManager.clearVarOverrides();
-				break;
-		}
 	}
 
 	@Subscribe
 	public void onCommandExecuted(CommandExecuted commandExecuted) {
 		String command = commandExecuted.getCommand();
-		if (developerMode) {
-			if (command.equalsIgnoreCase("varbit") || command.equalsIgnoreCase("queryvarbit")) {
-				handleVarCommand("varbit", command.equalsIgnoreCase("queryvarbit"), commandExecuted.getArguments());
-				return;
-			}
-			if (command.equalsIgnoreCase("varp") || command.equalsIgnoreCase("queryvarp")) {
-				handleVarCommand("varp", command.equalsIgnoreCase("queryvarp"), commandExecuted.getArguments());
-				return;
-			}
-		}
-
 		if (!command.equalsIgnoreCase("117hd"))
 			return;
 
@@ -194,81 +168,110 @@ public class DeveloperTools implements KeyListener {
 				plugin.freezeCulling = !plugin.freezeCulling;
 				break;
 		}
+
+		if (!developerMode)
+			return;
+
+		switch (action) {
+			case "varbit":
+			case "varp":
+				handleVarCommand(action, args);
+				break;
+		}
 	}
 
-	private void handleVarCommand(String kind, boolean queryOnly, String[] args) {
-		boolean varp = kind.equals("varp");
-		String usage = queryOnly
-			? "Usage: ::query" + kind + " <name|id>"
-			: "Usage: ::" + kind + " <name|id> [state] | ::" + kind + " clear | ::query" + kind + " <name|id>";
-
-		if (!queryOnly && (args.length == 0 || args[0].equalsIgnoreCase("clear") && args.length == 1)) {
-			if (args.length == 1) {
-				if (varp)
-					environmentManager.clearVarpOverrides();
-				else
-					environmentManager.clearVarbitOverrides();
-				chat("Cleared all " + kind + " overrides");
-			} else {
-				chat(usage);
-			}
-			return;
-		}
-
-		if (args.length < 1) {
+	private void handleVarCommand(String type, String[] args) {
+		assert client.isClientThread();
+		String usage = "Usage: ::117hd " + type + " get <name|id> | ::117hd " + type + " set <name|id> <value>";
+		if (args.length < 2) {
 			chat(usage);
 			return;
 		}
 
-		String nameOrId = args[0];
-		Integer id = resolveVarId(varp, nameOrId);
-		if (id == null) {
-			chat("Unknown " + kind + ": " + nameOrId);
+		String subAction = args[1].toLowerCase();
+		int expectedArgs;
+		switch (subAction) {
+			case "get":
+				expectedArgs = 3;
+				break;
+			case "set":
+				expectedArgs = 4;
+				break;
+			default:
+				chat(usage);
+				return;
+		}
+		if (args.length != expectedArgs) {
+			chat(usage);
 			return;
 		}
 
-		if (queryOnly || args.length == 1) {
-			clientThread.invoke(() -> {
-				int real = varp ? client.getVarpValue(id) : client.getVarbitValue(id);
-				int effective = varp ? environmentManager.getVarpValue(id) : environmentManager.getVarbitValue(id);
-				String message = real == effective
-					? kind + " " + nameOrId + " (" + id + ") = " + real
-					: kind + " " + nameOrId + " (" + id + ") = " + real + " (override " + effective + ")";
-				client.addChatMessage(
-					ChatMessageType.GAMEMESSAGE,
-					"117 HD",
-					"<col=006600>[117 HD] " + message + "</col>",
-					"117 HD"
-				);
-			});
-			return;
-		}
-
-		int state;
+		String nameOrId = args[2].toUpperCase();
+		Integer id;
 		try {
-			state = Integer.parseInt(args[1]);
-		} catch (NumberFormatException e) {
-			chat("Invalid state: " + args[1]);
-			return;
-		}
-
-		if (varp)
-			environmentManager.setVarpOverride(id, state);
-		else
-			environmentManager.setVarbitOverride(id, state);
-		chat(kind + " override " + nameOrId + " (" + id + ") = " + state);
-	}
-
-	private Integer resolveVarId(boolean varp, String nameOrId) {
-		try {
-			return Integer.parseInt(nameOrId);
+			id = Integer.parseInt(nameOrId);
 		} catch (NumberFormatException ignored) {
+			try (var gamevals = gamevalManager.obtainHandle()) {
+				switch (type) {
+					case "varbit":
+						id = gamevals.getVarbits().get(nameOrId);
+						break;
+					case "varp":
+						id = gamevals.getVarps().get(nameOrId);
+						break;
+					default:
+						throw new IllegalStateException("Unhandled variable kind: " + type);
+				}
+			}
+		}
+		if (id == null) {
+			chat("Unknown " + type + ": " + nameOrId);
+			return;
 		}
 
-		String name = nameOrId.toUpperCase();
-		try (var gamevals = gamevalManager.obtainHandle()) {
-			return varp ? gamevals.getVarps().get(name) : gamevals.getVarbits().get(name);
+		if (expectedArgs == 3) {
+			int[] varps = client.getVarps();
+			int value;
+			switch (type) {
+				case "varbit":
+					value = client.getVarbitValue(varps, id);
+					break;
+				case "varp":
+					value = varps[id];
+					break;
+				default:
+					throw new IllegalStateException("Unhandled variable kind: " + type);
+			}
+			chat(type + " " + nameOrId + " (" + id + ") = " + value);
+			return;
 		}
+
+		final int value;
+		try {
+			value = Integer.parseInt(args[3]);
+		} catch (NumberFormatException e) {
+			chat("Invalid value: " + args[3]);
+			return;
+		}
+
+		VarbitChanged changed = new VarbitChanged();
+		changed.setValue(value);
+		switch (type) {
+			case "varbit":
+				client.setVarbitValue(client.getVarps(), id, value);
+				client.queueChangedVarp(client.getVarbit(id).getIndex());
+				changed.setVarbitId(id);
+				break;
+			case "varp":
+				client.getVarps()[id] = value;
+				client.queueChangedVarp(id);
+				changed.setVarpId(id);
+				break;
+			default:
+				throw new IllegalStateException("Unhandled variable kind: " + type);
+		}
+		eventBus.post(changed);
+		chat("Set " + type + " " + nameOrId + " (" + id + ") = " + value);
 	}
 
 	private void chat(String message) {
