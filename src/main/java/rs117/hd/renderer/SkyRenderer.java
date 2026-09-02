@@ -13,6 +13,7 @@ import rs117.hd.opengl.shader.StarShaderProgram;
 import rs117.hd.opengl.uniforms.UBOGlobal;
 import rs117.hd.overlays.FrameTimer;
 import rs117.hd.overlays.Timer;
+import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.utils.CommandBuffer;
@@ -34,6 +35,9 @@ public class SkyRenderer {
 	private FrameTimer frameTimer;
 
 	@Inject
+	private DaylightCycleManager daylightCycleManager;
+
+	@Inject
 	private SkyLighting skyLighting;
 
 	@Inject
@@ -47,11 +51,11 @@ public class SkyRenderer {
 
 	private final CommandBuffer commandBuffer = new CommandBuffer("Sky");
 	private final RenderState localRenderState = new RenderState();
+	private boolean shouldRenderSky;
 
 	public void initialize() {
 		commandBuffer.setFrameTimer(frameTimer);
 		commandBuffer.reset();
-		skyLighting.initialize();
 		starField.initialize();
 	}
 
@@ -78,13 +82,14 @@ public class SkyRenderer {
 	}
 
 	public void update(UBOGlobal uboGlobal) {
-		skyLighting.update(uboGlobal);
-		if (skyLighting.shouldRenderSky())
+		shouldRenderSky = daylightCycleManager.isCycleActive();
+		skyLighting.update(uboGlobal, shouldRenderSky);
+		if (shouldRenderSky)
 			updateCommandBuffer();
 	}
 
 	public boolean shouldRender() {
-		return skyLighting.shouldRenderSky() && skyProgram.isValid();
+		return shouldRenderSky && skyProgram.isValid();
 	}
 
 	private boolean canRenderSky(boolean hasVanillaSkybox) {
@@ -99,7 +104,7 @@ public class SkyRenderer {
 		if (canRenderSky(hasVanillaSkybox)) {
 			glClear(GL_DEPTH_BUFFER_BIT);
 		} else {
-			float[] fogColor = hasVanillaSkybox ? BLACK : skyLighting.fogColorSrgb;
+			float[] fogColor = hasVanillaSkybox ? BLACK : skyLighting.getFogColorSrgb();
 			float[] gammaCorrectedFogColor = pow(fogColor, plugin.getGammaCorrection());
 			glClearColor(
 				gammaCorrectedFogColor[0],

@@ -59,36 +59,31 @@ public class SkyLighting {
 	@Inject
 	private EnvironmentManager environmentManager;
 
-	public final float[] directionalColor = new float[3];
-	public final float[] ambientColor = new float[3];
-	public final float[] waterColor = new float[3];
-	public final float[] fogColorSrgb = new float[3];
-	public float directionalStrength;
-	public float ambientStrength;
-	public float effectiveDirectionalStrength;
+	@Getter
+	private final float[] fogColorSrgb = new float[3];
+	private final float[] directionalColor = new float[3];
+	private final float[] ambientColor = new float[3];
+	private final float[] waterColor = new float[3];
+	private float directionalStrength;
+	private float ambientStrength;
 
 	@Getter
 	@Accessors(fluent = true)
-	private boolean shouldRenderSky;
+	private boolean castsShadows;
 
 	private OutdoorSkySample cachedOutdoorSkySample;
 	private Environment cachedOutdoorSkyEnvironment;
 	private int cachedOutdoorSkyMinBrightness;
 	private int cachedOutdoorSkyFrame = -1;
 
-	public void initialize() {
-		disableSky();
-	}
-
-	public void update(UBOGlobal uboGlobal) {
+	public void update(UBOGlobal uboGlobal, boolean renderSky) {
 		seedFromEnvironment();
 
-		boolean wasActive = shouldRenderSky;
-		shouldRenderSky = daylightCycleManager.isCycleActive();
-		if (shouldRenderSky) {
+		if (renderSky) {
 			updateSky();
-		} else if (wasActive) {
-			disableSky();
+		} else {
+			plugin.uboSky.skyGradientEnabled.set(0);
+			plugin.uboSky.upload();
 		}
 
 		updateGlobalUbo(uboGlobal);
@@ -118,12 +113,13 @@ public class SkyLighting {
 		)));
 
 		float effectiveAmbientStrength = ambientStrength;
-		effectiveDirectionalStrength = directionalStrength;
+		float effectiveDirectionalStrength = directionalStrength;
 		if (config.useLegacyBrightness()) {
 			float factor = (float) config.legacyBrightness() / 20;
 			effectiveAmbientStrength *= factor;
 			effectiveDirectionalStrength *= factor;
 		}
+		castsShadows = effectiveDirectionalStrength > 0;
 		ubo.ambientStrength.set(effectiveAmbientStrength);
 		ubo.ambientColor.set(ambientColor);
 		ubo.lightStrength.set(effectiveDirectionalStrength);
@@ -478,22 +474,6 @@ public class SkyLighting {
 		// An all-int ternary selects the wrong uniform setter.
 		ubo.nebulaVisibility.set(config.enableNebulas() ? environmentManager.currentNebulaVisibility : 0f);
 		ubo.auroraVisibility.set(state.auroraStrength * environmentManager.currentAuroraVisibility);
-		ubo.upload();
-	}
-
-	private void disableSky() {
-		UBOSky ubo = plugin.uboSky;
-		ubo.skyGradientEnabled.set(0);
-		ubo.skyMoonDir.set(0, 0, 0);
-		ubo.skyMoonColor.set(0, 0, 0);
-		ubo.skyMoonIllumination.set(0);
-		ubo.skyMoonPhaseLightDirection.set(0, 0, 0);
-		ubo.skyMoonLibration.set(0, 0);
-		ubo.starVisibility.set(1);
-		ubo.nebulaVisibility.set(0);
-		ubo.auroraVisibility.set(0);
-		ubo.moonSizeMult.set(1);
-		ubo.starHorizonHeight.set(1);
 		ubo.upload();
 	}
 

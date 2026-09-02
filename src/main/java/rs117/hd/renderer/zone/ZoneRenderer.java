@@ -765,7 +765,7 @@ public class ZoneRenderer implements Renderer {
 		final boolean shouldRenderShadows =
 			plugin.configShadowsEnabled &&
 			plugin.fboShadowMap != 0 &&
-			skyLighting.effectiveDirectionalStrength > 0;
+			skyLighting.castsShadows();
 
 		if (shouldRenderShadows || shouldClearShadowFbo) {
 			if (plugin.configTerrainShadows && plugin.fboTerrainShadowMap != 0) {
@@ -967,7 +967,7 @@ public class ZoneRenderer implements Renderer {
 			}
 
 			final boolean isSquashed = ctx.uboWorldViewStruct != null && ctx.uboWorldViewStruct.isSquashed();
-			if (skyLighting.effectiveDirectionalStrength > 0 && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
+			if (skyLighting.castsShadows() && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
 				if (!z.onlyWater || z.modelCount > 0) {
 					directionalCmd.SetShader(fastShadowProgram);
 					z.renderOpaque(directionalCmd, ctx, shouldDrawRoofShadows);
@@ -1016,7 +1016,7 @@ public class ZoneRenderer implements Renderer {
 					z.alphaSort(zx - offset, zz - offset, sceneCamera);
 
 				final boolean isSquashed = ctx.uboWorldViewStruct != null && ctx.uboWorldViewStruct.isSquashed();
-				if (skyLighting.effectiveDirectionalStrength > 0 && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
+				if (skyLighting.castsShadows() && !isSquashed && (!sceneManager.isRoot(ctx) || z.inShadowFrustum)) {
 					directionalCmd.SetShader(plugin.configShadowMode == ShadowMode.DETAILED ? detailedShadowProgram : fastShadowProgram);
 					z.renderAlpha(directionalCmd, zx - offset, zz - offset, level, ctx, true, shouldDrawRoofShadows);
 				}

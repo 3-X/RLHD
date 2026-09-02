@@ -49,6 +49,12 @@ public class SkyLightingTest {
 		return (float[]) method.invoke(null, angles(altitudeDegrees), LIGHTING_PROFILE);
 	}
 
+	private static <T> T getField(Object object, String name, Class<T> type) throws ReflectiveOperationException {
+		var field = object.getClass().getDeclaredField(name);
+		field.setAccessible(true);
+		return type.cast(field.get(object));
+	}
+
 	@Test
 	public void ambientColorMatchesGolden() throws ReflectiveOperationException {
 		assertArrayEquals(
@@ -123,18 +129,21 @@ public class SkyLightingTest {
 		seedFromEnvironment.setAccessible(true);
 		seedFromEnvironment.invoke(lighting);
 
-		assertNotSame(environmentManager.currentDirectionalColor, lighting.directionalColor);
-		assertNotSame(environmentManager.currentAmbientColor, lighting.ambientColor);
-		assertNotSame(environmentManager.currentWaterColor, lighting.waterColor);
-		assertArrayEquals(new float[] { .1f, .2f, .3f }, lighting.directionalColor, 0);
-		assertArrayEquals(new float[] { .4f, .5f, .6f }, lighting.ambientColor, 0);
-		assertArrayEquals(new float[] { .7f, .8f, .9f }, lighting.waterColor, 0);
-		assertEquals(2.5f, lighting.directionalStrength, 0);
-		assertEquals(1.5f, lighting.ambientStrength, 0);
+		float[] directionalColor = getField(lighting, "directionalColor", float[].class);
+		float[] ambientColor = getField(lighting, "ambientColor", float[].class);
+		float[] waterColor = getField(lighting, "waterColor", float[].class);
+		assertNotSame(environmentManager.currentDirectionalColor, directionalColor);
+		assertNotSame(environmentManager.currentAmbientColor, ambientColor);
+		assertNotSame(environmentManager.currentWaterColor, waterColor);
+		assertArrayEquals(new float[] { .1f, .2f, .3f }, directionalColor, 0);
+		assertArrayEquals(new float[] { .4f, .5f, .6f }, ambientColor, 0);
+		assertArrayEquals(new float[] { .7f, .8f, .9f }, waterColor, 0);
+		assertEquals(2.5f, getField(lighting, "directionalStrength", Float.class), 0);
+		assertEquals(1.5f, getField(lighting, "ambientStrength", Float.class), 0);
 
-		lighting.directionalColor[0] = .999f;
-		lighting.ambientColor[0] = .999f;
-		lighting.waterColor[0] = .999f;
+		directionalColor[0] = .999f;
+		ambientColor[0] = .999f;
+		waterColor[0] = .999f;
 
 		assertArrayEquals(new float[] { .1f, .2f, .3f }, environmentManager.currentDirectionalColor, 0);
 		assertArrayEquals(new float[] { .4f, .5f, .6f }, environmentManager.currentAmbientColor, 0);
