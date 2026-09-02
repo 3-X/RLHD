@@ -17826,7 +17826,7 @@
     "height": 600,
     "radius": 1200,
     "strength": 5,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -18100,7 +18100,7 @@
     "offset": [ 0, 400, 0 ],
     "radius": 1500,
     "strength": 20,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       249.4737,
@@ -22686,7 +22686,7 @@
     "description": "CRASH_ISLAND_ROPE",
     "height": 450,
     "alignment": "CENTER",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "radius": 700,
     "strength": 25,
     "color": [
@@ -25382,7 +25382,7 @@
     "alignment": "CENTER",
     "radius": 350,
     "strength": 15,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -26479,7 +26479,7 @@
     "offset": [ 0, 100, 25 ],
     "radius": 400,
     "strength": 25,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       224,
@@ -26497,7 +26497,7 @@
     "offset": [ 0, 100, 25 ],
     "radius": 350,
     "strength": 65,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       224,
@@ -27544,7 +27544,7 @@
     "offset": [ 0, 70, -130 ],
     "radius": 450,
     "strength": 10,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -27563,7 +27563,7 @@
     "alignment": "CENTER",
     "radius": 800,
     "strength": 12,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -36968,7 +36968,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_TOP",
     "offset": [ 40, 800, 0 ],
     "alignment": "CENTER",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "radius": 1200,
     "strength": 20,
     "color": [
@@ -36985,7 +36985,7 @@
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_MIDDLE_1",
     "offset": [ 45, 500, 0 ],
     "alignment": "CENTER",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "radius": 300,
     "strength": 20,
     "color": [
@@ -37001,8 +37001,7 @@
   {
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_MIDDLE_2",
     "offset": [ 45, 250, 0 ],
-    "alignment": "CENTER",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "radius": 300,
     "strength": 15,
     "color": [
@@ -37018,8 +37017,7 @@
   {
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_FLOOR_HIGHLIGHT",
     "offset": [ 35, 100, 0 ],
-    "alignment": "CENTER",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "radius": 300,
     "strength": 13,
     "color": [
@@ -37035,8 +37033,7 @@
   {
     "description": "MM2_CRASH_SITE_CAVE_SKYLIGHT_FLOOR_SPOTLIGHT",
     "offset": [ -14, 150, 0 ],
-    "alignment": "CENTER",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "radius": 400,
     "strength": 4,
     "color": [
@@ -38671,7 +38668,7 @@
     "offset": [ 0, 210, 30 ],
     "radius": 575,
     "strength": 15,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -42585,7 +42582,7 @@
     "color": "#ffffff",
     "type": "FLICKER",
     "range": 13,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "objectIds": [
       "CHINCHOMPA_JUNGLE_CAVE_EXIT"
     ]
@@ -42598,7 +42595,7 @@
     "color": "#ffffff",
     "type": "FLICKER",
     "range": 13,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "objectIds": [
       "CHINCHOMPA_JUNGLE_CAVE_EXIT"
     ]
@@ -42708,7 +42705,7 @@
     "objectIds": [ "TROLL_STRONGHOLD_WINDOW", "TROLL_STRONGHOLD_TOP_EXIT_MID" ],
     "radius": 450,
     "areas": [ "TROLL_STRONGHOLD" ],
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "strength": 10,
     "color": "#ffffff",
     "offset": [ 0, 150, 70 ]
@@ -42917,7 +42914,7 @@
     ],
     "radius": 500,
     "strength": 10,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 40, 40, 0 ]
   },
@@ -42928,7 +42925,7 @@
     ],
     "radius": 450,
     "strength": 10,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 40, 150, 0 ]
   },
@@ -42939,7 +42936,7 @@
     ],
     "radius": 1150,
     "strength": 8,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 40, 600, 0 ]
   },
@@ -43221,7 +43218,7 @@
     ],
     "radius": 550,
     "strength": 15,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": "#ffffff",
     "offset": [ 0, 200, -70 ]
   },
@@ -44436,7 +44433,7 @@
     "offset": [ 50, 300, 30 ],
     "radius": 400,
     "strength": 4.5,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -44453,7 +44450,7 @@
     "alignment": "CENTER",
     "radius": 275,
     "strength": 18,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -44508,7 +44505,7 @@
     "alignment": "CENTER",
     "radius": 400,
     "strength": 17,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -44527,7 +44524,7 @@
     "alignment": "CENTER",
     "radius": 500,
     "strength": 10,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -44544,7 +44541,7 @@
     "alignment": "CENTER",
     "radius": 600,
     "strength": 35,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -44561,7 +44558,7 @@
     "offset": [ -50, 200, -50 ],
     "radius": 600,
     "strength": 10,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -44687,7 +44684,7 @@
     "type": "STATIC",
     "duration": 0,
     "range": 0,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "objectIds": [
       "SLAYER_CAVE_EXIT_LEFT",
       "EYEGLO_DUNGEON_EXIT_LEFT"
@@ -48689,7 +48686,7 @@
       255
     ],
     "type": "STATIC",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "objectIds": [
       "DEEPFIN_CAVE_EXIT",
       "LAGUNA_CAVE_EXIT"
@@ -48914,7 +48911,7 @@
       255
     ],
     "type": "STATIC",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "objectIds": [
       "GRIMSTONE_CAVE_EXIT"
     ]
@@ -48930,7 +48927,7 @@
       255
     ],
     "type": "STATIC",
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "objectIds": [
       "GRIMSTONE_CAVE_EXIT"
     ]
@@ -49048,7 +49045,7 @@
     "offset": [ 0, 125, 0 ],
     "radius": 750,
     "strength": 6,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -50731,7 +50728,7 @@
     "alignment": "CENTER",
     "radius": 1500,
     "strength": 10,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,
@@ -50748,7 +50745,7 @@
     "alignment": "CENTER",
     "radius": 750,
     "strength": 20,
-    "followOutdoorLighting": true,
+    "outdoorLighting": true,
     "color": [
       255,
       255,

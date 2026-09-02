@@ -46,7 +46,6 @@ import rs117.hd.config.MoonPhase;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.environments.Environment.SkyGradient;
 import rs117.hd.scene.environments.Environment.SkyLightingProfile;
-import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.ExpressionParser;
 import rs117.hd.utils.ExpressionPredicate;
 import rs117.hd.utils.FileWatcher;
@@ -585,14 +584,14 @@ public class EnvironmentManager {
 	public void updateTargetSkyColor() {
 		Environment env = getCurrentEnvironment();
 
-		if (env.fogColor == null || env.allowSkyOverride && plugin.configOverrideSky) {
+		targetFogColor = getFogColor(env);
+		if (usesDefaultSkyColor(env)) {
 			DefaultSkyColor sky = plugin.configDefaultSkyColor;
-			targetFogColor = sky.getRgb(client);
 			if (sky == DefaultSkyColor.OSRS)
 				sky = DefaultSkyColor.DEFAULT;
 			targetWaterColor = sky.getRgb(client);
 		} else {
-			targetFogColor = targetWaterColor = env.fogColor;
+			targetWaterColor = env.fogColor;
 		}
 
 		// Override with decoupled water/sky color if present
@@ -601,6 +600,14 @@ public class EnvironmentManager {
 		} else if (config.decoupleSkyAndWaterColor()) {
 			targetWaterColor = DefaultSkyColor.DEFAULT.getRgb(client);
 		}
+	}
+
+	private boolean usesDefaultSkyColor(Environment env) {
+		return env.fogColor == null || env.allowSkyOverride && plugin.configOverrideSky;
+	}
+
+	public float[] getFogColor(Environment env) {
+		return usesDefaultSkyColor(env) ? plugin.configDefaultSkyColor.getRgb(client) : env.fogColor;
 	}
 
 	/**
@@ -735,7 +742,7 @@ public class EnvironmentManager {
 		return getCurrentEnvironment().fixedMoonAngles;
 	}
 
-	private Environment getOverworldEnvironment() {
+	public Environment getOverworldEnvironment() {
 		switch (plugin.configSeasonalTheme) {
 			case AUTUMN:
 				return Environment.AUTUMN;
@@ -791,45 +798,12 @@ public class EnvironmentManager {
 		return currentEnvironment.hideVanillaSkyboxes;
 	}
 
-	private static final int OUTDOOR_WORLD_Y_OFFSET = 3602;
-	private final int[] outdoorWorldPos = new int[3];
-
-	/** Resolve the overworld environment corresponding to a local light's world position. */
-	@Nonnull
-	public Environment getOutdoorEnvironment(int[] worldPos) {
-		outdoorWorldPos[0] = worldPos[0];
-		outdoorWorldPos[1] = worldPos[1] - OUTDOOR_WORLD_Y_OFFSET;
-		outdoorWorldPos[2] = 0;
-
-		Environment outdoorEnvironment = null;
-		if (environments != null) {
-			for (var environment : environments) {
-				if (environment.isOverworld && environment.area.containsPoint(outdoorWorldPos))
-					outdoorEnvironment = environment;
-			}
-		}
-
-		return outdoorEnvironment != null ? outdoorEnvironment : getOverworldEnvironment();
-	}
-
-	/**
-	 * Regional fog for outdoor sky sampling. Never uses the current indoor/cave fog -
-	 * that caused dawn to blend toward static cave colors while dusk still used procedural twilight.
-	 */
-	public float[] getOutdoorRegionalFogSrgb(Environment env) {
-		if (env.fogColor != null)
-			return ColorUtils.linearToSrgb(env.fogColor);
-
-		if (env.allowSkyOverride) {
-			DefaultSkyColor sky = config.defaultSkyColor();
-			float[] regionalFogLinear = sky.getRgb(client);
-			if (sky == DefaultSkyColor.OSRS)
-				regionalFogLinear = DefaultSkyColor.DEFAULT.getRgb(client);
-			return ColorUtils.linearToSrgb(regionalFogLinear);
-		}
-
-		Environment themeEnv = getOverworldEnvironment();
-		float[] themeFog = themeEnv.fogColor != null ? themeEnv.fogColor : Environment.DEFAULT.fogColor;
-		return ColorUtils.linearToSrgb(themeFog);
+	@Nullable
+	public Environment getEnvironmentAt(int[] worldPos) {
+		if (environments != null)
+			for (var environment : environments)
+				if (environment.area.containsPoint(worldPos) && isConditionSatisfied(environment))
+					return environment;
+		return null;
 	}
 }

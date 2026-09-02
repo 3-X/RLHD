@@ -6,12 +6,12 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import rs117.hd.utils.GsonUtils;
 
 import static rs117.hd.utils.MathUtils.*;
 
-/** Solar-altitude schedules in degrees. */
 @Slf4j
 public class LightSchedule {
 	public static final float DEFAULT_RANDOM_OFFSET = 2.7f;
@@ -33,21 +33,18 @@ public class LightSchedule {
 		NIGHT(5, -2, Range.Mode.BOTH),
 		// The old .65-1 LightTimeOfDay range, expressed as sun altitudes.
 		DEEP_NIGHT(-8.8f, -18, Range.Mode.BOTH),
-		TWILIGHT;
+		TWILIGHT(DAWN, DUSK);
 
-		final float from;
-		final float through;
-		final Range.Mode mode;
+		private static final Phase[] VALUES = values();
+
+		final Range[] ranges;
 
 		Phase(float from, float through, Range.Mode mode) {
-			this.from = from;
-			this.through = through;
-			this.mode = mode;
+			ranges = new Range[] { new Range(from, through, mode) };
 		}
 
-		Phase() {
-			from = through = Float.NaN;
-			mode = null;
+		Phase(Phase first, Phase second) {
+			ranges = new Range[] { first.ranges[0], second.ranges[0] };
 		}
 	}
 
@@ -73,38 +70,9 @@ public class LightSchedule {
 	public float getActivation(float sunAltitude, boolean sunDescending, float offset) {
 		sunAltitude -= offset;
 		float rangeActivation = 0;
-		for (Range range : during)
-			rangeActivation = max(rangeActivation, getRangeActivation(range, sunAltitude, sunDescending));
+		for (int i = 0; i < during.length; i++)
+			rangeActivation = max(rangeActivation, getRangeActivation(during[i], sunAltitude, sunDescending));
 		return turn == Turn.ON ? rangeActivation : 1 - rangeActivation;
-	}
-
-	public boolean normalize() {
-		if (turn == null)
-			turn = Turn.ON;
-
-		if (during == null || during.length == 0) {
-			log.error("Light schedule has no ranges");
-			return false;
-		}
-		if (!Float.isFinite(randomOffset) || randomOffset < 0) {
-			log.error("Light schedule has an invalid random offset: {}", randomOffset);
-			return false;
-		}
-
-		for (Range range : during) {
-			if (range == null || range.mode == null ||
-				!Float.isFinite(range.from) || !Float.isFinite(range.through) ||
-				range.from < -90 || range.from > 90 || range.through < -90 || range.through > 90) {
-				log.error("Light schedule has an invalid range");
-				return false;
-			}
-			if (range.from == range.through) {
-				log.warn("Light schedule range from {} through {} covers all solar altitudes; skipping light", range.from, range.through);
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	private static float getRangeActivation(Range range, float sunAltitude, boolean sunDescending) {
@@ -123,112 +91,178 @@ public class LightSchedule {
 	public static class Adapter extends TypeAdapter<LightSchedule> {
 		@Override
 		public LightSchedule read(JsonReader in) throws IOException {
+			String scheduleLocation = GsonUtils.location(in);
+			if (in.peek() == JsonToken.NULL) {
+				in.nextNull();
+				return null;
+			}
+			if (in.peek() != JsonToken.STRING && in.peek() != JsonToken.BEGIN_OBJECT) {
+				log.error("Expected a light schedule at {}; ignoring value", scheduleLocation);
+				in.skipValue();
+				return null;
+			}
+
 			var schedule = new LightSchedule();
 			if (in.peek() == JsonToken.STRING) {
-				schedule.during = readPhaseRanges(in.nextString(), in);
+				String name = in.nextString();
+				Phase phase;
+				try {
+					phase = Phase.valueOf(name);
+				} catch (IllegalArgumentException ex) {
+					log.error("Unknown light schedule phase '{}' at {}; ignoring schedule", name, scheduleLocation);
+					return null;
+				}
+				schedule.during = phase.ranges;
 				return schedule;
 			}
 
+			boolean valid = true;
 			in.beginObject();
 			while (in.hasNext()) {
-				switch (in.nextName()) {
+				String name = in.nextName();
+				String location = GsonUtils.location(in);
+				switch (name) {
 					case "turn":
-						schedule.turn = Turn.valueOf(in.nextString());
+						if (in.peek() != JsonToken.STRING) {
+							log.error("Light schedule turn must be ON or OFF at {}; ignoring schedule", location);
+							in.skipValue();
+							valid = false;
+							break;
+						}
+						try {
+							schedule.turn = Turn.valueOf(in.nextString());
+						} catch (IllegalArgumentException ex) {
+							log.error("Unknown light schedule turn at {}; ignoring schedule", location);
+							valid = false;
+						}
 						break;
 					case "during":
-						schedule.during = readRanges(in);
+						var ranges = new ArrayList<Range>();
+						boolean array = in.peek() == JsonToken.BEGIN_ARRAY;
+						if (array) {
+							in.beginArray();
+							while (in.hasNext()) {
+								Range[] range = readRange(in);
+								if (range != null)
+									Collections.addAll(ranges, range);
+							}
+							in.endArray();
+						} else {
+							Range[] range = readRange(in);
+							if (range != null)
+								Collections.addAll(ranges, range);
+						}
+						schedule.during = ranges.toArray(Range[]::new);
 						break;
 					case "randomOffset":
+						if (in.peek() != JsonToken.NUMBER) {
+							log.error("Light schedule randomOffset must be a number at {}; ignoring schedule", location);
+							in.skipValue();
+							valid = false;
+							break;
+						}
 						schedule.randomOffset = (float) in.nextDouble();
-						if (schedule.randomOffset < 0)
-							throw new IOException("Schedule randomOffset must not be negative");
+						if (!Float.isFinite(schedule.randomOffset) || schedule.randomOffset < 0) {
+							log.error("Light schedule randomOffset must be finite and non-negative at {}; ignoring schedule", location);
+							valid = false;
+						}
 						break;
 					default:
-						throw new IOException("Unknown light schedule property: " + in.getPath());
+						log.error("Unknown light schedule property at {}; ignoring schedule", location);
+						in.skipValue();
+						valid = false;
 				}
 			}
 			in.endObject();
 
-			return schedule;
-		}
-
-		private static Range[] readRanges(JsonReader in) throws IOException {
-			if (in.peek() != JsonToken.BEGIN_ARRAY)
-				return readRange(in);
-
-			var ranges = new ArrayList<Range>();
-			in.beginArray();
-			while (in.hasNext())
-				for (Range range : readRange(in))
-					ranges.add(range);
-			in.endArray();
-			return ranges.toArray(Range[]::new);
+			return valid && schedule.during != null && schedule.during.length > 0 ? schedule : null;
 		}
 
 		private static Range[] readRange(JsonReader in) throws IOException {
-			if (in.peek() == JsonToken.STRING)
-				return readPhaseRanges(in.nextString(), in);
+			String location = GsonUtils.location(in);
+			if (in.peek() == JsonToken.STRING) {
+				String name = in.nextString();
+				try {
+					Phase phase = Phase.valueOf(name);
+					return phase.ranges;
+				} catch (IllegalArgumentException ex) {
+					log.error("Unknown light schedule phase '{}' at {}; ignoring range", name, location);
+					return null;
+				}
+			}
 
-			if (in.peek() != JsonToken.BEGIN_OBJECT)
-				throw new IOException("Expected a named phase or { from, through } range at " + in.getPath());
+			if (in.peek() != JsonToken.BEGIN_OBJECT) {
+				log.error("Expected a named phase or { from, through } range at {}; ignoring range", location);
+				in.skipValue();
+				return null;
+			}
 
 			Float from = null;
 			Float through = null;
+			boolean valid = true;
 			in.beginObject();
 			while (in.hasNext()) {
-				switch (in.nextName()) {
-					case "from":
-						from = readTime(in, true);
-						break;
-					case "through":
-						through = readTime(in, false);
-						break;
-					default:
-						throw new IOException("Unknown light schedule range property: " + in.getPath());
+				String property = in.nextName();
+				if (!property.equals("from") && !property.equals("through")) {
+					log.error("Unknown light schedule range property at {}; ignoring range", GsonUtils.location(in));
+					in.skipValue();
+					valid = false;
+					continue;
+				}
+
+				Float time = null;
+				String timeLocation = GsonUtils.location(in);
+				if (in.peek() == JsonToken.STRING) {
+					String name = in.nextString();
+					try {
+						Phase phase = Phase.valueOf(name);
+						if (phase == Phase.TWILIGHT) {
+							log.warn("TWILIGHT cannot be used as a schedule endpoint at {}; ignoring range", timeLocation);
+						} else {
+							time = property.equals("from") ? phase.ranges[0].from : phase.ranges[0].through;
+						}
+					} catch (IllegalArgumentException ex) {
+						log.error("Unknown light schedule phase '{}' at {}; ignoring range", name, timeLocation);
+					}
+				} else if (in.peek() == JsonToken.NUMBER) {
+					time = (float) in.nextDouble();
+					if (!Float.isFinite(time) || time < -90 || time > 90) {
+						log.error(
+							"Light schedule altitudes must be finite and between -90 and 90 degrees at {}; ignoring range",
+							timeLocation
+						);
+						time = null;
+					}
+				} else {
+					log.error("Light schedule time must be a named phase or altitude at {}; ignoring range", timeLocation);
+					in.skipValue();
+				}
+				valid &= time != null;
+
+				if (property.equals("from")) {
+					from = time;
+				} else {
+					through = time;
 				}
 			}
 			in.endObject();
 
-			if (from == null || through == null)
-				return new Range[0];
+			if (!valid)
+				return null;
+			if (from == null || through == null) {
+				log.error("Light schedule range needs valid from and through values at {}; ignoring range", location);
+				return null;
+			}
+			if ((float) from == through) {
+				log.error(
+					"Light schedule range from {} through {} covers all solar altitudes at {}; ignoring range",
+					from,
+					through,
+					location
+				);
+				return null;
+			}
 			return new Range[] { new Range(from, through, Range.Mode.BOTH) };
-		}
-
-		private static Range[] readPhaseRanges(String value, JsonReader in) throws IOException {
-			try {
-				Phase phase = Phase.valueOf(value);
-				if (phase == Phase.TWILIGHT)
-					return new Range[] {
-						new Range(Phase.DAWN.from, Phase.DAWN.through,
-							Phase.DAWN.mode),
-						new Range(Phase.DUSK.from, Phase.DUSK.through,
-							Phase.DUSK.mode)
-					};
-				return new Range[] { new Range(phase.from, phase.through, phase.mode) };
-			} catch (IllegalArgumentException ex) {
-				throw new IOException("Unknown light schedule phase '" + value + "' at " + in.getPath(), ex);
-			}
-		}
-
-		private static Float readTime(JsonReader in, boolean from) throws IOException {
-			if (in.peek() == JsonToken.STRING) {
-				String value = in.nextString();
-				try {
-					Phase phase = Phase.valueOf(value);
-					if (phase == Phase.TWILIGHT) {
-						log.warn("TWILIGHT cannot be used as a schedule endpoint at {}; dropping range", GsonUtils.location(in));
-						return null;
-					}
-					return from ? phase.from : phase.through;
-				} catch (IllegalArgumentException ex) {
-					throw new IOException("Unknown light schedule phase '" + value + "' at " + in.getPath(), ex);
-				}
-			}
-
-			float altitude = (float) in.nextDouble();
-			if (altitude < -90 || altitude > 90)
-				throw new IOException("Light schedule altitudes must be between -90 and 90 degrees");
-			return altitude;
 		}
 
 		@Override
@@ -257,8 +291,8 @@ public class LightSchedule {
 				writeRange(out, ranges[0]);
 			} else {
 				out.beginArray();
-				for (Range range : ranges)
-					writeRange(out, range);
+				for (int i = 0; i < ranges.length; i++)
+					writeRange(out, ranges[i]);
 				out.endArray();
 			}
 		}
@@ -284,17 +318,20 @@ public class LightSchedule {
 
 			Phase first = getPhase(ranges[0]);
 			Phase second = getPhase(ranges[1]);
-			if (first == Phase.DAWN && second == Phase.DUSK || first == Phase.DUSK && second == Phase.DAWN)
+			if (first == Phase.DAWN && second == Phase.DUSK ||
+				first == Phase.DUSK && second == Phase.DAWN)
 				return Phase.TWILIGHT;
 
 			return null;
 		}
 
 		private static Phase getPhase(Range range) {
-			for (Phase phase : Phase.values()) {
+			for (int i = 0; i < Phase.VALUES.length; i++) {
+				Phase phase = Phase.VALUES[i];
 				if (phase != Phase.TWILIGHT &&
-					range.from == phase.from && range.through == phase.through &&
-					range.mode == phase.mode)
+					range.from == phase.ranges[0].from &&
+					range.through == phase.ranges[0].through &&
+					range.mode == phase.ranges[0].mode)
 					return phase;
 			}
 			return null;

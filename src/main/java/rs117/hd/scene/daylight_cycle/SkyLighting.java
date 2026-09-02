@@ -4,13 +4,13 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.experimental.Accessors;
+import net.runelite.api.*;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.opengl.uniforms.UBOGlobal;
 import rs117.hd.opengl.uniforms.UBOSky;
 import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
-import rs117.hd.scene.SceneContext;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.environments.Environment.Keyframe;
 import rs117.hd.scene.environments.Environment.SkyGradient;
@@ -20,7 +20,6 @@ import rs117.hd.utils.ColorUtils;
 
 import static rs117.hd.utils.ColorUtils.linearSrgbLuma;
 import static rs117.hd.utils.ColorUtils.linearToSrgb;
-import static rs117.hd.utils.ColorUtils.srgbToLinear;
 import static rs117.hd.utils.MathUtils.*;
 
 /** Converts {@link DaylightCycleManager}'s celestial state into scene and sky lighting. */
@@ -48,6 +47,22 @@ public class SkyLighting {
 	private static final float SKY_FILL_FADE_END_DEG = 45;
 	private static final float MAX_OUTDOOR_LIGHT_SCALE = 4;
 
+	private static final class Sample {
+		private Environment environment;
+		private int minBrightness;
+		private int frame;
+
+		private float[] zenithSrgb;
+		private float[] horizonSrgb;
+		private float[] sunGlowSrgb;
+		private float[] horizonLinear;
+		private float[] noonHorizonLinear;
+		private float brightnessMultiplier;
+	}
+
+	@Inject
+	private Client client;
+
 	@Inject
 	private HdPlugin plugin;
 
@@ -66,10 +81,8 @@ public class SkyLighting {
 	private float directionalStrength;
 	private float ambientStrength;
 
-	private OutdoorSkySample cachedOutdoorSkySample;
-	private Environment cachedOutdoorSkyEnvironment;
-	private int cachedOutdoorSkyMinBrightness;
-	private int cachedOutdoorSkyFrame = -1;
+	private final Sample skySample = new Sample();
+	private final Sample environmentSample = new Sample();
 
 	@Getter
 	@Accessors(fluent = true)
@@ -137,14 +150,15 @@ public class SkyLighting {
 		mix(directionalColor, getDirectionalLightForAngles(sunAngles, profile), directionalColor, regionalBlend);
 		mix(ambientColor, interpolate(sunAltDeg, profile.ambientColor), ambientColor, regionalBlend);
 
-		float brightnessMultiplier = getBrightnessMultiplier(state, plugin.configMinimumBrightness, profile);
+		float brightnessMultiplier = getBrightnessMultiplier(state, profile);
 		float baseDirectionalStrength = directionalStrength;
 		// The cycle controls night brightness instead of seasonal ambient strength
 		ambientStrength = brightnessMultiplier;
 
 		float moonAltDeg = state.moonAltitudeDegrees;
 		float moonIllumination = state.moonIllumination;
-		float[][] sky = getSkyGradientColors(
+		getSkyGradientColors(
+			skySample,
 			state,
 			environmentManager.getSkyGradient(),
 			profile,
@@ -158,22 +172,22 @@ public class SkyLighting {
 		float litMoonIllumination = max(moonIllumination, environmentManager.currentMinMoonIllumination);
 		float shadowVisibility = computeShadowVisibility(sunAltDeg, moonAltDeg, litMoonIllumination);
 		float moonInfluence = computeMoonInfluence(sunAltDeg, moonAltDeg, litMoonIllumination);
-		baseDirectionalStrength = applyMoonLighting(sky, moonInfluence, baseDirectionalStrength);
+		baseDirectionalStrength = applyMoonLighting(skySample, moonInfluence, baseDirectionalStrength);
 
 		directionalStrength =
 			baseDirectionalStrength *
 			brightnessMultiplier *
 			environmentManager.currentSunlightStrength;
 		// Horizon color doubles as fog so geometry meets the sky.
-		copyTo(fogColorSrgb, sky[1]);
-		copyTo(waterColor, ColorUtils.srgbToLinear(sky[1]));
+		copyTo(fogColorSrgb, skySample.horizonSrgb);
+		copyTo(waterColor, ColorUtils.srgbToLinear(skySample.horizonSrgb));
 
 		applyAmbientFloor(moonAltDeg, moonIllumination);
 		applySkyFill(sunAltDeg, shadowVisibility);
-		updateSkyUbo(state, sky, moonIllumination);
+		updateSkyUbo(state, skySample, moonIllumination);
 	}
 
-	private float applyMoonLighting(float[][] sky, float moonInfluence, float baseDirectionalStrength) {
+	private float applyMoonLighting(Sample sky, float moonInfluence, float baseDirectionalStrength) {
 		if (moonInfluence == 0)
 			return baseDirectionalStrength;
 
@@ -199,12 +213,12 @@ public class SkyLighting {
 		directionalStrength *= shadowVisibility;
 	}
 
-	/** Return {zenith, horizon, sun glow} sRGB after regional and night-sky blending. */
-	private float[][] getSkyGradientColors(
+	private void getSkyGradientColors(
+		Sample out,
 		DaylightCycleState state,
 		SkyGradient profile,
 		SkyLightingProfile lightingProfile,
-		float[] regionalFogColor,
+		float[] fogColor,
 		float sunStrength,
 		float sunriseSunsetStrength,
 		float skyColorTakeoverAngle
@@ -212,55 +226,54 @@ public class SkyLighting {
 		float sunAltitude = state.sunAngles[0] * RAD_TO_DEG;
 		// Bind twilight suppression to daytime takeover to avoid a blue gap after sunrise.
 		float takeover = max(0, skyColorTakeoverAngle);
-		float[] regionalLin = regionalFogColor != null ? srgbToLinear(regionalFogColor) : null;
 
 		float[] zenith = interpolate(sunAltitude, profile.zenith);
 		float[] horizon = interpolate(sunAltitude, profile.horizon);
 		float[] sunGlow = interpolate(sunAltitude, profile.sunGlow);
 
 		// Suppress procedural sunset colors in dark regional environments.
-		if (regionalLin != null && sunStrength < 1) {
+		if (fogColor != null && sunStrength < 1) {
 			float window = sunAltitude >= 0 ? 1 : smoothstep(-25, 0, sunAltitude);
 			float suppression = (1 - sunStrength) * window;
 			if (suppression > 0) {
-				float[] target = mix(regionalLin, lightingProfile.nightSkyColor, smoothstep(5, -5, sunAltitude));
+				float[] target = mix(fogColor, lightingProfile.nightSkyColor, smoothstep(5, -5, sunAltitude));
 				blendSky(zenith, horizon, target, suppression);
 				multiply(sunGlow, sunGlow, 1 - suppression);
 			}
 		}
 
 		// Preserve strongly authored regional skies through twilight.
-		if (regionalLin != null && sunriseSunsetStrength < 1) {
+		if (fogColor != null && sunriseSunsetStrength < 1) {
 			float window = sunAltitude < 0
 				? smoothstep(-15, 0, sunAltitude)
 				: takeover == 0 ? 0 : smoothstep(takeover, 0, sunAltitude);
 			float suppression = (1 - sunriseSunsetStrength) * window;
 			if (suppression > 0) {
-				blendSky(zenith, horizon, regionalLin, suppression);
+				blendSky(zenith, horizon, fogColor, suppression);
 				multiply(sunGlow, sunGlow, 1 - suppression);
 			}
 		}
 
 		// Hand the daytime sky to the environment.
-		if (regionalLin != null) {
+		if (fogColor != null) {
 			float blend = sunAltitude < 0 ? 0 : takeover == 0 ? 1 : smoothstep(0, takeover, sunAltitude);
-			if (blend > 0) {
-				blendSky(zenith, horizon, regionalLin, blend);
-			}
+			if (blend > 0)
+				blendSky(zenith, horizon, fogColor, blend);
 		}
 
 		// Use a common deep-night base before moon tint and stars.
 		float nightBlend = smoothstep(0, -15, sunAltitude);
-		if (nightBlend > 0) {
+		if (nightBlend > 0)
 			blendSky(zenith, horizon, lightingProfile.nightSkyColor, nightBlend);
-		}
 
-		return new float[][] { linearToSrgb(zenith), linearToSrgb(horizon), linearToSrgb(sunGlow) };
+		out.zenithSrgb = linearToSrgb(zenith);
+		out.horizonSrgb = linearToSrgb(horizon);
+		out.sunGlowSrgb = linearToSrgb(sunGlow);
 	}
 
-	private float getBrightnessMultiplier(DaylightCycleState state, int minimumBrightness, SkyLightingProfile profile) {
+	private float getBrightnessMultiplier(DaylightCycleState state, SkyLightingProfile profile) {
 		float sunAltitudeDegrees = state.sunAngles[0] * RAD_TO_DEG;
-		float minBrightness = minimumBrightness / 100f;
+		float minBrightness = plugin.configMinimumBrightness / 100f;
 		var curve = profile.brightness;
 		float horizonBrightness = minBrightness + curve.horizonBoost;
 
@@ -283,20 +296,25 @@ public class SkyLighting {
 	}
 
 	/** Apply the sampled outdoor sky to an opted-in light. */
-	public void updateOutdoorLight(SceneContext sceneContext, Light light) {
+	public void updateOutdoorLight(Light light) {
 		copyTo(light.color, light.def.color);
 		// Apply outdoor light through cave openings even when the local environment has no cycle.
-		if (!light.def.followOutdoorLighting || !plugin.configDaylightCycle)
+		if (light.def.outdoorLighting == null || !plugin.configDaylightCycle)
 			return;
 
-		int[] worldPos = light.worldLight ? light.worldPos :
-			sceneContext.localToWorld((int) light.pos[0], (int) light.pos[2], light.plane, light.worldPos);
 		DaylightCycleState state = daylightCycleManager.getState();
-		OutdoorSkySample sky = sampleOutdoorSky(state, worldPos, plugin.configMinimumBrightness);
+		Environment environment = environmentManager.getOverworldEnvironment();
+		int[] sampleWorldPos = light.def.outdoorLighting.sampleWorldPos;
+		if (sampleWorldPos != null) {
+			Environment sampledEnvironment = environmentManager.getEnvironmentAt(sampleWorldPos);
+			if (sampledEnvironment != null)
+				environment = sampledEnvironment;
+		}
+		Sample lighting = sampleEnvironmentalLighting(state, environment);
 		float[] authoredColor = light.def.color;
 		float defLuma = linearSrgbLuma(authoredColor);
-		float noonLuma = linearSrgbLuma(sky.noonHorizonLinear);
-		float[] lightColor = copy(sky.horizonLinear);
+		float noonLuma = linearSrgbLuma(lighting.noonHorizonLinear);
+		float[] lightColor = copy(lighting.horizonLinear);
 		float sunAltDeg = state.sunAngles[0] * RAD_TO_DEG;
 
 		float moonStrengthFloor = 0;
@@ -327,7 +345,7 @@ public class SkyLighting {
 
 		copyTo(light.color, lightColor);
 		float peakScale = defLuma / max(noonLuma, 1e-4f);
-		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1) * sky.brightnessMultiplier, moonStrengthFloor);
+		float timeScale = max(min(horizonLuma / max(noonLuma, 1e-4f), 1) * lighting.brightnessMultiplier, moonStrengthFloor);
 		float outdoorLightScale = peakScale * timeScale;
 		if (outdoorLightScale > 1) {
 			float scaleRange = MAX_OUTDOOR_LIGHT_SCALE - 1;
@@ -336,36 +354,34 @@ public class SkyLighting {
 		light.strength *= mix(outdoorLightScale, 1, middayFactor);
 	}
 
-	private OutdoorSkySample sampleOutdoorSky(DaylightCycleState state, int[] worldPos, int minimumBrightness) {
-		Environment environment = environmentManager.getOutdoorEnvironment(worldPos);
-		if (environment == cachedOutdoorSkyEnvironment &&
-			plugin.frame == cachedOutdoorSkyFrame &&
-			minimumBrightness == cachedOutdoorSkyMinBrightness)
-			return cachedOutdoorSkySample;
+	private Sample sampleEnvironmentalLighting(DaylightCycleState state, Environment environment) {
+		assert client.isClientThread() : "Not thread-safe, as the sample is reused";
+		if (environment == environmentSample.environment &&
+			plugin.configMinimumBrightness == environmentSample.minBrightness &&
+			plugin.frame == environmentSample.frame)
+			return environmentSample;
+		environmentSample.environment = environment;
+		environmentSample.minBrightness = plugin.configMinimumBrightness;
+		environmentSample.frame = plugin.frame;
 
-		float[] regionalFogSrgb = environmentManager.getOutdoorRegionalFogSrgb(environment);
-		SkyGradient profile = environmentManager.getSkyGradient(environment);
-		float[][] skyGradient = getSkyGradientColors(
+		SkyGradient gradient = environmentManager.getSkyGradient(environment);
+		SkyLightingProfile profile = environmentManager.getSkyLighting();
+		float[] fogColor = environmentManager.getFogColor(environment);
+		getSkyGradientColors(
+			environmentSample,
 			state,
+			gradient,
 			profile,
-			environmentManager.getSkyLighting(),
-			regionalFogSrgb,
+			fogColor,
 			environment.sunStrength,
 			environment.sunriseSunsetStrength,
 			environment.skyColorTakeoverAngle
 		);
-		OutdoorSkySample sample = new OutdoorSkySample(
-			ColorUtils.srgbToLinear(skyGradient[1]),
-			regionalFogSrgb != null
-				? ColorUtils.srgbToLinear(regionalFogSrgb)
-				: interpolate(90, profile.horizon),
-			getBrightnessMultiplier(state, minimumBrightness, environmentManager.getSkyLighting())
-		);
-		cachedOutdoorSkySample = sample;
-		cachedOutdoorSkyEnvironment = environment;
-		cachedOutdoorSkyMinBrightness = minimumBrightness;
-		cachedOutdoorSkyFrame = plugin.frame;
-		return sample;
+		environmentSample.horizonLinear = ColorUtils.srgbToLinear(environmentSample.horizonSrgb);
+		environmentSample.noonHorizonLinear = fogColor;
+		environmentSample.brightnessMultiplier = getBrightnessMultiplier(state, profile);
+
+		return environmentSample;
 	}
 
 	private static float[] getDirectionalLightForAngles(float[] sunAngles, SkyLightingProfile profile) {
@@ -446,19 +462,19 @@ public class SkyLighting {
 		return influence * moonElevationFade(moonAltDeg) * moonIllumination;
 	}
 
-	private void tintNightSky(float[][] sky, float moonInfluence) {
+	private void tintNightSky(Sample sky, float moonInfluence) {
 		float[] nightSkyColor = environmentManager.currentNightSkyColor;
 		float skyTint = min(1, moonInfluence * NIGHT_SKY_TINT_SCALE * environmentManager.currentNightSkyColorStrength);
-		mix(sky[0], sky[0], nightSkyColor, skyTint);
-		mix(sky[1], sky[1], nightSkyColor, skyTint);
+		mix(sky.zenithSrgb, sky.zenithSrgb, nightSkyColor, skyTint);
+		mix(sky.horizonSrgb, sky.horizonSrgb, nightSkyColor, skyTint);
 	}
 
-	private void updateSkyUbo(DaylightCycleState state, float[][] sky, float moonIllumination) {
+	private void updateSkyUbo(DaylightCycleState state, Sample sky, float moonIllumination) {
 		UBOSky ubo = plugin.uboSky;
 		ubo.skyGradientEnabled.set(1);
-		ubo.skyZenithColor.set(sky[0]);
-		ubo.skyHorizonColor.set(sky[1]);
-		ubo.skySunColor.set(sky[2]);
+		ubo.skyZenithColor.set(sky.zenithSrgb);
+		ubo.skyHorizonColor.set(sky.horizonSrgb);
+		ubo.skySunColor.set(sky.sunGlowSrgb);
 		ubo.skySunDir.set(state.sunDirection);
 		// Sky shaders invert Y when mapping celestial directions to view space.
 		ubo.skyCelestialPole.set(
@@ -496,17 +512,5 @@ public class SkyLighting {
 
 	private static float moonElevationFade(float moonAltDeg) {
 		return smoothstep(MOON_ELEVATION_FADE_START_DEG, MOON_ELEVATION_FADE_END_DEG, moonAltDeg);
-	}
-
-	private static final class OutdoorSkySample {
-		private final float[] horizonLinear;
-		private final float[] noonHorizonLinear;
-		private final float brightnessMultiplier;
-
-		private OutdoorSkySample(float[] horizonLinear, float[] noonHorizonLinear, float brightnessMultiplier) {
-			this.horizonLinear = horizonLinear;
-			this.noonHorizonLinear = noonHorizonLinear;
-			this.brightnessMultiplier = brightnessMultiplier;
-		}
 	}
 }

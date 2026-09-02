@@ -191,9 +191,21 @@
           }
         ]
       },
-      "followOutdoorLighting": {
-        "type": "boolean",
-        "description": "Whether to use the outdoor sky color and time-of-day strength while the day & night cycle is enabled, including in dungeons. The light color controls peak midday brightness. Defaults to false."
+      "outdoorLighting": {
+        "oneOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "integer"
+            }
+          }
+        ],
+        "description": "Sample lighting from either the outdoor environment if true, or specify a world position to sample environmental lighting from. Defaults to false."
       },
       "areas": {
         "type": "array",

@@ -139,24 +139,23 @@ public class LightManager {
 			PROJECTILE_LIGHTS.clear();
 			GRAPHICS_OBJECT_LIGHTS.clear();
 
-			for (LightDefinition lightDef : lights) {
-				if (!lightDef.normalize()) {
-					log.error("Skipping invalid light definition: {}", lightDef.description);
-					continue;
-				}
-				if (lightDef.worldX != null && lightDef.worldY != null) {
-					Light light = new Light(lightDef);
-					light.worldPos[0] = lightDef.worldX;
-					light.worldPos[1] = lightDef.worldY;
-					light.worldPos[2] = lightDef.plane;
+			for (int i = 0; i < lights.length; i++) {
+				LightDefinition def = lights[i];
+				def.normalize();
+
+				if (def.worldX != null && def.worldY != null) {
+					Light light = new Light(def);
 					light.worldLight = true;
 					light.persistent = true;
+					light.worldPos[0] = def.worldX;
+					light.worldPos[1] = def.worldY;
+					light.worldPos[2] = def.plane;
 					WORLD_LIGHTS.add(light);
 				}
-				lightDef.npcIds.forEach(id -> NPC_LIGHTS.put(id, lightDef));
-				lightDef.objectIds.forEach(id -> OBJECT_LIGHTS.put(id, lightDef));
-				lightDef.projectileIds.forEach(id -> PROJECTILE_LIGHTS.put(id, lightDef));
-				lightDef.graphicsObjectIds.forEach(id -> GRAPHICS_OBJECT_LIGHTS.put(id, lightDef));
+				def.npcIds.forEach(id -> NPC_LIGHTS.put(id, def));
+				def.objectIds.forEach(id -> OBJECT_LIGHTS.put(id, def));
+				def.projectileIds.forEach(id -> PROJECTILE_LIGHTS.put(id, def));
+				def.graphicsObjectIds.forEach(id -> GRAPHICS_OBJECT_LIGHTS.put(id, def));
 			}
 
 			log.debug("Loaded {} lights", lights.length);
@@ -563,7 +562,7 @@ public class LightManager {
 				light.radius = light.def.radius;
 			}
 
-			skyLighting.updateOutdoorLight(sceneContext, light);
+			skyLighting.updateOutdoorLight(light);
 
 			// Spawn & despawn fade-in and fade-out
 			if (light.fadeInDuration > 0)

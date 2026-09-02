@@ -33,9 +33,12 @@ public class LightDefinition {
 	public int renderableIndex = -1;
 	public boolean waitForAnimation;
 	public float nightMultiplier = 1;
+	@Nullable
 	@JsonAdapter(LightSchedule.Adapter.class)
 	public LightSchedule schedule;
-	public boolean followOutdoorLighting;
+	@Nullable
+	@JsonAdapter(OutdoorLighting.Adapter.class)
+	public OutdoorLighting outdoorLighting;
 
 	@JsonAdapter(AABB.ArrayAdapter.class)
 	public AABB[] areas = {};
@@ -52,7 +55,7 @@ public class LightDefinition {
 	@JsonAdapter(GamevalManager.AnimationAdapter.class)
 	public HashSet<Integer> animationIds = new HashSet<>();
 
-	public boolean normalize() {
+	public void normalize() {
 		if (description == null)
 			description = "N/A";
 		if (alignment == null || alignment == Alignment.CENTER)
@@ -66,6 +69,5 @@ public class LightDefinition {
 			color = new float[3];
 		if (type == null)
 			type = LightType.STATIC;
-		return schedule == null || schedule.normalize();
 	}
 }
