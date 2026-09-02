@@ -52,9 +52,9 @@ public class DaylightCycleManager {
 
 	// 5am–7pm occupies the first 70% of the unwarped cycle.
 	private static final float NATURAL_DAY_BOUNDARY = .7f;
+	private static final float ASTRONOMICAL_NIGHT_START = 19 / 24f;
 
-	// One randomly placed event per day on average, lasting 20 ± 10 minutes at 2σ.
-	private static final long AURORA_EVENT_INTERVAL_MS = HOUR_MS;
+	// One event per 24 simulated nights on average, lasting 20 ± 10 minutes at 2σ.
 	private static final float AURORA_EVENT_CHANCE = 1f / 24;
 	private static final float AURORA_EVENT_MEAN_DURATION_SECONDS = 20 * 60;
 	private static final float AURORA_EVENT_DURATION_STD_DEV_SECONDS = 5 * 60;
@@ -92,6 +92,7 @@ public class DaylightCycleManager {
 	private long lastUpdateTime = 0;
 	// Start Dynamic at midday.
 	private double accumulatedCycleTime = .35;
+	private double fixedAuroraCycleTime = .35;
 	private long completedCycles = 0; // Each completed cycle = one simulated day
 
 	private DaylightCycle configCycle;
@@ -283,25 +284,43 @@ public class DaylightCycleManager {
 		return (h >>> 40) * (1f / (1 << 24));
 	}
 
-	private float getAuroraEventStrength(long eventIndex) {
+	private float getAuroraEventStart() {
+		if (currentCycle.isPermanentNight())
+			return 0;
+		if (currentCycle.usesCurrentInstantForMoon)
+			return ASTRONOMICAL_NIGHT_START;
+		return currentCycle.usesDayLengthForMoon && !currentCycle.isFixed
+			? configDayLength.dayFraction
+			: NATURAL_DAY_BOUNDARY;
+	}
+
+	private double getAuroraCycleTime() {
+		if (currentCycle.isPermanentNight())
+			return fixedAuroraCycleTime;
+		if (currentCycle.usesCurrentInstantForMoon)
+			return currentInstant.toEpochMilli() / (double) DAY_MS;
+		return completedCycles + accumulatedCycleTime;
+	}
+
+	private float getAuroraEventStrength(double cycleTime) {
+		long eventIndex = (long) Math.floor(cycleTime);
 		if (getAuroraEventRoll(eventIndex, 0) >= AURORA_EVENT_CHANCE)
 			return 0;
 
-		float eventStart = getAuroraEventRoll(eventIndex, 1) * AURORA_EVENT_INTERVAL_MS / 1000f;
 		double gaussian = Math.sqrt(-2 * Math.log(Math.max(1e-6f, getAuroraEventRoll(eventIndex, 2)))) *
-						  Math.cos(TWO_PI * getAuroraEventRoll(eventIndex, 3));
+			Math.cos(TWO_PI * getAuroraEventRoll(eventIndex, 3));
 		float eventDuration = clamp(
-			AURORA_EVENT_MEAN_DURATION_SECONDS + (float) gaussian * AURORA_EVENT_DURATION_STD_DEV_SECONDS,
-			AURORA_EVENT_MEAN_DURATION_SECONDS - 2 * AURORA_EVENT_DURATION_STD_DEV_SECONDS,
-			AURORA_EVENT_MEAN_DURATION_SECONDS + 2 * AURORA_EVENT_DURATION_STD_DEV_SECONDS
+			(AURORA_EVENT_MEAN_DURATION_SECONDS + (float) gaussian * AURORA_EVENT_DURATION_STD_DEV_SECONDS) / (HOUR_MS / 1000f),
+			(AURORA_EVENT_MEAN_DURATION_SECONDS - 2 * AURORA_EVENT_DURATION_STD_DEV_SECONDS) / (HOUR_MS / 1000f),
+			(AURORA_EVENT_MEAN_DURATION_SECONDS + 2 * AURORA_EVENT_DURATION_STD_DEV_SECONDS) / (HOUR_MS / 1000f)
 		);
-		float eventElapsed = (frameWallClockMillis - eventIndex * AURORA_EVENT_INTERVAL_MS) / 1000f - eventStart;
+		float eventElapsed = (float) (cycleTime - eventIndex) - getAuroraEventStart();
 		if (eventElapsed < 0 || eventElapsed >= eventDuration)
 			return 0;
 
 		float fadeDuration = eventDuration * AURORA_EVENT_FADE_FRACTION;
 		return smoothstep(0, fadeDuration, eventElapsed) *
-			   (1 - smoothstep(eventDuration - fadeDuration, eventDuration, eventElapsed));
+			(1 - smoothstep(eventDuration - fadeDuration, eventDuration, eventElapsed));
 	}
 
 	private float computeAuroraStrength() {
@@ -309,8 +328,7 @@ public class DaylightCycleManager {
 		if (state.sunAngles[0] >= 0)
 			return 0;
 
-		long eventIndex = Math.floorDiv(frameWallClockMillis, AURORA_EVENT_INTERVAL_MS);
-		return max(getAuroraEventStrength(eventIndex - 1), getAuroraEventStrength(eventIndex));
+		return getAuroraEventStrength(getAuroraCycleTime());
 	}
 
 	// ===== Night-synced moon =====================================================
@@ -457,7 +475,9 @@ public class DaylightCycleManager {
 			lastUpdateTime = currentTimeMillis;
 
 		double cycleDurationMillis = configCycleDuration * 60.0 * 1000.0;
-		accumulatedCycleTime += (currentTimeMillis - lastUpdateTime) / cycleDurationMillis;
+		long elapsedMillis = currentTimeMillis - lastUpdateTime;
+		accumulatedCycleTime += elapsedMillis / cycleDurationMillis;
+		fixedAuroraCycleTime += elapsedMillis / (double) HOUR_MS;
 		long cyclesElapsed = (long) accumulatedCycleTime;
 		if (cyclesElapsed > 0) {
 			accumulatedCycleTime -= cyclesElapsed;
