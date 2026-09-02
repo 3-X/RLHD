@@ -146,7 +146,10 @@ public class LightManager {
 				}
 				if (lightDef.worldX != null && lightDef.worldY != null) {
 					Light light = new Light(lightDef);
-					light.worldPoint = new WorldPoint(lightDef.worldX, lightDef.worldY, lightDef.plane);
+					light.worldPos[0] = lightDef.worldX;
+					light.worldPos[1] = lightDef.worldY;
+					light.worldPos[2] = lightDef.plane;
+					light.worldLight = true;
 					light.persistent = true;
 					WORLD_LIGHTS.add(light);
 				}
@@ -590,9 +593,8 @@ public class LightManager {
 	}
 
 	private int[] getLightWorldPos(SceneContext sceneContext, Light light) {
-		if (light.worldPoint != null)
-			return new int[] { light.worldPoint.getX(), light.worldPoint.getY(), light.worldPoint.getPlane() };
-		return sceneContext.localToWorld((int) light.pos[0], (int) light.pos[2], light.plane);
+		return light.worldLight ? light.worldPos :
+			sceneContext.localToWorld((int) light.pos[0], (int) light.pos[2], light.plane, light.worldPos);
 	}
 
 	private boolean isActorLightVisible(@Nonnull Actor actor) {
@@ -658,8 +660,8 @@ public class LightManager {
 
 	public void loadSceneLights(SceneContext sceneContext) {
 		for (Light light : WORLD_LIGHTS) {
-			assert light.worldPoint != null;
-			if (sceneContext.sceneBounds.contains(light.worldPoint))
+			assert light.worldLight;
+			if (sceneContext.sceneBounds.contains(light.worldPos))
 				addWorldLight(sceneContext, light);
 		}
 
@@ -1020,23 +1022,25 @@ public class LightManager {
 		}
 	}
 
-	private void addWorldLight(SceneContext sceneContext, Light light) {
-		assert light.worldPoint != null;
-		sceneContext.worldToLocals(light.worldPoint).forEach(local -> {
-			int tileExX = local[0] / LOCAL_TILE_SIZE + sceneContext.sceneOffset;
-			int tileExY = local[1] / LOCAL_TILE_SIZE + sceneContext.sceneOffset;
-			if (tileExX < 0 || tileExY < 0 || tileExX >= EXTENDED_SCENE_SIZE || tileExY >= EXTENDED_SCENE_SIZE)
-				return;
+	private void addWorldLight(SceneContext ctx, Light light) {
+		assert light.worldLight;
+		var scenePoints = ctx.worldToScene(light.worldPos);
+		var tileHeights = ctx.scene.getTileHeights();
+		for (int i = 0; i < scenePoints.size(); i++) {
+			var scenePoint = scenePoints.get(i);
+			int tileExX = scenePoint[0] + ctx.sceneOffset;
+			int tileExY = scenePoint[1] + ctx.sceneOffset;
 
 			var copy = new Light(light.def);
-			copy.worldPoint = light.worldPoint;
-			copy.plane = local[2];
+			copyTo(copy.worldPos, light.worldPos);
+			copy.worldLight = true;
+			copy.plane = scenePoint[2];
 			copy.persistent = light.persistent;
-			copy.origin[0] = local[0] + LOCAL_HALF_TILE_SIZE;
-			copy.origin[1] = sceneContext.scene.getTileHeights()[local[2]][tileExX][tileExY] - copy.def.height - 1;
-			copy.origin[2] = local[1] + LOCAL_HALF_TILE_SIZE;
-			sceneContext.lights.add(copy);
-		});
+			copy.origin[0] = scenePoint[0] * LOCAL_TILE_SIZE + LOCAL_HALF_TILE_SIZE;
+			copy.origin[1] = tileHeights[scenePoint[2]][tileExX][tileExY] - copy.def.height - 1;
+			copy.origin[2] = scenePoint[1] * LOCAL_TILE_SIZE + LOCAL_HALF_TILE_SIZE;
+			ctx.lights.add(copy);
+		}
 	}
 
 	@Subscribe

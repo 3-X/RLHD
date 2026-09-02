@@ -1,7 +1,6 @@
 package rs117.hd.scene.lights;
 
 import net.runelite.api.*;
-import net.runelite.api.coords.*;
 
 import static rs117.hd.utils.MathUtils.*;
 
@@ -41,7 +40,8 @@ public class Light
 	public float changedVisibilityAt = -1;
 	public float lifetime = -1;
 
-	public WorldPoint worldPoint;
+	public boolean worldLight;
+	public final int[] worldPos = new int[3];
 	public boolean belowFloor;
 	public boolean aboveFloor;
 	public int plane;

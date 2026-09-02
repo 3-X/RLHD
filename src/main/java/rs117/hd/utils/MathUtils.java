@@ -247,6 +247,16 @@ public final class MathUtils {
 		return subtract(new float[max(a.length, b.length)], a, b);
 	}
 
+	public static int[] multiply(int[] out, int[] a, int... b) {
+		for (int i = 0; i < out.length; i++)
+			out[i] = a[i % a.length] * b[i % b.length];
+		return out;
+	}
+
+	public static int[] multiply(int[] a, int... b) {
+		return multiply(new int[max(a.length, b.length)], a, b);
+	}
+
 	public static float[] multiply(float[] out, float[] a, float... b) {
 		for (int i = 0; i < out.length; i++)
 			out[i] = a[i % a.length] * b[i % b.length];
