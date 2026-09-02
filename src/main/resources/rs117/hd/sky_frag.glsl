@@ -43,11 +43,7 @@ float moonFbm(in vec2 st) {
 }
 
 void main() {
-    // Calculate view direction per-pixel from screen position
-    // For a skybox, we need the ray direction, not a world position
-    // We unproject two points at different depths and get the direction between them
-
-    // Unproject a point on the near plane and far plane
+    // Unproject a near/far ray to get the view direction.
     vec4 nearClip = vec4(fScreenPos, -1.0, 1.0);
     vec4 farClip = vec4(fScreenPos, 1.0, 1.0);
 
@@ -57,32 +53,21 @@ void main() {
     nearWorld /= nearWorld.w;
     farWorld /= farWorld.w;
 
-    // The view direction is from near to far
     vec3 viewDir = normalize(farWorld.xyz - nearWorld.xyz);
 
-    // Shared gradient math (sun direction, sun-facing/zenith blends, base horizon/zenith color, and sun glow)
     SkyGradient sky = computeSkyGradient(viewDir);
     vec3 skyColor = sky.color;
 
-    // Save sky color before stars are blended in, for opaque moon dark side
+    // The moon's unlit side must not include stars.
     vec3 skyColorPreStars = skyColor;
 
-    // Per-environment vertical shift of the night sky's horizon fade (starHorizonHeight).
-    // 0 leaves the line where it has always been; negative lowers it (far enough and it's
-    // gone entirely, so stars/nebulas wrap the whole sphere), positive raises it.
+    // Shift the shared night-sky horizon line.
     float horizonShift = nightHorizonOffset();
 
-    // === PROCEDURAL NIGHT SKY ===
-    // Fade in the starfield as sun drops below horizon
-    // nightFade is already 0 at -15° and 1 at 0°, so we use its inverse
-    // starVisibility (from environment override): 0 = no stars (opaque skybox), 1 = full stars
-    // Directional starfield blend: stars appear first on the anti-sun side
-    // and creep toward the sun-side horizon as twilight deepens
+    // Stars appear first opposite the sun, then spread through twilight.
     float baseProgress = 1.0 - sky.nightFade;
     float sunProximity = sky.sunSideBlend * (1.0 - sky.zenithBlend);
-    // Night factor shared by the star field and (below) the aurora. The star field
-    // additionally scales by starVisibility; the aurora deliberately does NOT, so
-    // aurora visibility is controlled independently via auroraVisibility.
+    // Aurora visibility is independent of the star field's environment override.
     float nightFactor = pow(baseProgress, mix(0.4, 0.9, sunProximity));
     float nightSkyBlend = nightFactor * starVisibility;
     // Rotate the night sky about the local celestial pole using simulated time.
@@ -95,17 +80,14 @@ void main() {
         starDir = starDir * celestialCos + cross(celestialAxis, starDir) * celestialSin +
             celestialAxis * dot(celestialAxis, starDir) * (1.0 - celestialCos);
 
-        // Background sky + nebula only. Individual stars are drawn separately as
-        // point sprites (star_vert/frag.glsl), so the costly per-pixel star-field
-        // search is gone - this just provides the dark night base + nebula.
+        // Individual stars are drawn separately as point sprites.
         vec3 nightSkyColor = proceduralStarfieldBackground(starDir);
 
-        // Fade out the night sky/nebula near the horizon so the sky converges
-        // to the plain gradient color that the fog uses, hiding the world edge
+        // Converge to the fog-matched gradient at the horizon.
         float horizonStarFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
         skyColor = mix(skyColor, nightSkyColor, nightSkyBlend * horizonStarFade);
 
-        // Shooting stars (atmospheric, use un-rotated viewDir)
+        // Shooting stars are atmospheric, so they do not follow celestial rotation.
         if (-viewDir.y > 0.05 + horizonShift) {
             skyColor += shootingStars(viewDir, elapsedTime) * nightSkyBlend;
         }
@@ -113,42 +95,33 @@ void main() {
 
     // === MOON DISK ===
     if (skyMoonIllumination > 0.001) {
-        // Apply the same horizon offset transformation as the sun
+        // Apply the sun's perceived-horizon offset.
         vec3 moonDir = normalize(vec3(skyMoonDir.x, -skyMoonDir.y + HORIZON_OFFSET, skyMoonDir.z));
         vec3 moonSunDir = normalize(vec3(skyMoonPhaseLightDirection.x, -skyMoonPhaseLightDirection.y + HORIZON_OFFSET, skyMoonPhaseLightDirection.z));
 
         float moonDot = dot(viewDir, moonDir);
 
-        // Daytime transparency: fade moon out as sun rises higher
-        // skySunDir.y = sin(altitude): negative below horizon, 0 at horizon, positive above
-        // Moon only reaches full opacity when sun is well below horizon (~-10deg = -0.17)
-        // Still semi-transparent near the horizon, invisible when sun is high
+        // The moon becomes opaque only after the sun is well below the horizon.
         float moonDayAlpha = 1.0 - smoothstep(-0.17, 0.5, skySunDir.y);
 
-        // Fade moon when it's close to the sun in the sky
+        // Fade the moon near the sun.
         float sunMoonDot = dot(moonDir, sky.sunDir);
         float sunProximityFade = smoothstep(0.9, 0.7, sunMoonDot);
         moonDayAlpha *= sunProximityFade;
 
         if (moonDot > 0.0 && moonDayAlpha > 0.001) {
-            // Moon angular radius: ~3.8 degrees diameter = 1.9 degrees half-angle
-            // cos(1.9 deg) ≈ 0.99945 - enlarged beyond realistic for visual impact.
-            // Scale the angular radius by moonSizeMult, then convert back to a cosine
-            // threshold, so the per-environment size multiplier grows/shrinks the disk.
+            // Deliberately enlarged ~1.9° moon radius, scaled per environment.
             float moonBaseRadius = acos(0.99945);
             float moonAngularRadius = cos(moonBaseRadius * moonSizeMult);
             float edgeWidth = moonDot > 0.01 ? fwidth(moonDot) * 1.5 : 0;
 
-            // Sharp disk with anti-aliased edge
             float moonDisk = smoothstep(moonAngularRadius - edgeWidth, moonAngularRadius, moonDot);
 
             if (moonDisk > 0.0) {
-                // Calculate local coordinates on the moon disk for phase shape
-                // Angular distance from moon center
+                // Moon-local coordinates for the phase shape.
                 float angDist = acos(clamp(moonDot, 0.0, 1.0));
                 float moonRadius = acos(moonAngularRadius); // angular radius in radians
 
-                // Normalized position within the moon disk (0 at edge, 1 at center)
                 float normDist = 1.0 - angDist / moonRadius;
                 normDist = clamp(normDist, 0.0, 1.0);
 
@@ -157,13 +130,11 @@ void main() {
                 vec3 moonRight = normalize(cross(moonUp, moonDir));
                 moonUp = normalize(cross(moonDir, moonRight));
 
-                // Local 2D coordinates on the moon face
                 vec3 toView = normalize(viewDir - moonDir * moonDot);
                 float localX = dot(toView, moonRight) * angDist / moonRadius;
                 float localY = dot(toView, moonUp) * angDist / moonRadius;
 
-                // Orient the terminator toward the sun. The phase amount can remain
-                // independent, which lets Night Synced use its separate phase clock.
+                // Orient the terminator toward the sun; Night Synced can still use its own phase.
                 vec2 moonToSun = vec2(dot(moonSunDir, moonRight), dot(moonSunDir, moonUp));
                 float moonToSunLength = length(moonToSun);
                 moonToSun = moonToSunLength > 1e-4 ? moonToSun / moonToSunLength : vec2(1.0, 0.0);
@@ -177,12 +148,10 @@ void main() {
                 float edgeSoftness = mix(0.05, 0.35, phaseY2 * phaseY2);
                 float isLit = smoothstep(terminatorEdge + edgeSoftness, terminatorEdge - edgeSoftness, phaseX);
 
-                // Limb darkening: edges of the moon are slightly darker
+                // Darken the limb slightly.
                 float limbDarkening = mix(0.85, 1.0, normDist);
 
-                // The visible lunar surface rocks by several degrees over each month.
-                // Shift the detail independently of the terminator, which remains
-                // physically oriented toward the sun.
+                // Libration moves surface detail without rotating the sun-facing terminator.
                 vec2 moonSurface = moonLocal + skyMoonLibration * (2.0 / PI);
                 float librationRoll = (skyMoonLibration.x + skyMoonLibration.y) * 0.25;
                 mat2 librationRotation = mat2(cos(librationRoll), -sin(librationRoll), sin(librationRoll), cos(librationRoll));

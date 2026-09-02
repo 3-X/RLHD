@@ -25,9 +25,8 @@ import rs117.hd.utils.HDUtils;
 import static rs117.hd.utils.MathUtils.*;
 
 /**
- * Resolves per-frame celestial state and the day/night light schedule.
- * {@link SkyLighting} turns that state into renderer lighting. Angles use
- * EnvironmentManager's {@code {altitude, azimuth}} convention in radians.
+ * Resolves per-frame celestial state and light schedules. {@link SkyLighting} converts it to scene lighting.
+ * Angles use EnvironmentManager's {@code {altitude, azimuth}} convention in radians.
  */
 @Singleton
 public class DaylightCycleManager {
@@ -123,7 +122,7 @@ public class DaylightCycleManager {
 	@Getter
 	private final DaylightCycleState state = new DaylightCycleState();
 
-	// ===== Per-frame state =======================================================
+	// ===== Configuration and celestial state =====================================
 
 	public void updateConfig(HdPluginConfig config) {
 		configCycle = config.daylightCycle();
@@ -133,7 +132,6 @@ public class DaylightCycleManager {
 		configCycleDuration = max(1e-6f, (float) config.cycleDurationMinutes());
 	}
 
-	/** Synced Days always uses the northern latitude so all players see the same sky. */
 	private void updateSeasonalHemisphere() {
 		double[] latLong = currentCycle.isForcesNorthernHemisphere() || plugin.configSeasonalHemisphere != SeasonalHemisphere.SOUTHERN
 			? NORTHERN_LAT_LONG
@@ -142,7 +140,9 @@ public class DaylightCycleManager {
 		currentLatLong[1] = latLong[1];
 	}
 
-	/** Convert {altitude, azimuth} to a normalized sky direction. */
+	/**
+	 * Convert {altitude, azimuth} to a normalized sky direction.
+	 */
 	private float[] anglesToSkyDirection(float... angles) {
 		return normalize(
 			sin(angles[1]) * cos(angles[0]),
@@ -151,7 +151,9 @@ public class DaylightCycleManager {
 		);
 	}
 
-	/** Remap a linear cycle position so daylight occupies Day Length's configured share. */
+	/**
+	 * Remap a linear cycle position so daylight occupies DayLength's configured share.
+	 */
 	private double applyDayLengthWarp(double cyclePosition) {
 		float dayFraction = configDayLength.dayFraction;
 		if (abs(dayFraction - NATURAL_DAY_BOUNDARY) < 1e-6f)
@@ -165,7 +167,9 @@ public class DaylightCycleManager {
 		}
 	}
 
-	/** Fixed-sun modes can apply Day Length to an unlocked moon. */
+	/**
+	 * Apply DayLength only when the moon follows the dynamic clock.
+	 */
 	private double getMoonCyclePosition() {
 		return currentCycle.usesDayLengthForMoon
 			? applyDayLengthWarp(accumulatedCycleTime)
@@ -184,7 +188,9 @@ public class DaylightCycleManager {
 		return vec(AstronomyUtils.getSunAngles(instant.toEpochMilli(), currentLatLong));
 	}
 
-	/** Update directional shadows while suppressing sub-threshold movement. */
+	/**
+	 * Update directional shadows only after a perceptible angle change.
+	 */
 	public void updateDirectionalCamera(Camera directionalCamera) {
 		// Fixed sun overrides win; fixed moons otherwise drive shadows.
 		boolean useMoonForShadows =
@@ -238,7 +244,7 @@ public class DaylightCycleManager {
 	}
 
 	/**
-	 * Always Night keeps the sky sun hidden, but the moon still follows dynamic sun positions.
+	 * Always Night hides the sun, but uses dynamic sun positions for moon phases.
 	 */
 	private float[] computeMoonPhaseLightDirection() {
 		return currentCycle == DaylightCycle.ALWAYS_NIGHT
@@ -263,8 +269,7 @@ public class DaylightCycleManager {
 	// ===== Aurora ================================================================
 
 	/**
-	 * Deterministically select an aurora night. The index changes at midday so the result
-	 * never flips while an aurora is visible.
+	 * Select a deterministic aurora night, changing at midday to avoid visible flips.
 	 */
 	private boolean isAuroraNight() {
 		int nightIndex = max(1, (int) Math.floor(completedCycles + accumulatedCycleTime - .35) + 1);
@@ -281,7 +286,9 @@ public class DaylightCycleManager {
 		return roll < AURORA_NIGHT_CHANCE;
 	}
 
-	/** Always-night modes use an explicit aurora envelope; other modes use the sky fade. */
+	/**
+	 * Always-night modes use an explicit aurora envelope; other modes use the sky fade.
+	 */
 	private float computeAuroraStrength() {
 		if (!isAuroraNight())
 			return 0;
@@ -317,7 +324,9 @@ public class DaylightCycleManager {
 		return mirrorAngles(sunAngles);
 	}
 
-	/** A uniform moon clock keeps moonrise near the visual sunset. */
+	/**
+	 * A uniform moon clock keeps moonrise near the visual sunset.
+	 */
 	private Instant getNightSyncedMoonInstant() {
 		double hour = NIGHT_SYNCED_MOON_START_HOUR + getMoonCyclePosition() * 24;
 		if (hour >= 24)
@@ -325,7 +334,9 @@ public class DaylightCycleManager {
 		return Instant.ofEpochMilli(EQUINOX_EPOCH_MS + nightSyncedDayOffset * DAY_MS + (long) (hour * HOUR_MS));
 	}
 
-	/** Apply queued lunar phase advances only while the moon is unlit. */
+	/**
+	 * Apply queued lunar phase advances only while the moon is unlit.
+	 */
 	private void applyPendingNightSyncedDays(float moonAltitude) {
 		long newCycles = completedCycles - lastNightSyncedCycles;
 		if (newCycles > 0) {
@@ -343,7 +354,11 @@ public class DaylightCycleManager {
 		return vec(-angles[0], angles[1] + PI);
 	}
 
-	/** Anchor local time once to avoid daylight-saving discontinuities. */
+	// ===== Frame update and simulated clock ======================================
+
+	/**
+	 * Anchor local time once to avoid daylight-saving discontinuities.
+	 */
 	private void initializeRealTimeClock() {
 		if (realTimeStartEpochMillis != Long.MIN_VALUE)
 			return;
@@ -356,7 +371,9 @@ public class DaylightCycleManager {
 		realTimeSessionStartMillis = frameWallClockMillis;
 	}
 
-	/** Map cycle position to the project's twilight-weighted hour of day. */
+	/**
+	 * Map cycle position to the project's twilight-weighted hour of day.
+	 */
 	private double cyclePositionToHour(double cyclePosition) {
 		// 0.0-0.15  dawn/sunrise twilight -> 5am-7am
 		// 0.15-0.35 morning               -> 7am-12pm
@@ -379,8 +396,6 @@ public class DaylightCycleManager {
 		}
 	}
 
-	// ===== Simulated clock =======================================================
-
 	public void update() {
 		resolveEnvironmentState();
 		updateSeasonalHemisphere();
@@ -395,7 +410,9 @@ public class DaylightCycleManager {
 		resolveLightSchedule();
 	}
 
-	/** Resolve moon angles before illumination, which may consume a queued phase change. */
+	/**
+	 * Resolve moon angles before illumination, which may consume a queued phase change.
+	 */
 	private void resolveState() {
 		state.sunAngles = computeSunAngles();
 		state.moonAngles = computeMoonAngles();
@@ -468,7 +485,7 @@ public class DaylightCycleManager {
 				Instant syncedStartOfDay = Instant.EPOCH.plus(syncedDay, ChronoUnit.DAYS);
 				return syncedStartOfDay.plusMillis((long) (cyclePositionToHour(syncedCyclePosition) * HOUR_MS));
 			case DYNAMIC:
-				// Day Length controls the real-time daylight share before twilight-weighted mapping.
+				// Day Length controls the cycle's daylight share before twilight-weighted mapping.
 				double cyclePosition = applyDayLengthWarp(accumulatedCycleTime);
 				double mappedHour = cyclePositionToHour(cyclePosition);
 				Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS)
@@ -478,7 +495,9 @@ public class DaylightCycleManager {
 		throw new IllegalStateException("Unhandled day & night cycle mode: " + currentCycle);
 	}
 
-	/** Advance moon phase continuously, while preserving one simulated day per cycle. */
+	/**
+	 * Advance moon phase continuously, while preserving one simulated day per cycle.
+	 */
 	private Instant getMoonDate() {
 		Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS);
 
@@ -564,9 +583,6 @@ public class DaylightCycleManager {
 			return def.schedule != null ? 0 : mix(1, 0, nightFactor);
 
 		// Unscheduled lights retain their authored culling radius unless boosted at night.
-		return scheduleActivation * (
-			multiplier > 1
-			? mix(1, multiplier, nightFactor * NIGHT_RADIUS_BOOST_FRACTION)
-			: 1);
+		return scheduleActivation * mix(1, multiplier, nightFactor * NIGHT_RADIUS_BOOST_FRACTION);
 	}
 }

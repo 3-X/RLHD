@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 import rs117.hd.utils.GsonUtils;
 
 /**
- * A seasonal overworld sample, optionally from an explicit world position.
+ * Enables environment-sampled lighting, optionally at an explicit world position.
  */
 public class OutdoorLighting {
 	@Nullable

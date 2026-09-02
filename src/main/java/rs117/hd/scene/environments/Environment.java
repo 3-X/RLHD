@@ -126,9 +126,7 @@ public class Environment {
 	public Environment normalize() {
 		if (area != Area.ALL && area != Area.NONE) {
 			isOverworld = Area.OVERWORLD.intersects(area);
-			// Certain nullable fields will fall back to using the current overworld theme's values later,
-			// but for environments that aren't part of the overworld, we want to fall back to the default
-			// (underground) environment's values for any unspecified fields
+			// Non-overworld areas inherit unspecified sky, fog, and water values from DEFAULT.
 			if (!isOverworld && DEFAULT != null) {
 				sunAngles = Objects.requireNonNullElse(sunAngles, DEFAULT.sunAngles);
 				fogColor = Objects.requireNonNullElse(fogColor, DEFAULT.fogColor);
@@ -147,18 +145,15 @@ public class Environment {
 		if (moonColor == null)
 			moonColor = ColorUtils.colorTemperatureToLinearRgb(8000);
 
-		// When no distinct moonlight color is given, the cast light matches the
-		// moon disk (moonColor) - preserving the original single-color behavior.
+		// Preserve the original single-color moon behavior by default.
 		if (moonLightColor == null)
 			moonLightColor = moonColor;
 
-		// When no distinct night-sky color is given, the sky matches the moon
-		// disk (moonColor) - preserving the original single-color behavior.
+		// Preserve the original moon-colored night sky by default.
 		if (nightSkyColor == null)
 			nightSkyColor = moonColor;
 
-		// When no distinct moonlight strength is given, moonlight is as strong as
-		// sunlight - preserving the original behavior, where directionalStrength drove both.
+		// Preserve the original shared directional strength by default.
 		if (moonDirectionalStrength == -1)
 			moonDirectionalStrength = directionalStrength;
 
@@ -168,9 +163,7 @@ public class Environment {
 		if (waterCausticsStrength == -1)
 			waterCausticsStrength = directionalStrength;
 
-		// When aurora visibility isn't specified, fall back to star visibility so
-		// hiding stars also hides auroras (the original coupled behavior). An explicit
-		// value decouples the two.
+		// Preserve the original coupling of aurora and star visibility by default.
 		if (auroraVisibility == -1)
 			auroraVisibility = starVisibility;
 		return this;
@@ -203,7 +196,9 @@ public class Environment {
 		}
 	}
 
-	/** Tunable procedural lighting curves for the day & night cycle. */
+	/**
+	 * Tunable procedural lighting curves for the day & night cycle.
+	 */
 	public static class SkyLightingProfile {
 		public Keyframe[] ambientColor;
 		public Keyframe[] directionalTemperature;

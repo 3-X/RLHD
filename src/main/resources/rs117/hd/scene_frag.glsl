@@ -573,36 +573,26 @@ void main() {
         }
 
         if (skyGradientEnabled) {
-            // Default to the fragment's own color so the mix below is a no-op
-            // when there's no fog. The full sky-gradient reconstruction is only
-            // needed where fog actually blends geometry toward the sky, so it's
-            // gated on combinedFog to skip the gradient/glow chain on the
-            // unfogged majority of scene pixels.
+            // Reconstruct the sky only where fog blends geometry toward it.
             vec3 skyColorAtFragment = outputColor.rgb;
 
             if (combinedFog > 1e-4) {
-                // Compute the sky gradient color at this fragment's view direction
                 vec3 fogViewDir = normalize(IN.position - cameraPos);
                 SkyGradient sky = computeSkyGradient(fogViewDir);
                 skyColorAtFragment = sky.color;
 
-                // Night sky blend: darken fog toward skyZenithColor, which is what
-                // the sky converges to at the horizon at night (stars are faded out
-                // near the horizon in sky_frag.glsl)
+                // Match the night sky's star-free horizon color.
                 float nightSkyBlend = (1.0 - sky.nightFade) * starVisibility;
                 if (nightSkyBlend > 0.001) {
                     skyColorAtFragment = mix(skyColorAtFragment, skyZenithColor, nightSkyBlend);
                 }
 
-                // Shared horizon haze + atmospheric scattering
                 skyColorAtFragment = applySkyHaze(skyColorAtFragment, sky.upAmount, sky.sunSideBlend, sky.zenithBlend);
             }
 
             outputColor.rgb = mix(outputColor.rgb, skyColorAtFragment, combinedFog);
 
-            // Dithering to reduce color banding. Kept OUTSIDE the fog gate above:
-            // this is the scene's only anti-banding noise and is independent of fog,
-            // so it must run on every fragment regardless of combinedFog.
+            // This is the scene's only anti-banding noise, so run it outside the fog gate.
             float dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453123) - 0.5;
             outputColor.rgb += dither / 255.0;
         } else {

@@ -122,21 +122,14 @@ public class EnvironmentManager {
 	public float currentDirectionalStrength = 0f;
 	private float targetDirectionalStrength = 0f;
 
-	// Directional strength while the moon is lighting the scene. Falls back to
-	// directionalStrength when the environment doesn't specify moonDirectionalStrength
-	// (handled in Environment.normalize).
 	private float startMoonDirectionalStrength = 0f;
 	public float currentMoonDirectionalStrength = 0f;
 	private float targetMoonDirectionalStrength = 0f;
 
-	// How much of the moon's light casts shadows. Scales moon shadow visibility only;
-	// the light it removes from the directional term becomes ambient sky-fill.
 	private float startMoonShadowStrength = 1f;
 	public float currentMoonShadowStrength = 1f;
 	private float targetMoonShadowStrength = 1f;
 
-	// Lighting-only floor on the moon's illumination fraction. The visible disk is
-	// unaffected and still renders at its true phase.
 	private float startMinMoonIllumination = 0f;
 	public float currentMinMoonIllumination = 0f;
 	private float targetMinMoonIllumination = 0f;
@@ -165,14 +158,10 @@ public class EnvironmentManager {
 	public float[] currentMoonColor = new float[] { 0, 0, 0 };
 	private float[] targetMoonColor = new float[] { 0, 0, 0 };
 
-	// Color of the light the moon casts (moonlight). Falls back to moonColor when
-	// the environment doesn't specify moonLightColor (handled in Environment.normalize).
 	private float[] startMoonLightColor = new float[] { 0, 0, 0 };
 	public float[] currentMoonLightColor = new float[] { 0, 0, 0 };
 	private float[] targetMoonLightColor = new float[] { 0, 0, 0 };
 
-	// Color the night sky is tinted toward as the moon rises. Falls back to moonColor
-	// when the environment doesn't specify nightSkyColor (handled in Environment.normalize).
 	private float[] startNightSkyColor = new float[] { 0, 0, 0 };
 	public float[] currentNightSkyColor = new float[] { 0, 0, 0 };
 	private float[] targetNightSkyColor = new float[] { 0, 0, 0 };
@@ -221,8 +210,6 @@ public class EnvironmentManager {
 	public float currentAuroraVisibility = 1f;
 	private float targetAuroraVisibility = 1f;
 
-	// Driven by the environment's forceHideNebulas flag rather than a numeric field, so that
-	// hiding nebulas fades over the transition instead of popping at an area boundary
 	private float startNebulaVisibility = 1f;
 	public float currentNebulaVisibility = 1f;
 	private float targetNebulaVisibility = 1f;
@@ -630,7 +617,7 @@ public class EnvironmentManager {
 	}
 
 	/* lightning */
-	private static final float[] LIGHTNING_COLOR = new float[]{.25f, .25f, .25f};
+	private static final float[] LIGHTNING_COLOR = { .25f, .25f, .25f };
 	private static final float NEW_LIGHTNING_BRIGHTNESS = 7f;
 	private static final float LIGHTNING_FADE_SPEED = 80f; // brightness units per second
 	private static final float MIN_LIGHTNING_INTERVAL = 5.5f;
@@ -693,50 +680,25 @@ public class EnvironmentManager {
 		return currentEnvironment;
 	}
 
-	/**
-	 * The day & night cycle mode forced by the current environment, or null to use
-	 * the player's configured mode.
-	 */
 	@Nullable
 	public DaylightCycle getForcedCycleMode() {
 		return getCurrentEnvironment().cycleMode;
 	}
 
-	/**
-	 * The moon phase forced by the current environment, or null to use the player's configured
-	 * phase. Read directly (not blended) so the phase snaps to the new environment rather than
-	 * morphing across a transition — matching how {@link #getForcedCycleMode()} is handled.
-	 */
 	@Nullable
 	public MoonPhase getForcedMoonPhase() {
 		return getCurrentEnvironment().forceMoonPhase;
 	}
 
-	/**
-	 * Whether the current environment forces the moon to be shown regardless of the player's
-	 * "Moon" config toggle, for cutscenes and set pieces that require it. Read directly (not
-	 * blended) so it applies immediately on entering the area, matching how
-	 * {@link #getForcedCycleMode()} is handled.
-	 */
 	public boolean forceMoonActive() {
 		return getCurrentEnvironment().forceMoonActive;
 	}
 
-	/**
-	 * The fixed sun angles [altitude, azimuth] in radians from the current
-	 * environment, or null for none. Read directly (not blended) so the locked
-	 * sun snaps to the new environment rather than swinging across the sky during
-	 * a transition - matching how {@link #getForcedCycleMode()} is handled.
-	 */
 	@Nullable
 	public float[] getForcedFixedSunAngles() {
 		return getCurrentEnvironment().fixedSunAngles;
 	}
 
-	/**
-	 * The fixed moon angles [altitude, azimuth] in radians from the current
-	 * environment, or null for none. See {@link #getForcedFixedSunAngles()}.
-	 */
 	@Nullable
 	public float[] getForcedFixedMoonAngles() {
 		return getCurrentEnvironment().fixedMoonAngles;
@@ -753,13 +715,14 @@ public class EnvironmentManager {
 		}
 	}
 
-	/** Resolve a sky-gradient profile, falling back through the active seasonal overworld. */
 	@Nonnull
 	public SkyGradient getSkyGradient() {
 		return getSkyGradient(getCurrentEnvironment());
 	}
 
-	/** Resolve an outdoor sky-gradient profile for lighting sampled at {@code environment}. */
+	/**
+	 * Resolve the sky-gradient profile for lighting sampled at {@code environment}.
+	 */
 	@Nonnull
 	public SkyGradient getSkyGradient(Environment environment) {
 		if (environment.skyGradient != null)
@@ -772,7 +735,9 @@ public class EnvironmentManager {
 		return Objects.requireNonNull(Environment.OVERWORLD.skyGradient, "OVERWORLD environment must define a skyGradient");
 	}
 
-	/** Resolve the procedural day & night lighting profile for the active seasonal theme. */
+	/**
+	 * Resolve the procedural DaylightCycle lighting profile for the active seasonal theme.
+	 */
 	@Nonnull
 	public SkyLightingProfile getSkyLighting() {
 		Environment overworld = getOverworldEnvironment();

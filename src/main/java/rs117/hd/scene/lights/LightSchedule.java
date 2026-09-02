@@ -26,12 +26,12 @@ public class LightSchedule {
 	}
 
 	public enum Phase {
-		// The old 0-.22 LightTimeOfDay range, expressed as sun altitudes.
+		// Preserve the old dawn/day altitude boundaries.
 		DAWN(5, -2, Range.Mode.ASCENDING),
 		DAY(-2, 5, Range.Mode.BOTH),
 		DUSK(5, -2, Range.Mode.DESCENDING),
 		NIGHT(5, -2, Range.Mode.BOTH),
-		// The old .65-1 LightTimeOfDay range, expressed as sun altitudes.
+		// Preserve the old deep-night altitude boundaries.
 		DEEP_NIGHT(-8.8f, -18, Range.Mode.BOTH),
 		TWILIGHT(DAWN, DUSK);
 
@@ -66,7 +66,9 @@ public class LightSchedule {
 		}
 	}
 
-	/** Return this schedule's [0, 1] activation factor at the current sun altitude. */
+	/**
+	 * Return this schedule's [0, 1] activation factor at the current sun altitude.
+	 */
 	public float getActivation(float sunAltitude, boolean sunDescending, float offset) {
 		sunAltitude -= offset;
 		float rangeActivation = 0;

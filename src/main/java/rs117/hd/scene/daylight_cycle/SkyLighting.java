@@ -22,7 +22,6 @@ import static rs117.hd.utils.ColorUtils.linearSrgbLuma;
 import static rs117.hd.utils.ColorUtils.linearToSrgb;
 import static rs117.hd.utils.MathUtils.*;
 
-/** Converts {@link DaylightCycleManager}'s celestial state into scene and sky lighting. */
 @Singleton
 public class SkyLighting {
 	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
@@ -200,9 +199,11 @@ public class SkyLighting {
 
 	private void applyAmbientFloor(float moonAltDeg, float moonIllumination) {
 		// Use true illumination so the floor replaces only light missing from the sky.
-		float boostFraction = MIN_BRIGHTNESS_BOOST_RESIDUAL +
+		float boostFraction =
+			MIN_BRIGHTNESS_BOOST_RESIDUAL +
 			(1 - MIN_BRIGHTNESS_BOOST_RESIDUAL) * (1 - moonPresence(moonAltDeg, moonIllumination));
-		float boostedFloor = plugin.configMinimumBrightness / 100f *
+		float boostedFloor =
+			plugin.configMinimumBrightness / 100f *
 			(1 + environmentManager.currentMinBrightnessBoost * boostFraction);
 		ambientStrength = max(ambientStrength, boostedFloor);
 	}
@@ -286,7 +287,11 @@ public class SkyLighting {
 		if (sunAltitudeDegrees <= curve.horizonAltitude) {
 			float twilightBrightness = minBrightness + curve.twilightBoost;
 			float earlyDayBrightness = horizonBrightness + curve.earlyDayBoost;
-			return mix(twilightBrightness, earlyDayBrightness, smoothstep(curve.twilightAltitude, curve.horizonAltitude, sunAltitudeDegrees));
+			return mix(
+				twilightBrightness,
+				earlyDayBrightness,
+				smoothstep(curve.twilightAltitude, curve.horizonAltitude, sunAltitudeDegrees)
+			);
 		}
 
 		float earlyDayBrightness = horizonBrightness + curve.earlyDayBoost;
@@ -295,7 +300,6 @@ public class SkyLighting {
 		return mix(earlyDayBrightness, curve.daytimeStrength, normalizedSine);
 	}
 
-	/** Apply the sampled outdoor sky to an opted-in light. */
 	public void updateOutdoorLight(Light light) {
 		copyTo(light.color, light.def.color);
 		// Apply outdoor light through cave openings even when the local environment has no cycle.
@@ -426,7 +430,8 @@ public class SkyLighting {
 
 	private static float getSunShadowVisibility(float sunAltitude) {
 		if (sunAltitude <= SUN_SHADOW_MIDPOINT_DEG) {
-			return (sunAltitude - SUN_SHADOW_CUTOFF_DEG) /
+			return
+				(sunAltitude - SUN_SHADOW_CUTOFF_DEG) /
 				(SUN_SHADOW_MIDPOINT_DEG - SUN_SHADOW_CUTOFF_DEG) * SUN_SHADOW_MIDPOINT_VISIBILITY;
 		}
 		if (sunAltitude <= SUN_SHADOW_FULL_DEG) {
@@ -457,8 +462,7 @@ public class SkyLighting {
 
 		float influence = sunAltDeg >= 0
 			? smoothstep(MOON_TINT_SUN_START_DEG, 0, sunAltDeg) * MOON_INFLUENCE_AT_HORIZON
-			: mix(MOON_INFLUENCE_AT_HORIZON, MAX_MOON_COLOR_INFLUENCE,
-				smoothstep(0, MOON_TINT_SUN_END_DEG, sunAltDeg));
+			: mix(MOON_INFLUENCE_AT_HORIZON, MAX_MOON_COLOR_INFLUENCE, smoothstep(0, MOON_TINT_SUN_END_DEG, sunAltDeg));
 		return influence * moonElevationFade(moonAltDeg) * moonIllumination;
 	}
 

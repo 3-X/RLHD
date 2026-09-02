@@ -23,14 +23,6 @@ import static rs117.hd.HdPlugin.TEXTURE_UNIT_UI;
 import static rs117.hd.utils.HDUtils.randomPointOnSphere;
 import static rs117.hd.utils.MathUtils.*;
 
-/**
- * Generates a fixed list of stars once at startup so they can be drawn as point
- * sprites (cost scales with star count) rather than searched for per sky pixel
- * (cost scales with screen pixels). Mirrors the two-layer look the procedural
- * starfield used: a sparse layer of bright, larger stars over a dense layer of
- * dim, small ones, with a power-law brightness distribution and stellar tints.
- * A third layer adds loose clusters of stars for a more fantastical sky.
- */
 @Slf4j
 @Singleton
 public final class StarField {
@@ -46,13 +38,10 @@ public final class StarField {
 		new Color(0.70f, 0.80f, 1.0f)  // cool blue
 	};
 
-	// Per-vertex layout written to the VBO, in floats:
-	//   position.xyz (unit direction), size, brightness, color.rgb => 8 floats
+	// VBO layout: direction.xyz, size, brightness, color.rgb.
 	private static final int FLOATS_PER_STAR = 8;
 
-	// Star counts per layer. The procedural field had ~18-24% of cells populated
-	// across grids of scale 80 and 200; these counts reproduce a similar on-sky
-	// density without being tied to screen resolution.
+	// Match the old field's density independently of screen resolution.
 	private static final int BRIGHT_STAR_COUNT = 350;   // layer 0: sparse/bright/large
 	private static final int DIM_STAR_COUNT = 2200;     // layer 1: dense/dim/small
 	private static final int CLUSTER_STAR_COUNT = 1600; // layer 2: clustered
@@ -101,7 +90,7 @@ public final class StarField {
 		vboStars.bind();
 
 		int stride = FLOATS_PER_STAR * Float.BYTES;
-		// location 0: dir.xyz, 1: size, 2: brightness, 3: color.rgb
+		// direction.xyz, size, brightness, color.rgb
 		glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0L);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(1, 1, GL_FLOAT, false, stride, 3L * Float.BYTES);

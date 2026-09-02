@@ -160,8 +160,7 @@ public class LightManager {
 
 			log.debug("Loaded {} lights", lights.length);
 
-			// Reload lights once on plugin startup, and whenever lights.json should be hot-swapped.
-			// If we don't reload on startup, NPCs won't have lights added until RuneLite fires events
+			// Reload after startup or hot-swapping so existing NPCs receive lights.
 			reloadLights = true;
 		});
 	}
@@ -228,23 +227,9 @@ public class LightManager {
 		}
 
 		for (Light light : sceneContext.lights) {
-			// Ways lights may get deleted:
-			// - animation-specific:
-			//   effectively spawn when the animation they're attached to starts playing, and despawns when it stops,
-			//   but they are typically replayable, so they don't fully despawn until marked for removal by something else
-			// - spotanim & projectile lights:
-			//   automatically marked for removal upon completion
-			// - actor lights:
-			//   may be automatically marked for removal if the actor becomes invalid
-			// - other lights:
-			//   despawn when marked for removal by a RuneLite despawn event
-			// - fixed lifetime && !replayable:
-			//   All non-replayable lights with a fixed lifetime will be automatically marked for removal when done playing
-
-			// Light fade-in and fade-out are based on whether the parent currently exists
-			// Additionally, lights have an overruling fade-out when being deprioritized
-
-			// Whatever the light is attached to is presumed to exist if it's not marked for removal yet
+			// Animation, completion, actor invalidation, despawn events, and fixed lifetimes may remove lights.
+			// Fade follows the parent while it exists, unless the light is deprioritized.
+			// An unmarked parent is presumed to exist.
 			boolean parentExists = !light.markedForRemoval;
 			boolean hiddenTemporarily = light.hiddenTemporarily && !light.hiddenByPlane;
 			boolean hiddenByPlane = false;
@@ -512,7 +497,8 @@ public class LightManager {
 		}
 
 		// Order visible lights first, then by distance. Leave hidden lights unordered at the end.
-		quickSort(sceneContext.lights,
+		quickSort(
+			sceneContext.lights,
 			(a, b) -> a.visible && b.visible ?
 				Float.compare(a.distanceSquared, b.distanceSquared) :
 				Boolean.compare(b.visible, a.visible)
@@ -536,13 +522,13 @@ public class LightManager {
 			if (light.def.type == LightType.FLICKER) {
 				float t = TWO_PI * (mod(plugin.elapsedTime, 60) / 60 + light.randomOffset);
 				float flicker = (
-					pow(cos(11 * t), 3) +
-					pow(cos(17 * t), 6) +
-					pow(cos(23 * t), 2) +
-					pow(cos(31 * t), 6) +
-					pow(cos(71 * t), 4) +
-					pow(cos(151 * t), 6) / 2
-				) / 4.335f;
+									pow(cos(11 * t), 3) +
+									pow(cos(17 * t), 6) +
+									pow(cos(23 * t), 2) +
+									pow(cos(31 * t), 6) +
+									pow(cos(71 * t), 4) +
+									pow(cos(151 * t), 6) / 2
+								) / 4.335f;
 
 				float maxFlicker = 1f + (light.def.range / 100f);
 				float minFlicker = 1f - (light.def.range / 100f);
@@ -763,8 +749,7 @@ public class LightManager {
 		}
 	}
 
-	private void addNpcLights(NPC npc)
-	{
+	private void addNpcLights(NPC npc) {
 		var sceneContext = plugin.getSceneContext();
 		if (sceneContext == null)
 			return;

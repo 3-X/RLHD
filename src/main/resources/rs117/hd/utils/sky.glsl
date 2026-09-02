@@ -9,8 +9,7 @@ struct SkyGradient {
     vec3 color;          // base horizon/zenith gradient + sun glow (no haze/scatter/stars/moon yet)
 };
 
-// The player's perceived horizon is below the astronomical 0° due to camera angle.
-// sin(5°) ≈ 0.087, meaning the sun will appear at horizon when actually at +5°
+// The camera makes the perceived horizon about 5° below astronomical 0°.
 #define HORIZON_OFFSET 0.087
 
 SkyGradient computeSkyGradient(vec3 viewDir) {
@@ -19,9 +18,7 @@ SkyGradient computeSkyGradient(vec3 viewDir) {
     g.sunDir = normalize(vec3(skySunDir.x, -skySunDir.y + HORIZON_OFFSET, skySunDir.z));
     g.upAmount = -viewDir.y;
 
-    // Project onto the horizontal plane for the sun-facing gradient. Guard the
-    // normalize and fade the directional bias toward neutral as the view nears
-    // vertical, so the gradient doesn't pinch at the nadir/zenith.
+    // Fade the sun-facing bias near vertical views to avoid pinching.
     vec2 viewHoriz = vec2(viewDir.x, viewDir.z);
     float viewHorizLen = length(viewHoriz);
     vec3 viewHorizontal = viewHorizLen > 1e-4 ? vec3(viewHoriz.x, 0.0, viewHoriz.y) / viewHorizLen : vec3(0.0);
@@ -46,7 +43,7 @@ SkyGradient computeSkyGradient(vec3 viewDir) {
 
     g.color = mix(horizonColor, skyZenithColor, g.zenithBlend);
 
-    // Sun glow. pow(x, 128/32/8) folded to repeated squaring; pow(x, 2.5) to x*x*sqrt(x).
+    // Use multiply/sqrt equivalents of pow for the glow falloffs.
     float sunDot = dot(viewDir, g.sunDir);
     if (sunDot > 0.0) {
         float s2 = sunDot * sunDot;
@@ -65,7 +62,7 @@ SkyGradient computeSkyGradient(vec3 viewDir) {
     return g;
 }
 
-// Horizon haze + atmospheric scattering, applied on top of a sky gradient color.
+// Apply horizon haze and atmospheric scattering to a sky-gradient color.
 vec3 applySkyHaze(vec3 skyColor, float upAmount, float sunSideBlend, float zenithBlend) {
     float horizonHaze = 1.0 - abs(upAmount);
     horizonHaze = horizonHaze * horizonHaze * sqrt(horizonHaze) * 0.15; // ^2.5
