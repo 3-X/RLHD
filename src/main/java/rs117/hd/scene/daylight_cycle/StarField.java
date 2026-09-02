@@ -18,6 +18,7 @@ import rs117.hd.utils.RenderState;
 import rs117.hd.utils.buffer.GLBuffer;
 
 import static org.lwjgl.opengl.GL33C.*;
+import static rs117.hd.HdPlugin.SEED;
 import static rs117.hd.HdPlugin.TEXTURE_UNIT_NEBULA;
 import static rs117.hd.HdPlugin.TEXTURE_UNIT_UI;
 import static rs117.hd.utils.HDUtils.randomPointOnSphere;
@@ -51,8 +52,6 @@ public final class StarField {
 	private static final float CLUSTER_ANGULAR_SPREAD = 0.09f;
 
 	private static final int NEBULA_CUBE_MAP_RESOLUTION = 512;
-
-	private static final long SEED = 0x313137204844L;
 
 	@Inject
 	private HdPlugin plugin;

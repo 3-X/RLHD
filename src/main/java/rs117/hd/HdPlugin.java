@@ -168,6 +168,8 @@ public class HdPlugin extends Plugin {
 	public static final String INTEL_DRIVER_URL = "https://www.intel.com/content/www/us/en/support/detect.html";
 	public static final String NVIDIA_DRIVER_URL = "https://www.nvidia.com/en-us/geforce/drivers/";
 
+	public static final long SEED = 0x313137204844L;
+
 	public static int MAX_TEXTURE_UNITS;
 	public static int TEXTURE_UNIT_COUNT = 0;
 	public static final int TEXTURE_UNIT_UI = GL_TEXTURE0 + TEXTURE_UNIT_COUNT++;

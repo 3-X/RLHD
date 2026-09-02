@@ -22,6 +22,7 @@ import rs117.hd.utils.AstronomyUtils;
 import rs117.hd.utils.Camera;
 import rs117.hd.utils.HDUtils;
 
+import static rs117.hd.HdPlugin.SEED;
 import static rs117.hd.utils.MathUtils.*;
 
 /**
@@ -52,8 +53,12 @@ public class DaylightCycleManager {
 	// 5am–7pm occupies the first 70% of the unwarped cycle.
 	private static final float NATURAL_DAY_BOUNDARY = .7f;
 
-	// Deterministic per-night aurora probability for aurora-eligible environments.
-	private static final float AURORA_NIGHT_CHANCE = .02f;
+	// One randomly placed event per day on average, lasting 20 ± 10 minutes at 2σ.
+	private static final long AURORA_EVENT_INTERVAL_MS = HOUR_MS;
+	private static final float AURORA_EVENT_CHANCE = 1f / 24;
+	private static final float AURORA_EVENT_MEAN_DURATION_SECONDS = 20 * 60;
+	private static final float AURORA_EVENT_DURATION_STD_DEV_SECONDS = 5 * 60;
+	private static final float AURORA_EVENT_FADE_FRACTION = .2f;
 
 	// Fixed Night moon position, in the south-east sky.
 	private static final float[] FIXED_NIGHT_MOON_ANGLES = HDUtils.sunAngles(25, 135);
@@ -268,48 +273,44 @@ public class DaylightCycleManager {
 
 	// ===== Aurora ================================================================
 
-	/**
-	 * Select a deterministic aurora night, changing at midday to avoid visible flips.
-	 */
-	private boolean isAuroraNight() {
-		int nightIndex = max(1, (int) Math.floor(completedCycles + accumulatedCycleTime - .35) + 1);
-
-		// SplitMix64 finalizer to a uniform 53-bit mantissa.
-		long h = nightIndex * 0x9E3779B97F4A7C15L;
+	private float getAuroraEventRoll(long eventIndex, long salt) {
+		long h = SEED + eventIndex * 0x9E3779B97F4A7C15L + salt * 0xBF58476D1CE4E5B9L;
 		h ^= (h >>> 30);
 		h *= 0xBF58476D1CE4E5B9L;
 		h ^= (h >>> 27);
 		h *= 0x94D049BB133111EBL;
 		h ^= (h >>> 31);
-		double roll = (h >>> 11) * (1.0 / (1L << 53)); // [0, 1)
-
-		return roll < AURORA_NIGHT_CHANCE;
+		return (h >>> 40) * (1f / (1 << 24));
 	}
 
-	/**
-	 * Always-night modes use an explicit aurora envelope; other modes use the sky fade.
-	 */
-	private float computeAuroraStrength() {
-		if (!isAuroraNight())
+	private float getAuroraEventStrength(long eventIndex) {
+		if (getAuroraEventRoll(eventIndex, 0) >= AURORA_EVENT_CHANCE)
 			return 0;
 
-		if (!currentCycle.isPermanentNight())
-			return 1;
+		float eventStart = getAuroraEventRoll(eventIndex, 1) * AURORA_EVENT_INTERVAL_MS / 1000f;
+		double gaussian = Math.sqrt(-2 * Math.log(Math.max(1e-6f, getAuroraEventRoll(eventIndex, 2)))) *
+						  Math.cos(TWO_PI * getAuroraEventRoll(eventIndex, 3));
+		float eventDuration = clamp(
+			AURORA_EVENT_MEAN_DURATION_SECONDS + (float) gaussian * AURORA_EVENT_DURATION_STD_DEV_SECONDS,
+			AURORA_EVENT_MEAN_DURATION_SECONDS - 2 * AURORA_EVENT_DURATION_STD_DEV_SECONDS,
+			AURORA_EVENT_MEAN_DURATION_SECONDS + 2 * AURORA_EVENT_DURATION_STD_DEV_SECONDS
+		);
+		float eventElapsed = (frameWallClockMillis - eventIndex * AURORA_EVENT_INTERVAL_MS) / 1000f - eventStart;
+		if (eventElapsed < 0 || eventElapsed >= eventDuration)
+			return 0;
 
-		float phase = fract((float) accumulatedCycleTime - .35f); // wrap into [0, 1)
+		float fadeDuration = eventDuration * AURORA_EVENT_FADE_FRACTION;
+		return smoothstep(0, fadeDuration, eventElapsed) *
+			   (1 - smoothstep(eventDuration - fadeDuration, eventDuration, eventElapsed));
+	}
 
-		// Smooth bump around the middle of the simulated night.
-		float env;
-		if (phase < .15f || phase > .85f) {
-			env = 0;
-		} else if (phase < .4f) {
-			env = smoothstep(.15f, .4f, phase);
-		} else if (phase <= .6f) {
-			env = 1;
-		} else {
-			env = smoothstep(.85f, .6f, phase);
-		}
-		return env;
+	private float computeAuroraStrength() {
+		// The sky shader supplies the softer twilight fade; skip when the sun is above the horizon.
+		if (state.sunAngles[0] >= 0)
+			return 0;
+
+		long eventIndex = Math.floorDiv(frameWallClockMillis, AURORA_EVENT_INTERVAL_MS);
+		return max(getAuroraEventStrength(eventIndex - 1), getAuroraEventStrength(eventIndex));
 	}
 
 	// ===== Night-synced moon =====================================================
