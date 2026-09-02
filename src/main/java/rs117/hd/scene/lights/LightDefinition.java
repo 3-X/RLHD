@@ -58,7 +58,7 @@ public class LightDefinition {
 	public void normalize() {
 		if (description == null)
 			description = "N/A";
-		if (alignment == null || alignment == Alignment.CENTER)
+		if (alignment == null)
 			alignment = Alignment.CUSTOM;
 		if (offset == null || offset.length != 3) {
 			offset = new float[3];
