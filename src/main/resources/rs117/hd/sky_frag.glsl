@@ -115,7 +115,7 @@ void main() {
     if (skyMoonIllumination > 0.001) {
         // Apply the same horizon offset transformation as the sun
         vec3 moonDir = normalize(vec3(skyMoonDir.x, -skyMoonDir.y + HORIZON_OFFSET, skyMoonDir.z));
-        vec3 moonSunDir = normalize(vec3(skyMoonSunDir.x, -skyMoonSunDir.y + HORIZON_OFFSET, skyMoonSunDir.z));
+        vec3 moonSunDir = normalize(vec3(skyMoonPhaseLightDirection.x, -skyMoonPhaseLightDirection.y + HORIZON_OFFSET, skyMoonPhaseLightDirection.z));
 
         float moonDot = dot(viewDir, moonDir);
 

@@ -237,8 +237,10 @@ public class DaylightCycleManager {
 		return state.moonAngles[0] * RAD_TO_DEG;
 	}
 
-	/** Always Night keeps the sky sun hidden, but the moon still follows Dynamic's solar geometry. */
-	private float[] computeMoonSunDirection() {
+	/**
+	 * Always Night keeps the sky sun hidden, but the moon still follows dynamic sun positions.
+	 */
+	private float[] computeMoonPhaseLightDirection() {
 		return currentCycle == DaylightCycle.ALWAYS_NIGHT
 			? anglesToSkyDirection(getSunAngles(getMoonDate()))
 			: state.sunDirection;
@@ -404,7 +406,7 @@ public class DaylightCycleManager {
 			: state.moonAltitudeDegrees;
 		state.sunDirection = anglesToSkyDirection(state.sunAngles);
 		state.moonDirection = anglesToSkyDirection(state.moonAngles);
-		state.moonSunDirection = computeMoonSunDirection();
+		state.moonPhaseLightDirection = computeMoonPhaseLightDirection();
 		state.moonLibration = computeMoonLibration();
 		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
 		// Always Night fixes the visible sun at midnight, but its moon and stars still

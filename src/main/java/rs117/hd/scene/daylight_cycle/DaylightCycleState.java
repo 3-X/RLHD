@@ -7,9 +7,7 @@ public final class DaylightCycleState {
 	public float[] moonAngles;
 	public float[] sunDirection;
 	public float[] moonDirection;
-	/** Solar direction used to orient the moon terminator. */
-	public float[] moonSunDirection;
-	/** Optical lunar libration in radians: {longitude, latitude}. */
+	public float[] moonPhaseLightDirection;
 	public float[] moonLibration;
 	public float[] celestialPole;
 	public float celestialRotation;

@@ -467,7 +467,7 @@ public class SkyLighting {
 		ubo.skyMoonDir.set(state.moonDirection);
 		ubo.skyMoonColor.set(environmentManager.currentMoonColor);
 		ubo.skyMoonIllumination.set(moonIllumination);
-		ubo.skyMoonSunDir.set(state.moonSunDirection);
+		ubo.skyMoonPhaseLightDirection.set(state.moonPhaseLightDirection);
 		ubo.skyMoonLibration.set(state.moonLibration);
 		// Environments can force the moon, but locked daytime modes still hide it.
 		boolean moonEnabled = config.enableMoon() || environmentManager.forceMoonActive();
@@ -487,7 +487,7 @@ public class SkyLighting {
 		ubo.skyMoonDir.set(0, 0, 0);
 		ubo.skyMoonColor.set(0, 0, 0);
 		ubo.skyMoonIllumination.set(0);
-		ubo.skyMoonSunDir.set(0, 0, 0);
+		ubo.skyMoonPhaseLightDirection.set(0, 0, 0);
 		ubo.skyMoonLibration.set(0, 0);
 		ubo.starVisibility.set(1);
 		ubo.nebulaVisibility.set(0);
