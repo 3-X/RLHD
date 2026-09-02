@@ -257,7 +257,7 @@ public class EnvironmentManager {
 
 	public void startUp() {
 		fileWatcher = ENVIRONMENTS_PATH.watch((path, first) -> {
-			try (var ignored = gamevalManager.obtainHandle()) {
+			try (var gamevals = gamevalManager.obtainHandle()) {
 				environments = path.loadJson(plugin.getGson(), Environment[].class);
 				if (environments == null)
 					throw new IOException("Empty or invalid: " + path);
@@ -287,7 +287,7 @@ public class EnvironmentManager {
 				for (var env : environments)
 					env.normalize();
 
-				bindConditionVars(ignored);
+				bindConditionVars(gamevals);
 
 				clientThread.invoke(() -> {
 					// Force instant transition during development
