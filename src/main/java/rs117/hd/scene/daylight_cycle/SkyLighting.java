@@ -10,6 +10,7 @@ import rs117.hd.opengl.uniforms.UBOGlobal;
 import rs117.hd.opengl.uniforms.UBOSky;
 import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
+import rs117.hd.scene.SceneContext;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.environments.Environment.Keyframe;
 import rs117.hd.scene.environments.Environment.SkyGradient;
@@ -59,22 +60,23 @@ public class SkyLighting {
 	@Inject
 	private EnvironmentManager environmentManager;
 
-	@Getter
-	private final float[] fogColorSrgb = new float[3];
 	private final float[] directionalColor = new float[3];
 	private final float[] ambientColor = new float[3];
 	private final float[] waterColor = new float[3];
 	private float directionalStrength;
 	private float ambientStrength;
 
-	@Getter
-	@Accessors(fluent = true)
-	private boolean castsShadows;
-
 	private OutdoorSkySample cachedOutdoorSkySample;
 	private Environment cachedOutdoorSkyEnvironment;
 	private int cachedOutdoorSkyMinBrightness;
 	private int cachedOutdoorSkyFrame = -1;
+
+	@Getter
+	@Accessors(fluent = true)
+	private boolean castsShadows;
+
+	@Getter
+	private final float[] fogColorSrgb = new float[3];
 
 	public void update(UBOGlobal uboGlobal, boolean renderSky) {
 		seedFromEnvironment();
@@ -159,7 +161,9 @@ public class SkyLighting {
 		baseDirectionalStrength = applyMoonLighting(sky, moonInfluence, baseDirectionalStrength);
 
 		directionalStrength =
-			baseDirectionalStrength * brightnessMultiplier * environmentManager.currentSunlightStrength;
+			baseDirectionalStrength *
+			brightnessMultiplier *
+			environmentManager.currentSunlightStrength;
 		// Horizon color doubles as fog so geometry meets the sky.
 		copyTo(fogColorSrgb, sky[1]);
 		copyTo(waterColor, ColorUtils.srgbToLinear(sky[1]));
@@ -279,14 +283,16 @@ public class SkyLighting {
 	}
 
 	/** Apply the sampled outdoor sky to an opted-in light. */
-	public void updateOutdoorLight(Light light, int[] worldPos, int minimumBrightness) {
+	public void updateOutdoorLight(SceneContext sceneContext, Light light) {
 		copyTo(light.color, light.def.color);
 		// Apply outdoor light through cave openings even when the local environment has no cycle.
 		if (!light.def.followOutdoorLighting || !plugin.configDaylightCycle)
 			return;
 
+		int[] worldPos = light.worldLight ? light.worldPos :
+			sceneContext.localToWorld((int) light.pos[0], (int) light.pos[2], light.plane, light.worldPos);
 		DaylightCycleState state = daylightCycleManager.getState();
-		OutdoorSkySample sky = sampleOutdoorSky(state, worldPos, minimumBrightness);
+		OutdoorSkySample sky = sampleOutdoorSky(state, worldPos, plugin.configMinimumBrightness);
 		float[] authoredColor = light.def.color;
 		float defLuma = linearSrgbLuma(authoredColor);
 		float noonLuma = linearSrgbLuma(sky.noonHorizonLinear);
@@ -332,8 +338,9 @@ public class SkyLighting {
 
 	private OutdoorSkySample sampleOutdoorSky(DaylightCycleState state, int[] worldPos, int minimumBrightness) {
 		Environment environment = environmentManager.getOutdoorEnvironment(worldPos);
-		if (environment == cachedOutdoorSkyEnvironment && plugin.frame == cachedOutdoorSkyFrame
-			&& minimumBrightness == cachedOutdoorSkyMinBrightness)
+		if (environment == cachedOutdoorSkyEnvironment &&
+			plugin.frame == cachedOutdoorSkyFrame &&
+			minimumBrightness == cachedOutdoorSkyMinBrightness)
 			return cachedOutdoorSkySample;
 
 		float[] regionalFogSrgb = environmentManager.getOutdoorRegionalFogSrgb(environment);

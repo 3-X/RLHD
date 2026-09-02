@@ -563,7 +563,7 @@ public class LightManager {
 				light.radius = light.def.radius;
 			}
 
-			skyLighting.updateOutdoorLight(light, getLightWorldPos(sceneContext, light), plugin.configMinimumBrightness);
+			skyLighting.updateOutdoorLight(sceneContext, light);
 
 			// Spawn & despawn fade-in and fade-out
 			if (light.fadeInDuration > 0)
@@ -590,11 +590,6 @@ public class LightManager {
 					sceneContext.knownProjectiles.remove(light.projectile);
 			}
 		}
-	}
-
-	private int[] getLightWorldPos(SceneContext sceneContext, Light light) {
-		return light.worldLight ? light.worldPos :
-			sceneContext.localToWorld((int) light.pos[0], (int) light.pos[2], light.plane, light.worldPos);
 	}
 
 	private boolean isActorLightVisible(@Nonnull Actor actor) {
