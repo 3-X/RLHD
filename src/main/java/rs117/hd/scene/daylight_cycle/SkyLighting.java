@@ -162,7 +162,7 @@ public class SkyLighting {
 			state,
 			environmentManager.getSkyGradient(),
 			profile,
-			fogColorSrgb,
+			environmentManager.currentFogColor,
 			environmentManager.currentSunStrength,
 			environmentManager.currentSunriseSunsetStrength,
 			environmentManager.currentSkyColorTakeoverAngle
