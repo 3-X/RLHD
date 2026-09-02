@@ -5,11 +5,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum MoonBehavior
 {
-	REALISTIC("Realistic"),
-	NIGHT_SYNCED("Night Synced"),
+	REALISTIC("Realistic", false),
+	NIGHT_SYNCED("Night Synced", true),
 	;
 
 	private final String name;
+	public final boolean usesNightSyncedMoon;
 
 	@Override
 	public String toString() {

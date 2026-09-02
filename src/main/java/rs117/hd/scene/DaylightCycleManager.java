@@ -213,19 +213,19 @@ public class DaylightCycleManager {
 		// Fixed Night and fixed-mode moon overrides lock position; Always Night does not.
 		if (moonPositionFixed)
 			return state.fixedMoonAngles;
-		if (configMoonBehavior == MoonBehavior.NIGHT_SYNCED)
+		if (configMoonBehavior.usesNightSyncedMoon)
 			return computeNightSyncedMoonAngles();
 
 		return vec(AstronomyUtils.getMoonPosition(getMoonDate().toEpochMilli(), currentLatLong));
 	}
 
 	private float computeMoonIlluminationFraction() {
-		if (currentMoonPhase.isLocked())
+		if (currentMoonPhase.isLocked)
 			return currentMoonPhase.illumination;
 		if (currentCycle.isLocksMoonIllumination())
 			return 1;
 		// Real Time keeps a Night Synced moon continuous through daylight-saving changes.
-		if (configMoonBehavior != MoonBehavior.NIGHT_SYNCED || currentCycle.usesLocalTime)
+		if (!configMoonBehavior.usesNightSyncedMoon || currentCycle.usesCurrentInstantForMoon)
 			return getMoonIllumination(getMoonDate());
 
 		// Synced Days shares its phase; other modes advance it while the moon is unlit.
@@ -247,7 +247,7 @@ public class DaylightCycleManager {
 	 * Always Night hides the sun, but uses dynamic sun positions for moon phases.
 	 */
 	private float[] computeMoonPhaseLightDirection() {
-		return currentCycle == DaylightCycle.ALWAYS_NIGHT
+		return currentCycle.usesDynamicCelestialDate
 			? anglesToSkyDirection(getSunAngles(getMoonDate()))
 			: state.sunDirection;
 	}
@@ -256,7 +256,7 @@ public class DaylightCycleManager {
 	 * Approximate the Moon's visible east/west and north/south rocking over a month.
 	 */
 	private float[] computeMoonLibration() {
-		if (configMoonBehavior != MoonBehavior.REALISTIC)
+		if (configMoonBehavior.usesNightSyncedMoon)
 			return vec(0, 0);
 
 		double days = getMoonDate().toEpochMilli() / (double) DAY_MS;
@@ -316,7 +316,7 @@ public class DaylightCycleManager {
 
 	private float[] computeNightSyncedMoonAngles() {
 		// These modes already have a shared sun position to mirror.
-		if (currentCycle.usesLocalTime || currentCycle.usesUtcSyncedTime)
+		if (currentCycle.usesCurrentInstantForMoon)
 			return mirrorAngles(state.sunAngles);
 
 		float[] sunAngles = getSunAngles(getNightSyncedMoonInstant());
@@ -428,7 +428,7 @@ public class DaylightCycleManager {
 		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
 		// Always Night fixes the visible sun at midnight, but its moon and stars still
 		// advance on the simulated Dynamic-cycle date.
-		Instant celestialInstant = currentCycle == DaylightCycle.ALWAYS_NIGHT ? getMoonDate() : currentInstant;
+		Instant celestialInstant = currentCycle.usesDynamicCelestialDate ? getMoonDate() : currentInstant;
 		state.celestialRotation = (celestialInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
 		state.hidesMoon = currentCycle.isHidesMoon();
 		state.auroraStrength = computeAuroraStrength();
@@ -501,10 +501,7 @@ public class DaylightCycleManager {
 	private Instant getMoonDate() {
 		Instant startOfDay = frameWallClockInstant.truncatedTo(ChronoUnit.DAYS);
 
-		if (currentCycle.usesLocalTime)
-			return currentInstant;
-
-		if (currentCycle.usesUtcSyncedTime)
+		if (currentCycle.usesCurrentInstantForMoon)
 			return currentInstant;
 
 		// Warp only the in-cycle fraction; completed cycles advance phase linearly.
