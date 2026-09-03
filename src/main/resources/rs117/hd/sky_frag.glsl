@@ -94,7 +94,7 @@ void main() {
     }
 
     // === MOON DISK ===
-    if (skyMoonIllumination > 0.001) {
+    if (moonVisibility > 0.001) {
         // Apply the sun's perceived-horizon offset.
         vec3 moonDir = normalize(vec3(skyMoonDir.x, -skyMoonDir.y + HORIZON_OFFSET, skyMoonDir.z));
         vec3 moonSunDir = normalize(vec3(skyMoonPhaseLightDirection.x, -skyMoonPhaseLightDirection.y + HORIZON_OFFSET, skyMoonPhaseLightDirection.z));
@@ -138,6 +138,7 @@ void main() {
                 vec2 moonToSun = vec2(dot(moonSunDir, moonRight), dot(moonSunDir, moonUp));
                 float moonToSunLength = length(moonToSun);
                 moonToSun = moonToSunLength > 1e-4 ? moonToSun / moonToSunLength : vec2(1.0, 0.0);
+                moonToSun *= skyMoonPhaseReversed > 0.5 ? -1.0 : 1.0;
 
                 vec2 moonLocal = vec2(localX, localY);
                 float phaseX = -dot(moonLocal, moonToSun);
@@ -146,7 +147,9 @@ void main() {
                 float phaseY2 = phaseY * phaseY;
                 float terminatorEdge = terminatorPosition * sqrt(max(0.0, 1.0 - phaseY2));
                 float edgeSoftness = mix(0.05, 0.35, phaseY2 * phaseY2);
-                float isLit = smoothstep(terminatorEdge + edgeSoftness, terminatorEdge - edgeSoftness, phaseX);
+                float isLit = skyMoonIllumination > 0.001
+                    ? smoothstep(terminatorEdge + edgeSoftness, terminatorEdge - edgeSoftness, phaseX)
+                    : 0.0;
 
                 // Darken the limb slightly.
                 float limbDarkening = mix(0.85, 1.0, normDist);
@@ -244,7 +247,7 @@ void main() {
                     vec3 nightBgColor = proceduralStarfieldBackground(moonStarDir);
                     darkSideBase = mix(skyColorPreStars, nightBgColor, nightSkyBlend);
                 }
-                vec3 darkSideMoon = darkSideBase + skyMoonColor * 0.02;
+                vec3 darkSideMoon = darkSideBase + skyMoonColor * 0.02 * skyMoonIllumination;
                 vec3 moonFinalColor = mix(darkSideMoon, litColor, isLit);
                 // Fade moon near the horizon to match the star/nebula horizon fade
                 float moonHorizonFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);

@@ -20,8 +20,8 @@ public enum DaylightCycle {
 	SUNSET("Sunset", true, false, false, false, false, 18.1, false, 0, 272, false, false),
 	// 18.3h. Sun just below the horizon - Sunset's position before it moved onto it.
 	TWILIGHT("Twilight", true, false, false, false, false, 18.3, false, -2.5f, 270, false, false),
-	// Keeps the sun down while the moon continues to move and change phase.
-	NIGHT("Night", true, false, false, false, false, 0, false, -88, 261.1f, false, true),
+	// Keeps the sun below the south-west horizon, opposite the default static moon position.
+	NIGHT("Night", true, false, false, false, false, 0, false, -15, 210, false, true),
 	// Moving sun and moon driven by the configured Custom duration and night duration.
 	CUSTOM("Custom", false, false, false, false, true, Double.NaN, false, 0, 0, false, false),
 	;

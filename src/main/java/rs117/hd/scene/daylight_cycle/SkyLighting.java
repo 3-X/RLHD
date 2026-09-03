@@ -492,6 +492,7 @@ public class SkyLighting {
 		ubo.skyMoonIllumination.set(moonIllumination);
 		ubo.skyMoonPhaseLightDirection.set(state.moonPhaseLightDirection);
 		ubo.skyMoonLibration.set(state.moonLibration);
+		ubo.skyMoonPhaseReversed.set(state.moonPhaseReversed ? 1 : 0);
 		ubo.moonVisibility.set(state.hidesMoon ? 0 : environmentManager.currentMoonVisibility);
 		ubo.moonSizeMult.set(environmentManager.currentMoonSizeMult);
 		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);

@@ -69,14 +69,13 @@ public class DaylightCycleManager {
 	private boolean hasFixedSunOverride;
 	private boolean moonIsStatic;
 
-	// The mirrored sun mode advances lunar phase only after its light has faded out.
+	// The Mirrored moon behavior advances lunar phase only after its light has faded out.
 	private long mirroredMoonDayOffset = 0;
 	private long lastMirroredMoonCycles = 0;
 	private long pendingDayIncrements = 0;
 
 	// Moon lighting fades out at −10°, so phase changes below this threshold are invisible.
 	private static final float MOON_PHASE_ADVANCE_ALTITUDE_RAD = -10 * DEG_TO_RAD;
-	private static final double MIRRORED_MOON_START_HOUR = 3.4;
 	private static final double ANOMALISTIC_MONTH_DAYS = 27.55455;
 	private static final double DRACONIC_MONTH_DAYS = 27.21222;
 	private static final float LONGITUDE_LIBRATION_DEG = 7.9f;
@@ -322,28 +321,13 @@ public class DaylightCycleManager {
 		return getAuroraEventStrength(getAuroraCycleTime());
 	}
 
-	// ===== Sun-mirrored moon =====================================================
+	// ===== Mirrored moon =========================================================
 
 	private float[] computeMirroredMoonAngles() {
-		// These modes already have a shared sun position to mirror.
-		if (currentCycle.usesCurrentInstantForMoon)
-			return mirrorAngles(state.sunAngles);
-		if (currentCycle.isFixed)
-			return mirrorAngles(getSunAngles(getDefaultInstant()));
-
-		float[] sunAngles = getSunAngles(getMirroredMoonInstant());
-		applyPendingMirroredMoonDays(-sunAngles[0]);
-		return mirrorAngles(sunAngles);
-	}
-
-	/**
-	 * A uniform moon clock keeps moonrise near the visual sunset.
-	 */
-	private Instant getMirroredMoonInstant() {
-		double hour = MIRRORED_MOON_START_HOUR + applyNightDurationWarp(accumulatedCycleTime) * 24;
-		if (hour >= 24)
-			hour -= 24;
-		return Instant.ofEpochMilli(EQUINOX_EPOCH_MS + mirroredMoonDayOffset * DAY_MS + (long) (hour * HOUR_MS));
+		float[] moonAngles = mirrorAngles(state.sunAngles);
+		if (currentCycle.usesCustomNightDuration)
+			applyPendingMirroredMoonDays(moonAngles[0]);
+		return moonAngles;
 	}
 
 	/**
@@ -433,6 +417,7 @@ public class DaylightCycleManager {
 		state.sunDirection = anglesToSkyDirection(state.sunAngles);
 		state.moonDirection = anglesToSkyDirection(state.moonAngles);
 		state.moonPhaseLightDirection = computeMoonPhaseLightDirection();
+		state.moonPhaseReversed = currentMoonPhase.reversesTerminator;
 		state.moonLibration = computeMoonLibration();
 		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
 		Instant celestialInstant = currentCycle.isFixed ? getDefaultInstant() : currentInstant;
@@ -508,14 +493,23 @@ public class DaylightCycleManager {
 	}
 
 	/**
-	 * Advance moon phase continuously, while preserving one simulated day per cycle.
+	 * Resolve the astronomical date used for moon position and phase.
 	 */
 	private Instant getMoonDate() {
+		if (configMoonBehavior.usesCustomCycleDuration)
+			return getCustomMoonDate();
 		if (currentCycle.isFixed)
 			return getDefaultInstant();
 		if (currentCycle.usesCurrentInstantForMoon)
 			return currentInstant;
 
+		return getCustomMoonDate();
+	}
+
+	/**
+	 * Advance one simulated day per Custom cycle.
+	 */
+	private Instant getCustomMoonDate() {
 		double cyclePosition = currentCycle.usesCustomNightDuration
 			? applyNightDurationWarp(accumulatedCycleTime)
 			: accumulatedCycleTime;

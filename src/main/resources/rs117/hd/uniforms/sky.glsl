@@ -16,6 +16,7 @@ layout(std140) uniform UBOSky {
     float skyMoonIllumination;
     vec3 skyMoonPhaseLightDirection;
     vec2 skyMoonLibration;
+    float skyMoonPhaseReversed;
 
     float starVisibility;
     float nebulaVisibility;

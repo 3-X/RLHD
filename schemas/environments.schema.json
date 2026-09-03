@@ -367,7 +367,7 @@
       "forceMoonPhase": {
         "type": "string",
         "description": "Moon phase to force in this area, overriding the player's setting. REALISTIC forces an advancing phase even when the player has locked one; omit to use the player's setting. Only applies when the cycle is enabled.",
-        "enum": [ "REALISTIC", "FULL_MOON", "GIBBOUS", "HALF_MOON", "CRESCENT", "NEW_MOON" ]
+        "enum": [ "REALISTIC", "NEW_MOON", "WAXING_CRESCENT", "FIRST_QUARTER", "WAXING_GIBBOUS", "FULL_MOON", "WANING_GIBBOUS", "LAST_QUARTER", "WANING_CRESCENT" ]
       },
       "starVisibility": {
         "type": "number",

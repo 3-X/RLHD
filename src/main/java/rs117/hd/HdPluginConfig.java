@@ -666,7 +666,8 @@ public interface HdPluginConfig extends Config
 			"'Disabled' gets rid of the moon entirely.<br>" +
 			"'Realistic' makes the moon orbit naturally, independent of the sun.<br>" +
 			"'Mirrored' keeps the moon at the opposite side of the sun.<br>" +
-			"'Static' keeps the moon at a fixed point in the sky.",
+			"'Static' keeps the moon at a fixed point in the sky.<br>" +
+			"'Custom' makes the moon orbit naturally using the Custom cycle duration.",
 		position = 3,
 		section = daylightCycleSettings
 	)
@@ -681,11 +682,7 @@ public interface HdPluginConfig extends Config
 		description =
 			"Controls the portion of the moon which is lit by the sun.<br>" +
 			"'Realistic' lights up the moon based on its position relative to the sun.<br>" +
-			"'Full Moon' always shows a full moon.<br>" +
-			"'Gibbous Moon' always shows a full moon.<br>" +
-			"'Half Moon' always shows a full moon.<br>" +
-			"'Crescent Moon' always shows a full moon.<br>" +
-			"'New Moon' always shows a full moon.",
+			"Other options lock the moon in a particular lunar phase.",
 		position = 4,
 		section = daylightCycleSettings
 	)

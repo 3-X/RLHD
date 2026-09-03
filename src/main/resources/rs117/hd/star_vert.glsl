@@ -28,7 +28,7 @@ void main() {
 
     // Softly occlude additively blended stars behind the opaque moon disk.
     float moonOcclusion = 1.0;
-    if (skyMoonIllumination > 0.001 && moonVisibility > 0.0) {
+    if (moonVisibility > 0.0) {
         vec3 moonDir = normalize(vec3(skyMoonDir.x, -skyMoonDir.y + SKY_HORIZON_OFFSET, skyMoonDir.z));
         float moonDot = dot(dir, moonDir);
         // Match the moon disk's per-environment angular scale.

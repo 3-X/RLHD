@@ -8,6 +8,7 @@ public final class DaylightCycleState {
 	public float[] sunDirection;
 	public float[] moonDirection;
 	public float[] moonPhaseLightDirection;
+	public boolean moonPhaseReversed;
 	public float[] moonLibration;
 	public float[] celestialPole;
 	public float celestialRotation;
