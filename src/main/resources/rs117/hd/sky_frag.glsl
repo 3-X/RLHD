@@ -69,13 +69,13 @@ void main() {
     float sunProximity = sky.sunSideBlend * (1.0 - sky.zenithBlend);
     // Aurora visibility is independent of the star field's environment override.
     float nightFactor = pow(baseProgress, mix(0.4, 0.9, sunProximity));
-    float nightSkyBlend = nightFactor * starVisibility;
+    float starBlend = nightFactor * starVisibility;
     // Rotate the night sky about the local celestial pole using simulated time.
     float celestialAngle = skyCelestialRotation;
     vec3 celestialAxis = skyCelestialPole;
     float celestialCos = cos(celestialAngle);
     float celestialSin = sin(celestialAngle);
-    if (nightSkyBlend > 0.001) {
+    if (nightFactor > 0.001) {
         vec3 starDir = viewDir;
         starDir = starDir * celestialCos + cross(celestialAxis, starDir) * celestialSin +
             celestialAxis * dot(celestialAxis, starDir) * (1.0 - celestialCos);
@@ -85,11 +85,11 @@ void main() {
 
         // Converge to the fog-matched gradient at the horizon.
         float horizonStarFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
-        skyColor = mix(skyColor, nightSkyColor, nightSkyBlend * horizonStarFade);
+        skyColor = mix(skyColor, nightSkyColor, nightFactor * horizonStarFade);
 
         // Shooting stars are atmospheric, so they do not follow celestial rotation.
         if (-viewDir.y > 0.05 + horizonShift) {
-            skyColor += shootingStars(viewDir, elapsedTime) * nightSkyBlend;
+            skyColor += shootingStars(viewDir, elapsedTime) * starBlend;
         }
     }
 
@@ -240,12 +240,12 @@ void main() {
                 // When stars are visible, blend toward the starfield background color
                 // (without star points) so the dark side doesn't glow brighter than the sky.
                 vec3 darkSideBase = skyColorPreStars;
-                if (nightSkyBlend > 0.001) {
+                if (nightFactor > 0.001) {
                     vec3 moonStarDir = viewDir;
                     moonStarDir = moonStarDir * celestialCos + cross(celestialAxis, moonStarDir) * celestialSin +
                         celestialAxis * dot(celestialAxis, moonStarDir) * (1.0 - celestialCos);
                     vec3 nightBgColor = proceduralStarfieldBackground(moonStarDir);
-                    darkSideBase = mix(skyColorPreStars, nightBgColor, nightSkyBlend);
+                    darkSideBase = mix(skyColorPreStars, nightBgColor, nightFactor);
                 }
                 vec3 darkSideMoon = darkSideBase + skyMoonColor * 0.02 * skyMoonIllumination;
                 vec3 moonFinalColor = mix(darkSideMoon, litColor, isLit);

@@ -6,6 +6,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import org.lwjgl.opengl.*;
 import rs117.hd.HdPlugin;
+import rs117.hd.HdPluginConfig;
 import rs117.hd.opengl.shader.ShaderException;
 import rs117.hd.opengl.shader.ShaderIncludes;
 import rs117.hd.opengl.shader.SkyShaderProgram;
@@ -30,6 +31,9 @@ public class SkyRenderer {
 
 	@Inject
 	private HdPlugin plugin;
+
+	@Inject
+	private HdPluginConfig config;
 
 	@Inject
 	private FrameTimer frameTimer;
@@ -79,6 +83,8 @@ public class SkyRenderer {
 	public void processConfigChanges(Set<String> keys) {
 		if (keys.contains(KEY_NEBULAS))
 			starField.resetStarfield();
+		if (keys.contains(KEY_STARS))
+			commandBuffer.reset();
 	}
 
 	public void update(UBOGlobal uboGlobal) {
@@ -140,7 +146,7 @@ public class SkyRenderer {
 		commandBuffer.BindVertexArray(plugin.vaoTri);
 		commandBuffer.DrawArrays(GL_TRIANGLES, 0, 3);
 
-		if (starProgram.isValid() && starField.getVaoStars() != 0) {
+		if (config.enableStarMap() && starProgram.isValid() && starField.getVaoStars() != 0) {
 			commandBuffer.SetShader(starProgram);
 			commandBuffer.Enable(GL_PROGRAM_POINT_SIZE);
 			if (!GL_CAPS.forwardCompatible)
