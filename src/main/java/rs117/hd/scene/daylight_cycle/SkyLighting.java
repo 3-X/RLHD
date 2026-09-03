@@ -423,16 +423,14 @@ public class SkyLighting {
 	}
 
 	private float computeShadowVisibility(float sunAltDeg, float moonAltDeg, float moonIllumination) {
-		return sunAltDeg > SUN_SHADOW_CUTOFF_DEG
+		return sunAltDeg >= 0
 			? getSunShadowVisibility(sunAltDeg)
 			: getMoonShadowVisibility(sunAltDeg, moonAltDeg, moonIllumination);
 	}
 
 	private static float getSunShadowVisibility(float sunAltitude) {
 		if (sunAltitude <= SUN_SHADOW_MIDPOINT_DEG) {
-			return
-				(sunAltitude - SUN_SHADOW_CUTOFF_DEG) /
-				(SUN_SHADOW_MIDPOINT_DEG - SUN_SHADOW_CUTOFF_DEG) * SUN_SHADOW_MIDPOINT_VISIBILITY;
+			return sunAltitude / SUN_SHADOW_MIDPOINT_DEG * SUN_SHADOW_MIDPOINT_VISIBILITY;
 		}
 		if (sunAltitude <= SUN_SHADOW_FULL_DEG) {
 			return mix(

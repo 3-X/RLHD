@@ -81,9 +81,6 @@ public class DaylightCycleManager {
 	private static final float LONGITUDE_LIBRATION_DEG = 7.9f;
 	private static final float LATITUDE_LIBRATION_DEG = 6.7f;
 
-	// Hand shadows to a still-lit moon before sunset to avoid an orientation pop.
-	private static final float SUN_SHADOW_CUTOFF_DEG = 2;
-	private static final float MOON_SHADOW_CUTOFF_DEG = -10;
 	// Suppress sub-pixel shadow-camera movement; faster cycles use a smaller threshold.
 	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = .25f * DEG_TO_RAD;
 
@@ -190,14 +187,7 @@ public class DaylightCycleManager {
 	 * Update directional shadows only after a perceptible angle change.
 	 */
 	public void updateDirectionalCamera(Camera directionalCamera) {
-		// Fixed sun overrides win; otherwise use the moon after sunset.
-		boolean useMoonForShadows =
-			!hasFixedSunOverride &&
-			(
-				moonIsStatic ||
-				state.sunAngles[0] * RAD_TO_DEG < SUN_SHADOW_CUTOFF_DEG &&
-				state.moonAltitudeDegrees > MOON_SHADOW_CUTOFF_DEG
-			);
+		boolean useMoonForShadows = state.sunAngles[0] < 0 && state.moonAngles[0] > 0;
 		float[] angles = useMoonForShadows ? state.moonAngles : state.sunAngles;
 
 		float[] orientation = { PI - angles[1], angles[0] };
