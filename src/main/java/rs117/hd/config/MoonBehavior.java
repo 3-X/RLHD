@@ -3,17 +3,14 @@ package rs117.hd.config;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public enum MoonBehavior
-{
-	REALISTIC("Realistic", false),
-	NIGHT_SYNCED("Night Synced", true),
+public enum MoonBehavior {
+	DISABLED(false, false, true),
+	REALISTIC(false, false, false),
+	MIRRORED(true, false, false),
+	STATIC(false, true, false),
 	;
 
-	private final String name;
-	public final boolean usesNightSyncedMoon;
-
-	@Override
-	public String toString() {
-		return name;
-	}
+	public final boolean mirrorsSun;
+	public final boolean isStatic;
+	public final boolean isDisabled;
 }

@@ -690,10 +690,6 @@ public class EnvironmentManager {
 		return getCurrentEnvironment().forceMoonPhase;
 	}
 
-	public boolean forceMoonActive() {
-		return getCurrentEnvironment().forceMoonActive;
-	}
-
 	@Nullable
 	public float[] getForcedFixedSunAngles() {
 		return getCurrentEnvironment().fixedSunAngles;

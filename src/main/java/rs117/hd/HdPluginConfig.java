@@ -36,7 +36,6 @@ import rs117.hd.config.ColorBlindMode;
 import rs117.hd.config.ColorFilter;
 import rs117.hd.config.Contrast;
 import rs117.hd.config.CpuUsageLimit;
-import rs117.hd.config.DayLength;
 import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.DefaultBoolean;
 import rs117.hd.config.DefaultSkyColor;
@@ -606,23 +605,11 @@ public interface HdPluginConfig extends Config
 
 	@ConfigSection(
 		name = "Day & night",
-		description = "Dynamic day and night cycle settings",
+		description = "Daylight cycle settings",
 		position = 3,
 		closedByDefault = true
 	)
 	String daylightCycleSettings = "daylightCycleSettings";
-
-	String KEY_ENABLE_DAYLIGHT_CYCLE = "enableDaylightCycle";
-	@ConfigItem(
-		keyName = KEY_ENABLE_DAYLIGHT_CYCLE,
-		name = "Enable day & night cycle",
-		description = "Enables the dynamic day & night cycle with realistic sun positioning and brightness changes",
-		position = 0,
-		section = daylightCycleSettings
-	)
-	default boolean enableDaylightCycle() {
-		return true;
-	}
 
 	String KEY_DAYLIGHT_CYCLE = "daylightCycle";
 	@ConfigItem(
@@ -630,119 +617,43 @@ public interface HdPluginConfig extends Config
 		name = "Cycle mode",
 		description =
 			"Controls the day & night cycle behavior.<br>" +
-			"• Dynamic = Full day & night cycling<br>" +
-			"• Real Time = Sun and moon follow your computer's local clock<br>" +
-			"• Synced Days = A full day every real hour, synced to UTC so all players see the same sky<br>" +
-			"• Fixed Dawn = Sun locked at dawn<br>" +
-			"• Fixed Midday = Sun locked at noon<br>" +
-			"• Fixed Sunset = Sun locked on the horizon at sunset<br>" +
-			"• Fixed Twilight = Sun locked just below the horizon after sunset<br>" +
-			"• Fixed Night = Permanent night with the moon locked in place<br>" +
-			"• Always Night = Permanent night, moon still cycles",
-		position = 1,
+			"'Off' disables the day & night cycle entirely.<br>" +
+			"'Default' everyone sees the same sky, with a full day passing per hour.<br>" +
+			"'Real-Time' follows your local time, roughly matching the real sun in your hemisphere.<br>" +
+			"'Sunrise' shows a constant sunrise at dawn.<br>" +
+			"'Day' shows constant daytime.<br>" +
+			"'Sunset' shows a constant sunset.<br>" +
+			"'Twilight' moves the sun just below the horizon, so the night sky shows through.<br>" +
+			"'Night' shows constant night-time.<br>" +
+			"'Custom' lets you control the cycle via the custom duration & night portion settings below.",
+		position = 0,
 		section = daylightCycleSettings
 	)
 	default DaylightCycle daylightCycle() {
-		return DaylightCycle.DYNAMIC;
+		return DaylightCycle.DEFAULT;
 	}
 
-	String KEY_CYCLE_DURATION = "cycleDurationMinutes";
-	@Range(min = 1, max = 720)
-	@Units(Units.MINUTES)
+	String KEY_STARS = "stars";
 	@ConfigItem(
-		keyName = KEY_CYCLE_DURATION,
-		name = "Cycle duration",
-		description =
-			"How long a complete day & night cycle should take in real-time minutes.<br>" +
-			"• 1 minute = Very fast cycle for testing<br>" +
-			"• 12 minutes = Quick atmospheric changes<br>" +
-			"• 30 minutes = Default cycle<br>" +
-			"• 60 minutes = Slow hourly cycle<br>" +
-			"• 180+ minutes = Very slow, immersive cycle",
-		position = 2,
-		section = daylightCycleSettings
-	)
-	// int, not double: RuneLite's config panel hardcodes the double spinner's step to
-	// 0.1 and ignores @Range for doubles, so a double here makes the arrows increment
-	// by a fraction of a minute and drops the 1-720 clamp. The int spinner steps by 1
-	// and honors @Range.
-	default double cycleDurationMinutes() {
-		return 30;
-	}
-
-	String KEY_DAY_LENGTH = "dayLength";
-	@ConfigItem(
-		keyName = KEY_DAY_LENGTH,
-		name = "Day length",
-		description =
-			"Sets the daylight share of Dynamic cycles without changing their total duration. " +
-			"Also affects an unlocked moon in fixed-sun modes; Real Time and Synced Days ignore it.<br>" +
-			"• Normal = Equal day and night<br>" +
-			"• Long Days = 70% day / 30% night<br>" +
-			"• Longer Days = 85% day / 15% night<br>" +
-			"• Long Nights = 30% day / 70% night<br>" +
-			"• Longer Nights = 15% day / 85% night",
-		position = 3,
-		section = daylightCycleSettings
-	)
-	default DayLength dayLength() {
-		return DayLength.NORMAL;
-	}
-
-	String KEY_MINIMUM_BRIGHTNESS = "minimumBrightness";
-	@Range(min = 10, max = 200)
-	@Units(Units.PERCENT)
-	@ConfigItem(
-		keyName = KEY_MINIMUM_BRIGHTNESS,
-		name = "Minimum brightness",
-		description =
-			"The minimum brightness level during nighttime.<br>" +
-			"• 10% = Very dark nights<br>" +
-			"• 25% = Dark but playable<br>" +
-			"• 35% = Dark but comfortable<br>" +
-			"• 50% = Balanced darkness<br>" +
-			"• 70% = Default bright nights (minimal difference from day)<br>" +
-			"• 100% = No brightness change at night",
-		position = 4,
-		section = daylightCycleSettings
-	)
-	default int minimumBrightness() {
-		return 70;
-	}
-
-	String KEY_ENABLE_STAR_MAP = "enableStarMap";
-	@ConfigItem(
-		keyName = KEY_ENABLE_STAR_MAP,
+		keyName = KEY_STARS,
 		name = "Stars",
-		description = "Show the star map texture in the night sky. When disabled, the night sky uses only the gradient sky.",
-		position = 5,
+		description = "Show stars in the sky at night.",
+		position = 1,
 		section = daylightCycleSettings
 	)
 	default boolean enableStarMap() {
 		return true;
 	}
 
-	String KEY_ENABLE_NEBULAS = "enableNebulas";
+	String KEY_NEBULAS = "nebulas";
 	@ConfigItem(
-		keyName = KEY_ENABLE_NEBULAS,
+		keyName = KEY_NEBULAS,
 		name = "Nebulas",
-		description = "Show procedural nebula clouds in the night sky. When disabled, the night sky shows only stars and the gradient sky.",
-		position = 6,
+		description = "Show nebulas in the night sky",
+		position = 2,
 		section = daylightCycleSettings
 	)
 	default boolean enableNebulas() {
-		return true;
-	}
-
-	String KEY_ENABLE_MOON = "enableMoon";
-	@ConfigItem(
-		keyName = KEY_ENABLE_MOON,
-		name = "Moon",
-		description = "Show the moon in the night sky.",
-		position = 7,
-		section = daylightCycleSettings
-	)
-	default boolean enableMoon() {
 		return true;
 	}
 
@@ -751,14 +662,16 @@ public interface HdPluginConfig extends Config
 		keyName = KEY_MOON_BEHAVIOR,
 		name = "Moon behavior",
 		description =
-			"How the moon moves across the sky.<br>" +
-			"Realistic = Astronomical moon with realistic phases and independent orbit<br>" +
-			"Night Synced = Moon rises at sunset and sets at sunrise; its phase advances while unlit",
-		position = 8,
+			"Controls how the moon moves across the sky.<br>" +
+			"'Disabled' gets rid of the moon entirely.<br>" +
+			"'Realistic' makes the moon orbit naturally, independent of the sun.<br>" +
+			"'Mirrored' keeps the moon at the opposite side of the sun.<br>" +
+			"'Static' keeps the moon at a fixed point in the sky.",
+		position = 3,
 		section = daylightCycleSettings
 	)
 	default MoonBehavior moonBehavior() {
-		return MoonBehavior.NIGHT_SYNCED;
+		return MoonBehavior.REALISTIC;
 	}
 
 	String KEY_MOON_PHASE = "moonPhase";
@@ -766,31 +679,86 @@ public interface HdPluginConfig extends Config
 		keyName = KEY_MOON_PHASE,
 		name = "Moon phase",
 		description =
-			"Locks the moon at a fixed phase.<br>" +
-			"Dynamic = Phase changes naturally over time<br>" +
-			"Full Moon / Gibbous / Half Moon / Crescent / New Moon = Locked at that phase",
-		position = 9,
+			"Controls the portion of the moon which is lit by the sun.<br>" +
+			"'Realistic' lights up the moon based on its position relative to the sun.<br>" +
+			"'Full Moon' always shows a full moon.<br>" +
+			"'Gibbous Moon' always shows a full moon.<br>" +
+			"'Half Moon' always shows a full moon.<br>" +
+			"'Crescent Moon' always shows a full moon.<br>" +
+			"'New Moon' always shows a full moon.",
+		position = 4,
 		section = daylightCycleSettings
 	)
 	default MoonPhase moonPhase() {
-		return MoonPhase.FULL_MOON;
+		return MoonPhase.REALISTIC;
 	}
 
-	String KEY_HIDE_VANILLA_SKYBOXES = "hideVanillaSkyboxes";
+	String KEY_NIGHT_BRIGHTNESS = "nightBrightness";
+	@Range(min = 10, max = 200)
+	@Units(Units.PERCENT)
 	@ConfigItem(
-		keyName = KEY_HIDE_VANILLA_SKYBOXES,
-		name = "Override Vanilla Skyboxes",
+		keyName = KEY_NIGHT_BRIGHTNESS,
+		name = "Night brightness",
+		description =
+			"Sets the minimum brightness during nighttime.<br>" +
+			"'10%' makes nights very dark.<br>" +
+			"'25%' is dark, but playable.<br>" +
+			"'35%' is dark, but comfortable.<br>" +
+			"'50%' provides balanced darkness.<br>" +
+			"'70%' is the default, with good visibility at night.<br>" +
+			"'100%' causes no brightness change at night.",
+		position = 5,
+		section = daylightCycleSettings
+	)
+	default int nightBrightness() {
+		return 70;
+	}
+
+	String KEY_REPLACE_VANILLA_SKYBOXES = "replaceVanillaSkyboxes";
+	@ConfigItem(
+		keyName = KEY_REPLACE_VANILLA_SKYBOXES,
+		name = "Replace vanilla skyboxes",
 		description =
 			"Allows areas that opt in to hide the game's built-in skybox models (such as the one added for Blood " +
 			"Moon Rises) so the day & night cycle's own sky is shown in their place.<br>" +
 			"When enabled, vanilla skyboxes are hidden only in areas configured to hide them.<br>" +
 			"When disabled, vanilla skyboxes are always shown, even in those areas.",
-		position = 10,
+		position = 6,
 		section = daylightCycleSettings
 	)
-	default boolean hideVanillaSkyboxes() {
+	default boolean replaceVanillaSkyboxes() {
 		return true;
 	}
+
+	String KEY_CUSTOM_CYCLE_DURATION = "customCycleDurationMinutes";
+	@Range(min = 1, max = 720)
+	@Units(Units.MINUTES)
+	@ConfigItem(
+		keyName = KEY_CUSTOM_CYCLE_DURATION,
+		name = "Custom duration",
+		description = "Configures how long each Custom day & night cycle lasts.",
+		position = 7,
+		section = daylightCycleSettings
+	)
+	// TODO: double -> int
+	default double customCycleDurationMinutes() {
+		return 60;
+	}
+
+	String KEY_CUSTOM_NIGHT_PERCENTAGE = "customNightPercentage";
+	@Range(min = 0, max = 100)
+	@Units(Units.PERCENT)
+	@ConfigItem(
+		keyName = KEY_CUSTOM_NIGHT_PERCENTAGE,
+		name = "Custom night portion",
+		description = "Sets the share of each Custom cycle spent at night, without changing its duration.",
+		position = 8,
+		section = daylightCycleSettings
+	)
+	default int customNightPercentage() {
+		return 50;
+	}
+
 
 
 	/*====== Environment settings ======*/

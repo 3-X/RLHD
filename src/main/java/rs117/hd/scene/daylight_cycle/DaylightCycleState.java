@@ -13,7 +13,6 @@ public final class DaylightCycleState {
 	public float celestialRotation;
 	public float moonIllumination;
 	public float moonAltitudeDegrees;
-	public float moonAltitudeDegreesForLighting;
 	public boolean hidesMoon;
 	public float auroraStrength;
 }

@@ -15,7 +15,6 @@ import rs117.hd.scene.environments.Environment.SkyLightingProfile;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -260,14 +259,6 @@ public class SkyLightingTest {
 		assertEquals(0, moonPresence(phaseAdvanceAltitudeDegrees, .5f), 0);
 		assertEquals(0, moonPresence(phaseAdvanceAltitudeDegrees, 1), 0);
 		assertTrue(moonPresence(-.001, .5f) > 0);
-	}
-
-	@Test
-	public void environmentForceMoonActiveParses() {
-		Gson gson = new Gson();
-		assertTrue(gson.fromJson("{\"forceMoonActive\": true}", Environment.class).forceMoonActive);
-		assertFalse(gson.fromJson("{\"forceMoonActive\": false}", Environment.class).forceMoonActive);
-		assertFalse(gson.fromJson("{}", Environment.class).forceMoonActive);
 	}
 
 	private static float phaseShadowFactor(float illumination) {

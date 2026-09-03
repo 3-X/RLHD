@@ -105,7 +105,6 @@ public class Environment {
 	public DaylightCycle cycleMode;
 	@Nullable
 	public MoonPhase forceMoonPhase;
-	public boolean forceMoonActive = false;
 	public float starVisibility = 1;
 	public float moonVisibility = 1;
 	public float auroraVisibility = -1;

@@ -303,7 +303,7 @@ public class SkyLighting {
 	public void updateOutdoorLight(Light light) {
 		copyTo(light.color, light.def.color);
 		// Apply outdoor light through cave openings even when the local environment has no cycle.
-		if (light.def.outdoorLighting == null || !plugin.configDaylightCycle)
+		if (light.def.outdoorLighting == null || !daylightCycleManager.isCycleEnabled())
 			return;
 
 		DaylightCycleState state = daylightCycleManager.getState();
@@ -323,7 +323,7 @@ public class SkyLighting {
 
 		float moonStrengthFloor = 0;
 		if (sunAltDeg < 5) {
-			float moonAltDeg = state.moonAltitudeDegreesForLighting;
+			float moonAltDeg = state.moonAltitudeDegrees;
 			float moonIllumination = state.moonIllumination;
 			if (moonAltDeg > -5 && moonIllumination > .01f) {
 				float sunFade = saturate((5 - sunAltDeg) / 10);
@@ -492,9 +492,7 @@ public class SkyLighting {
 		ubo.skyMoonIllumination.set(moonIllumination);
 		ubo.skyMoonPhaseLightDirection.set(state.moonPhaseLightDirection);
 		ubo.skyMoonLibration.set(state.moonLibration);
-		// Environments can force the moon, but locked daytime modes still hide it.
-		boolean moonEnabled = config.enableMoon() || environmentManager.forceMoonActive();
-		ubo.moonVisibility.set(!state.hidesMoon && moonEnabled ? environmentManager.currentMoonVisibility : 0);
+		ubo.moonVisibility.set(state.hidesMoon ? 0 : environmentManager.currentMoonVisibility);
 		ubo.moonSizeMult.set(environmentManager.currentMoonSizeMult);
 		ubo.starHorizonHeight.set(environmentManager.currentStarHorizonHeight);
 		ubo.starVisibility.set(config.enableStarMap() ? environmentManager.currentStarVisibility : 0);

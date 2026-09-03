@@ -77,7 +77,7 @@ public class SkyRenderer {
 	}
 
 	public void processConfigChanges(Set<String> keys) {
-		if (keys.contains(KEY_ENABLE_NEBULAS))
+		if (keys.contains(KEY_NEBULAS))
 			starField.resetStarfield();
 	}
 

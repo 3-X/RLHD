@@ -441,7 +441,6 @@ public class HdPlugin extends Plugin {
 	public boolean configTiledLighting;
 	public boolean configTiledLightingImageLoadStore;
 	public boolean configOverrideSky;
-	public boolean configDaylightCycle;
 	public int configDetailDrawDistance;
 	public int configExpandedMapLoadingChunks;
 	public int configMinimumBrightness;
@@ -1737,7 +1736,7 @@ public class HdPlugin extends Plugin {
 
 	private void updateCachedConfigs() {
 		configExpandedMapLoadingChunks = config.expandedMapLoadingChunks();
-		configMinimumBrightness = config.minimumBrightness();
+		configMinimumBrightness = config.nightBrightness();
 		configShadowMode = config.shadowMode();
 		configShadowsEnabled = configShadowMode != ShadowMode.OFF;
 		configShadowTransparency = config.shadowTransparency();
@@ -1762,7 +1761,6 @@ public class HdPlugin extends Plugin {
 		configTiledLighting = config.tiledLighting();
 		configTiledLightingImageLoadStore = config.tiledLightingImageLoadStore();
 		configOverrideSky = config.overrideSky();
-		configDaylightCycle = config.enableDaylightCycle();
 		configDetailDrawDistance = config.detailDrawDistance();
 		configExpandShadowDraw = config.expandShadowDraw();
 		configUseFasterModelHashing = config.fasterModelHashing();
@@ -1942,14 +1940,12 @@ public class HdPlugin extends Plugin {
 							case KEY_ATMOSPHERIC_LIGHTING:
 							case KEY_POH_THEME_ENVIRONMENTS:
 							case KEY_LEGACY_TOB_ENVIRONMENT:
-							case KEY_ENABLE_DAYLIGHT_CYCLE:
 							case KEY_DAYLIGHT_CYCLE:
-							case KEY_CYCLE_DURATION:
-							case KEY_DAY_LENGTH:
-							case KEY_MINIMUM_BRIGHTNESS:
-							case KEY_ENABLE_STAR_MAP:
-							case KEY_ENABLE_NEBULAS:
-							case KEY_ENABLE_MOON:
+							case KEY_CUSTOM_CYCLE_DURATION:
+							case KEY_CUSTOM_NIGHT_PERCENTAGE:
+							case KEY_NIGHT_BRIGHTNESS:
+							case KEY_STARS:
+							case KEY_NEBULAS:
 							case KEY_MOON_BEHAVIOR:
 							case KEY_MOON_PHASE:
 								reloadEnvironments = true;

@@ -134,7 +134,7 @@ void main() {
                 float localX = dot(toView, moonRight) * angDist / moonRadius;
                 float localY = dot(toView, moonUp) * angDist / moonRadius;
 
-                // Orient the terminator toward the sun; Night Synced can still use its own phase.
+                // Orient the terminator toward the sun; the mirrored moon can still use its own phase.
                 vec2 moonToSun = vec2(dot(moonSunDir, moonRight), dot(moonSunDir, moonUp));
                 float moonToSunLength = length(moonToSun);
                 moonToSun = moonToSunLength > 1e-4 ? moonToSun / moonToSunLength : vec2(1.0, 0.0);

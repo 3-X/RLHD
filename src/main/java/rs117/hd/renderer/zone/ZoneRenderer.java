@@ -607,7 +607,7 @@ public class ZoneRenderer implements Renderer {
 
 		boolean replaceVanillaSkybox =
 			skyRenderer.shouldRender() &&
-			config.hideVanillaSkyboxes() &&
+			config.replaceVanillaSkyboxes() &&
 			environmentManager.hideVanillaSkyboxes();
 		shouldRenderVanillaSkybox = scene.getSkybox() != null && !replaceVanillaSkybox;
 
