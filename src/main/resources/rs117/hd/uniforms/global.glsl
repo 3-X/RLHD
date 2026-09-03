@@ -3,6 +3,8 @@
 #include <utils/constants.glsl>
 
 layout(std140) uniform UBOGlobal {
+    vec4 colorPicker;
+
     bool orthographicProjection;
 
     int expandedMapLoadingChunks;

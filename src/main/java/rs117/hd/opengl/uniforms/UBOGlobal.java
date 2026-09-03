@@ -16,6 +16,8 @@ public class UBOGlobal extends UniformBuffer<GLBuffer> {
 
 	// Ordered by frequency of updates, from least to most frequent
 
+	public Property colorPicker = addProperty(PropertyType.FVec4, "colorPicker");
+
 	public Property orthographicProjection = addProperty(PropertyType.Int, "orthographicProjection");
 
 	public Property expandedMapLoadingChunks = addProperty(PropertyType.Int, "expandedMapLoadingChunks");

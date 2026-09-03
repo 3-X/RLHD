@@ -1,5 +1,6 @@
 package rs117.hd.utils;
 
+import java.awt.Color;
 import java.awt.event.KeyEvent;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -13,6 +14,8 @@ import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.input.KeyManager;
+import net.runelite.client.ui.components.colorpicker.ColorPickerManager;
+import net.runelite.client.ui.components.colorpicker.RuneliteColorPicker;
 import rs117.hd.HdPlugin;
 import rs117.hd.overlays.FrameTimerOverlay;
 import rs117.hd.overlays.LightGizmoOverlay;
@@ -55,6 +58,9 @@ public class DeveloperTools implements KeyListener {
 	private KeyManager keyManager;
 
 	@Inject
+	private ColorPickerManager colorPickerManager;
+
+	@Inject
 	private HdPlugin plugin;
 
 	@Inject
@@ -87,6 +93,8 @@ public class DeveloperTools implements KeyListener {
 	@Getter
 	private boolean hideUiEnabled;
 	private boolean tiledLightingOverlayEnabled;
+
+	private RuneliteColorPicker colorPicker;
 
 	public void activate() {
 		// Listen for commands
@@ -165,6 +173,9 @@ public class DeveloperTools implements KeyListener {
 				break;
 			case "culling":
 				plugin.freezeCulling = !plugin.freezeCulling;
+				break;
+			case "colorpicker":
+				toggleColorPicker();
 				break;
 		}
 
@@ -271,6 +282,27 @@ public class DeveloperTools implements KeyListener {
 		}
 		eventBus.post(changed);
 		postMessage("Set " + type + " " + nameOrId + " (" + id + ") = " + value);
+	}
+
+	private void toggleColorPicker() {
+		plugin.uboGlobal.colorPicker.set(1, 1, 1, 1);
+		if (colorPicker == null) {
+			colorPicker = colorPickerManager.create(
+				client,
+				Color.WHITE,
+				"Shader Color Picker",
+				false
+			);
+			colorPicker.setLocationRelativeTo(client.getCanvas());
+			colorPicker.setOnColorChange(c -> clientThread.invoke(() -> {
+				var rgb = ColorUtils.rgb(c); // linear
+				plugin.uboGlobal.colorPicker.set(rgb[0], rgb[1], rgb[2], c.getAlpha() / 255.f);
+			}));
+			colorPicker.setVisible(true);
+		} else {
+			colorPicker.setVisible(false);
+			colorPicker = null;
+		}
 	}
 
 	private void postMessage(String message) {
