@@ -369,7 +369,7 @@ public class SkyLighting {
 		environmentSample.frame = plugin.frame;
 
 		SkyGradient gradient = environmentManager.getSkyGradient(environment);
-		SkyLightingProfile profile = environmentManager.getSkyLighting();
+		SkyLightingProfile profile = environmentManager.getSkyLighting(environment);
 		float[] fogColor = environmentManager.getFogColor(environment);
 		getSkyGradientColors(
 			environmentSample,
@@ -476,7 +476,10 @@ public class SkyLighting {
 		ubo.skyGradientEnabled.set(1);
 		ubo.skyZenithColor.set(sky.zenithSrgb);
 		ubo.skyHorizonColor.set(sky.horizonSrgb);
-		ubo.skySunColor.set(sky.sunGlowSrgb);
+		if (state.hidesSun)
+			ubo.skySunColor.set(0, 0, 0);
+		else
+			ubo.skySunColor.set(sky.sunGlowSrgb);
 		ubo.skySunDir.set(state.sunDirection);
 		// Sky shaders invert Y when mapping celestial directions to view space.
 		ubo.skyCelestialPole.set(

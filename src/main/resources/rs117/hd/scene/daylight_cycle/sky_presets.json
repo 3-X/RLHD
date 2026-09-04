@@ -1,0 +1,49 @@
+[
+  {
+    "name": "GIELINOR",
+    "gradient": {
+      "zenith": [
+        { "altitude": -30, "color": "#010104" }, { "altitude": -15, "color": "#03040A" },
+        { "altitude": -8, "color": "#2D2346" }, { "altitude": -3, "color": "#503C64" },
+        { "altitude": 0, "color": "#645078" }, { "altitude": 5, "color": "#788CB4" },
+        { "altitude": 15, "color": "#6496C8" }, { "altitude": 30, "color": "#5A91C8" },
+        { "altitude": 50, "color": "#558CC3" }, { "altitude": 90, "color": "#5087BE" }
+      ],
+      "horizon": [
+        { "altitude": -30, "color": "#010205" }, { "altitude": -15, "color": "#04050C" },
+        { "altitude": -8, "color": "#3C2D41" }, { "altitude": -3, "color": "#8C5046" },
+        { "altitude": 0, "color": "#DC8250" }, { "altitude": 5, "color": "#E6AA78" },
+        { "altitude": 10, "color": "#C8B4A0" }, { "altitude": 20, "color": "#AAAFB9" },
+        { "altitude": 30, "color": "#96A5BE" }, { "altitude": 50, "color": "#8CA0BE" },
+        { "altitude": 90, "color": "#879BB9" }
+      ],
+      "sunGlow": [
+        { "altitude": -30, "color": "#000000" }, { "altitude": -10, "color": "#140A1E" },
+        { "altitude": -5, "color": "#50283C" }, { "altitude": -2, "color": "#B45032" },
+        { "altitude": 0, "color": "#FF9650" }, { "altitude": 5, "color": "#FFC882" },
+        { "altitude": 15, "color": "#FFE6B4" }, { "altitude": 30, "color": "#FFFADC" },
+        { "altitude": 50, "color": "#FFFFF0" }, { "altitude": 90, "color": "#FFFFFA" }
+      ]
+    },
+    "lighting": {
+      "ambientColor": [ { "altitude": -5, "color": "#718CB4" }, { "altitude": 25, "color": "#C0B9FF" }, { "altitude": 40, "color": "#B9D6FF" } ],
+      "directionalTemperature": [
+        { "altitude": 3, "value": 2500 }, { "altitude": 5, "value": 2600 }, { "altitude": 10, "value": 3000 },
+        { "altitude": 15, "value": 3300 }, { "altitude": 20, "value": 3600 }, { "altitude": 30, "value": 4000 },
+        { "altitude": 40, "value": 4300 }, { "altitude": 50, "value": 4750 }, { "altitude": 60, "value": 5250 },
+        { "altitude": 70, "value": 5500 }, { "altitude": 80, "value": 5750 }, { "altitude": 90, "value": 6000 }
+      ],
+      "regionalBlend": [ { "altitude": -10, "value": 0 }, { "altitude": 0, "value": 0.3 }, { "altitude": 5, "value": 0.5 }, { "altitude": 15, "value": 0.75 }, { "altitude": 30, "value": 1 } ],
+      "nightSkyColor": "#05070F",
+      "directionalBaseTemperature": 4100,
+      "directionalBaseStrength": 0.1,
+      "brightness": { "nightAltitude": -18, "twilightAltitude": -5, "horizonAltitude": 5, "twilightBoost": 0.07, "horizonBoost": 0.1, "earlyDayBoost": 0.05, "daytimeStrength": 1.2 }
+    }
+  },
+  { "name": "DAWN", "preset": "GIELINOR", "sunAngles": [ -2.5, 90 ] },
+  { "name": "SUNRISE", "preset": "GIELINOR", "sunAngles": [ 7.8, 90.2 ] },
+  { "name": "DAY", "preset": "GIELINOR", "sunAngles": [ 52, 235 ] },
+  { "name": "SUNSET", "preset": "GIELINOR", "sunAngles": [ 0, 272 ] },
+  { "name": "DUSK", "preset": "GIELINOR", "sunAngles": [ -2.5, 270 ] },
+  { "name": "NIGHT", "preset": "GIELINOR", "sunAngles": [ -15, 210 ], "permanentNight": true }
+]

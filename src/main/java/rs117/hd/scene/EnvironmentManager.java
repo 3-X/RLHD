@@ -24,9 +24,13 @@
  */
 package rs117.hd.scene;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,9 +44,9 @@ import net.runelite.api.*;
 import net.runelite.client.callback.ClientThread;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
-import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.DefaultSkyColor;
 import rs117.hd.config.MoonPhase;
+import rs117.hd.scene.daylight_cycle.SkyConfiguration;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.environments.Environment.SkyGradient;
 import rs117.hd.scene.environments.Environment.SkyLightingProfile;
@@ -61,6 +65,7 @@ import static rs117.hd.utils.ResourcePath.path;
 public class EnvironmentManager {
 	private static final ResourcePath ENVIRONMENTS_PATH = Props
 		.getFile("rlhd.environments-path", () -> path(EnvironmentManager.class, "environments.json"));
+	private static final ResourcePath SKY_PRESETS_PATH = path(SkyConfiguration.class, "sky_presets.json");
 
 	@Inject
 	private Client client;
@@ -250,6 +255,7 @@ public class EnvironmentManager {
 	private boolean forceNextTransition = false;
 
 	private Environment[] environments;
+	private Map<String, SkyConfiguration> skyPresets = Map.of();
 	private FileWatcher.UnregisterCallback fileWatcher;
 
 	@Nonnull
@@ -258,9 +264,7 @@ public class EnvironmentManager {
 	public void startUp() {
 		fileWatcher = ENVIRONMENTS_PATH.watch((path, first) -> {
 			try (var gamevals = gamevalManager.obtainHandle()) {
-				environments = path.loadJson(plugin.getGson(), Environment[].class);
-				if (environments == null)
-					throw new IOException("Empty or invalid: " + path);
+				environments = loadEnvironments(path);
 				log.debug("Loaded {} environments", environments.length);
 
 				if (!config.legacyTobEnvironment()) {
@@ -301,6 +305,129 @@ public class EnvironmentManager {
 				log.error("Failed to load environments:", ex);
 			}
 		});
+	}
+
+	private Environment[] loadEnvironments(ResourcePath path) throws IOException {
+		var gson = plugin.getGson();
+		JsonArray rawEnvironments = path.loadJson(gson, JsonArray.class);
+		JsonArray rawPresets = SKY_PRESETS_PATH.loadJson(gson, JsonArray.class);
+		if (rawEnvironments == null)
+			throw new IOException("Empty or invalid: " + path);
+		if (rawPresets == null)
+			throw new IOException("Empty or invalid: " + SKY_PRESETS_PATH);
+
+		var rawPresetMap = new HashMap<String, JsonObject>();
+		for (int i = 0; i < rawPresets.size(); i++) {
+			JsonElement element = rawPresets.get(i);
+			if (!element.isJsonObject()) {
+				log.error("Sky preset at index {} is not an object", i);
+				continue;
+			}
+			JsonObject preset = element.getAsJsonObject();
+			JsonElement name = preset.get("name");
+			if (name == null || !name.isJsonPrimitive() || !name.getAsJsonPrimitive().isString()) {
+				log.error("Sky preset at index {} has no string name", i);
+				continue;
+			}
+			if (rawPresetMap.putIfAbsent(name.getAsString(), preset) != null)
+				log.error("Duplicate sky preset '{}'", name.getAsString());
+		}
+
+		var resolvedPresets = new HashMap<String, JsonObject>();
+		var names = rawPresetMap.keySet().iterator();
+		while (names.hasNext())
+			resolveSkyPreset(names.next(), rawPresetMap, resolvedPresets, new HashSet<>());
+
+		var parsedPresets = new HashMap<String, SkyConfiguration>();
+		var entries = resolvedPresets.entrySet().iterator();
+		while (entries.hasNext()) {
+			var entry = entries.next();
+			parsedPresets.put(entry.getKey(), gson.fromJson(entry.getValue(), SkyConfiguration.class));
+		}
+		skyPresets = parsedPresets;
+
+		for (int i = 0; i < rawEnvironments.size(); i++) {
+			JsonElement element = rawEnvironments.get(i);
+			if (!element.isJsonObject())
+				continue;
+			JsonObject environment = element.getAsJsonObject();
+			JsonElement sky = environment.get("sky");
+			if (sky != null)
+				environment.add("sky", resolveSky(sky, rawPresetMap, resolvedPresets));
+		}
+
+		return gson.fromJson(rawEnvironments, Environment[].class);
+	}
+
+	@Nullable
+	private JsonObject resolveSkyPreset(
+		String name,
+		Map<String, JsonObject> rawPresets,
+		Map<String, JsonObject> resolvedPresets,
+		HashSet<String> resolving
+	) {
+		JsonObject resolved = resolvedPresets.get(name);
+		if (resolved != null)
+			return resolved;
+		JsonObject preset = rawPresets.get(name);
+		if (preset == null) {
+			log.error("Unknown sky preset '{}'", name);
+			return null;
+		}
+		if (!resolving.add(name)) {
+			log.error("Sky preset '{}' contains a preset loop", name);
+			return null;
+		}
+
+		resolved = new JsonObject();
+		JsonElement parent = preset.get("preset");
+		if (parent != null) {
+			if (!parent.isJsonPrimitive() || !parent.getAsJsonPrimitive().isString()) {
+				log.error("Sky preset '{}' has a non-string preset", name);
+			} else {
+				JsonObject base = resolveSkyPreset(parent.getAsString(), rawPresets, resolvedPresets, resolving);
+				if (base != null)
+					copyAll(resolved, base);
+			}
+		}
+		copyAll(resolved, preset);
+		resolved.remove("name");
+		resolved.remove("preset");
+		resolving.remove(name);
+		resolvedPresets.put(name, resolved);
+		return resolved;
+	}
+
+	private JsonObject resolveSky(JsonElement sky, Map<String, JsonObject> rawPresets, Map<String, JsonObject> resolvedPresets) {
+		JsonObject override = new JsonObject();
+		if (sky.isJsonPrimitive() && sky.getAsJsonPrimitive().isString()) {
+			override.addProperty("preset", sky.getAsString());
+		} else if (sky.isJsonObject()) {
+			override = sky.getAsJsonObject();
+		} else {
+			log.error("Expected a sky preset or object; ignoring value '{}'", sky);
+			return new JsonObject();
+		}
+
+		String preset = "GIELINOR";
+		JsonElement presetField = override.get("preset");
+		if (presetField != null && presetField.isJsonPrimitive() && presetField.getAsJsonPrimitive().isString())
+			preset = presetField.getAsString();
+		JsonObject result = new JsonObject();
+		JsonObject base = resolveSkyPreset(preset, rawPresets, resolvedPresets, new HashSet<>());
+		if (base != null)
+			copyAll(result, base);
+		copyAll(result, override);
+		result.remove("preset");
+		return result;
+	}
+
+	private static void copyAll(JsonObject target, JsonObject source) {
+		var entries = source.entrySet().iterator();
+		while (entries.hasNext()) {
+			var entry = entries.next();
+			target.add(entry.getKey(), entry.getValue().deepCopy());
+		}
 	}
 
 	public void shutDown() {
@@ -681,23 +808,18 @@ public class EnvironmentManager {
 	}
 
 	@Nullable
-	public DaylightCycle getForcedCycleMode() {
-		return getCurrentEnvironment().cycleMode;
-	}
-
-	@Nullable
 	public MoonPhase getForcedMoonPhase() {
 		return getCurrentEnvironment().forceMoonPhase;
 	}
 
 	@Nullable
-	public float[] getForcedFixedSunAngles() {
-		return getCurrentEnvironment().fixedSunAngles;
+	public SkyConfiguration getSkyConfiguration() {
+		return getCurrentEnvironment().sky;
 	}
 
 	@Nullable
-	public float[] getForcedFixedMoonAngles() {
-		return getCurrentEnvironment().fixedMoonAngles;
+	public SkyConfiguration getSkyPreset(String name) {
+		return skyPresets.get(name);
 	}
 
 	public Environment getOverworldEnvironment() {
@@ -721,14 +843,15 @@ public class EnvironmentManager {
 	 */
 	@Nonnull
 	public SkyGradient getSkyGradient(Environment environment) {
-		if (environment.skyGradient != null)
-			return environment.skyGradient;
+		if (environment.sky != null && environment.sky.gradient != null)
+			return environment.sky.gradient;
 
 		Environment overworld = getOverworldEnvironment();
-		if (overworld.skyGradient != null)
-			return overworld.skyGradient;
+		if (overworld.sky != null && overworld.sky.gradient != null)
+			return overworld.sky.gradient;
 
-		return Objects.requireNonNull(Environment.OVERWORLD.skyGradient, "OVERWORLD environment must define a skyGradient");
+		return Objects.requireNonNull(Environment.OVERWORLD.sky, "OVERWORLD environment must define sky")
+			.gradient;
 	}
 
 	/**
@@ -736,11 +859,23 @@ public class EnvironmentManager {
 	 */
 	@Nonnull
 	public SkyLightingProfile getSkyLighting() {
-		Environment overworld = getOverworldEnvironment();
-		if (overworld.skyLighting != null)
-			return overworld.skyLighting;
+		return getSkyLighting(getCurrentEnvironment());
+	}
 
-		return Objects.requireNonNull(Environment.OVERWORLD.skyLighting, "OVERWORLD environment must define skyLighting");
+	/**
+	 * Resolve the procedural daylight-cycle lighting profile for {@code environment}.
+	 */
+	@Nonnull
+	public SkyLightingProfile getSkyLighting(Environment environment) {
+		if (environment.sky != null && environment.sky.lighting != null)
+			return environment.sky.lighting;
+
+		Environment overworld = getOverworldEnvironment();
+		if (overworld.sky != null && overworld.sky.lighting != null)
+			return overworld.sky.lighting;
+
+		return Objects.requireNonNull(Environment.OVERWORLD.sky, "OVERWORLD environment must define sky")
+			.lighting;
 	}
 
 	public boolean isOverworld() {

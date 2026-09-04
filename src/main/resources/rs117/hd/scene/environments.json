@@ -382,8 +382,10 @@
     "nightSkyColor": "#FF0000",
     "moonColor": "#ED3D3D",
     "moonLightColor": "#ED8B8B",
-    "cycleMode": "NIGHT",
-    "fixedMoonAngles": [ 22.6, 89.75 ],
+    "sky": {
+      "preset": "NIGHT",
+      "moonAngles": [ 22.6, 89.75 ]
+    },
     "auroraVisibility": 0,
     "nightSkyColorStrength": 2.5,
     "moonSizeMult": 3.05,
@@ -429,8 +431,10 @@
     "nightSkyColor": "#FF0000",
     "moonColor": "#ED3D3D",
     "moonLightColor": "#ED8B8B",
-    "cycleMode": "NIGHT",
-    "fixedMoonAngles": [ 22.6, 89.75 ],
+    "sky": {
+      "preset": "NIGHT",
+      "moonAngles": [ 22.6, 89.75 ]
+    },
     "auroraVisibility": 0,
     "nightSkyColorStrength": 2.5,
     "moonSizeMult": 3.05,
@@ -583,8 +587,10 @@
     "nightSkyColor": "#FF0000",
     "moonColor": "#ED3D3D",
     "moonLightColor": "#ED8B8B",
-    "cycleMode": "NIGHT",
-    "fixedMoonAngles": [ 22.6, 89.75 ],
+    "sky": {
+      "preset": "NIGHT",
+      "moonAngles": [ 22.6, 89.75 ]
+    },
     "auroraVisibility": 0,
     "nightSkyColorStrength": 2.5,
     "moonSizeMult": 3.05,
@@ -628,8 +634,10 @@
     "nightSkyColor": "#FF0000",
     "moonColor": "#ED3D3D",
     "moonLightColor": "#ED8B8B",
-    "cycleMode": "NIGHT",
-    "fixedMoonAngles": [ 22.6, 89.75 ],
+    "sky": {
+      "preset": "NIGHT",
+      "moonAngles": [ 22.6, 89.75 ]
+    },
     "auroraVisibility": 0,
     "nightSkyColorStrength": 2.5,
     "moonSizeMult": 3.05,
@@ -717,8 +725,10 @@
     "nightSkyColor": "#FF0000",
     "moonColor": "#ED3D3D",
     "moonLightColor": "#ED8B8B",
-    "cycleMode": "NIGHT",
-    "fixedMoonAngles": [ 22.6, 89.75 ],
+    "sky": {
+      "preset": "NIGHT",
+      "moonAngles": [ 22.6, 89.75 ]
+    },
     "auroraVisibility": 0,
     "nightSkyColorStrength": 4.5,
     "moonSizeMult": 3.05,
@@ -742,8 +752,9 @@
     "sunStrength": 0.75,
     "sunAngles": [ 40, 110 ],
     "groundFogOpacity": 0.2,
-    "cycleMode": "DAWN",
-    "fixedSunAngles": [ 3, 107 ],
+    "sky": {
+      "sunAngles": [ 3, 107 ]
+    },
     "auroraVisibility": 0
   },
   {
@@ -764,8 +775,9 @@
     "sunStrength": 0.75,
     "sunAngles": [ 40, 110 ],
     "groundFogOpacity": 0.2,
-    "cycleMode": "DAWN",
-    "fixedSunAngles": [ 3, 107 ],
+    "sky": {
+      "sunAngles": [ 3, 107 ]
+    },
     "auroraVisibility": 0
   },
   {
@@ -786,8 +798,10 @@
     "nightSkyColor": "#FF0000",
     "moonColor": "#ED3D3D",
     "moonLightColor": "#ED8B8B",
-    "cycleMode": "NIGHT",
-    "fixedMoonAngles": [ 22.6, 89.75 ],
+    "sky": {
+      "preset": "NIGHT",
+      "moonAngles": [ 22.6, 89.75 ]
+    },
     "auroraVisibility": 0,
     "nightSkyColorStrength": 2.5,
     "moonSizeMult": 3.05,
@@ -900,7 +914,7 @@
     "waterColor": "#1f2838",
     "waterCausticsStrength": 0,
     "fogDepth": 50,
-    "cycleMode": "NIGHT",
+    "sky": "NIGHT",
     "nightSkyColor": "#ADADAD",
     "moonDirectionalStrength": 2,
     "minBrightnessBoost": 0.35
@@ -1450,7 +1464,7 @@
     "moonVisibility": 0,
     "nightSkyColorStrength": 5,
     "nightSkyColor": "#ff0000",
-    "cycleMode": "NIGHT",
+    "sky": "NIGHT",
     "forceHideNebulas": true
   },
   {
@@ -2595,9 +2609,11 @@
     "nightSkyColor": "#FF0000",
     "moonColor": "#ED3D3D",
     "moonLightColor": "#ED8B8B",
-    "cycleMode": "NIGHT",
+    "sky": {
+      "preset": "NIGHT",
+      "moonAngles": [ 14.05, 89.85 ]
+    },
     "forceMoonPhase": "FULL_MOON",
-    "fixedMoonAngles": [ 14.05, 89.85 ],
     "moonSizeMult": 2.8,
     "auroraVisibility": 0,
     "nightSkyColorStrength": 10
@@ -2606,7 +2622,7 @@
     "area": "VAMPYRIUM",
     "description": "Environment for Vampyrium during the quest, set to fixed twilight to simulate being on the cusp of the blood moon rising",
     "varbitCondition": "MYQ6 >= 80 && MYQ6 != 178",
-    "cycleMode": "TWILIGHT",
+    "sky": "DUSK",
     "fogDepth": 17.5,
     "windAngle": 40,
     "windSpeed": 15,
@@ -2639,7 +2655,7 @@
   },
   {
     "area": "VAMPYRIUM_FOREST_INSTANCE",
-    "cycleMode": "TWILIGHT",
+    "sky": "DUSK",
     "fogDepth": 40,
     "windAngle": 40,
     "windSpeed": 15,
@@ -2687,7 +2703,7 @@
     "sunStrength": 0.05,
     "starVisibility": 0.55,
     "moonVisibility": 0.7,
-    "cycleMode": "NIGHT"
+    "sky": "NIGHT"
   },
   {
     "area": "PLAYER_OWNED_HOUSE_FREM",
@@ -2738,7 +2754,7 @@
     "directionalStrength": 0.75,
     "fogColor": "#000000",
     "fogDepth": 25,
-    "cycleMode": "NIGHT",
+    "sky": "NIGHT",
     "starVisibility": 0.5
   },
   {
@@ -2792,85 +2808,7 @@
     "ambientColor": "#97baff",
     "directionalStrength": 4,
     "sunAngles": [ 52, 235 ],
-    "skyGradient": {
-      "zenith": [
-        { "altitude": -30, "color": "#010104" },
-        { "altitude": -15, "color": "#03040A" },
-        { "altitude": -8, "color": "#2D2346" },
-        { "altitude": -3, "color": "#503C64" },
-        { "altitude": 0, "color": "#645078" },
-        { "altitude": 5, "color": "#788CB4" },
-        { "altitude": 15, "color": "#6496C8" },
-        { "altitude": 30, "color": "#5A91C8" },
-        { "altitude": 50, "color": "#558CC3" },
-        { "altitude": 90, "color": "#5087BE" }
-      ],
-      "horizon": [
-        { "altitude": -30, "color": "#010205" },
-        { "altitude": -15, "color": "#04050C" },
-        { "altitude": -8, "color": "#3C2D41" },
-        { "altitude": -3, "color": "#8C5046" },
-        { "altitude": 0, "color": "#DC8250" },
-        { "altitude": 5, "color": "#E6AA78" },
-        { "altitude": 10, "color": "#C8B4A0" },
-        { "altitude": 20, "color": "#AAAFB9" },
-        { "altitude": 30, "color": "#96A5BE" },
-        { "altitude": 50, "color": "#8CA0BE" },
-        { "altitude": 90, "color": "#879BB9" }
-      ],
-      "sunGlow": [
-        { "altitude": -30, "color": "#000000" },
-        { "altitude": -10, "color": "#140A1E" },
-        { "altitude": -5, "color": "#50283C" },
-        { "altitude": -2, "color": "#B45032" },
-        { "altitude": 0, "color": "#FF9650" },
-        { "altitude": 5, "color": "#FFC882" },
-        { "altitude": 15, "color": "#FFE6B4" },
-        { "altitude": 30, "color": "#FFFADC" },
-        { "altitude": 50, "color": "#FFFFF0" },
-        { "altitude": 90, "color": "#FFFFFA" }
-      ]
-    },
-    "skyLighting": {
-      "ambientColor": [
-        { "altitude": -5, "color": "#718CB4" },
-        { "altitude": 25, "color": "#C0B9FF" },
-        { "altitude": 40, "color": "#B9D6FF" }
-      ],
-      "directionalTemperature": [
-        { "altitude": 3, "value": 2500 },
-        { "altitude": 5, "value": 2600 },
-        { "altitude": 10, "value": 3000 },
-        { "altitude": 15, "value": 3300 },
-        { "altitude": 20, "value": 3600 },
-        { "altitude": 30, "value": 4000 },
-        { "altitude": 40, "value": 4300 },
-        { "altitude": 50, "value": 4750 },
-        { "altitude": 60, "value": 5250 },
-        { "altitude": 70, "value": 5500 },
-        { "altitude": 80, "value": 5750 },
-        { "altitude": 90, "value": 6000 }
-      ],
-      "regionalBlend": [
-        { "altitude": -10, "value": 0 },
-        { "altitude": 0, "value": 0.3 },
-        { "altitude": 5, "value": 0.5 },
-        { "altitude": 15, "value": 0.75 },
-        { "altitude": 30, "value": 1 }
-      ],
-      "nightSkyColor": "#05070F",
-      "directionalBaseTemperature": 4100,
-      "directionalBaseStrength": 0.1,
-      "brightness": {
-        "nightAltitude": -18,
-        "twilightAltitude": -5,
-        "horizonAltitude": 5,
-        "twilightBoost": 0.07,
-        "horizonBoost": 0.1,
-        "earlyDayBoost": 0.05,
-        "daytimeStrength": 1.2
-      }
-    },
+    "sky": "GIELINOR",
     "fogDepth": 6.5,
     "windAngle": 40,
     "windSpeed": 15,

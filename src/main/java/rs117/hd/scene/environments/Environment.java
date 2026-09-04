@@ -6,10 +6,10 @@ import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import rs117.hd.config.DaylightCycle;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.scene.AreaManager;
 import rs117.hd.scene.areas.Area;
+import rs117.hd.scene.daylight_cycle.SkyConfiguration;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.ExpressionParser;
 import rs117.hd.utils.ExpressionPredicate;
@@ -84,12 +84,6 @@ public class Environment {
 	@JsonAdapter(DegreesToRadians.class)
 	public float[] sunAngles; // horizontal coordinate system, in radians
 	@Nullable
-	@JsonAdapter(DegreesToRadians.class)
-	public float[] fixedSunAngles;
-	@Nullable
-	@JsonAdapter(DegreesToRadians.class)
-	public float[] fixedMoonAngles;
-	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] fogColor;
 	public float fogDepth = 25;
@@ -102,8 +96,6 @@ public class Environment {
 	public float windStrength = 0.0f;
 	public float windCeiling = 1280.0f;
 	@Nullable
-	public DaylightCycle cycleMode;
-	@Nullable
 	public MoonPhase forceMoonPhase;
 	public float starVisibility = 1;
 	public float moonVisibility = 1;
@@ -114,9 +106,7 @@ public class Environment {
 	public float sunriseSunsetStrength = 1;
 	public float skyColorTakeoverAngle = 40;
 	@Nullable
-	public SkyGradient skyGradient;
-	@Nullable
-	public SkyLightingProfile skyLighting;
+	public SkyConfiguration sky;
 	public float sunlightStrength = 1;
 	public float minBrightnessBoost = 0;
 	public boolean hideVanillaSkyboxes = false;
@@ -135,10 +125,6 @@ public class Environment {
 
 		if (sunAngles != null)
 			sunAngles = HDUtils.ensureArrayLength(sunAngles, 2);
-		if (fixedSunAngles != null)
-			fixedSunAngles = HDUtils.ensureArrayLength(fixedSunAngles, 2);
-		if (fixedMoonAngles != null)
-			fixedMoonAngles = HDUtils.ensureArrayLength(fixedMoonAngles, 2);
 
 		// Default moon color to slightly cool white (~8000K)
 		if (moonColor == null)

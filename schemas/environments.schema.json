@@ -3,6 +3,23 @@
   "$id": "environments.schema.json",
   "title": "Environments",
   "$defs": {
+    "celestialAngles": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360
+        }
+      ]
+    },
     "skyGradient": {
       "type": "object",
       "description": "Sky colors keyed by sun altitude. Environments without a profile inherit the active seasonal overworld profile.",
@@ -72,6 +89,84 @@
             "minItems": 3,
             "maxItems": 3,
             "items": { "type": "number" }
+          }
+        }
+      }
+    },
+    "skyLighting": {
+      "type": "object",
+      "description": "Procedural day & night lighting curves.",
+      "additionalProperties": false,
+      "required": [
+        "ambientColor",
+        "directionalTemperature",
+        "regionalBlend",
+        "nightSkyColor",
+        "directionalBaseTemperature",
+        "directionalBaseStrength",
+        "brightness"
+      ],
+      "properties": {
+        "ambientColor": {
+          "$ref": "#/$defs/skyLightingColorKeyframes"
+        },
+        "directionalTemperature": {
+          "$ref": "#/$defs/skyLightingScalarKeyframes"
+        },
+        "regionalBlend": {
+          "$ref": "#/$defs/skyLightingScalarKeyframes"
+        },
+        "nightSkyColor": {
+          "type": [ "string", "array" ],
+          "pattern": "^#[A-Fa-f0-9]{6}$",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "directionalBaseTemperature": {
+          "type": "number",
+          "minimum": 1000
+        },
+        "directionalBaseStrength": {
+          "type": "number",
+          "minimum": 0
+        },
+        "brightness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "nightAltitude",
+            "twilightAltitude",
+            "horizonAltitude",
+            "twilightBoost",
+            "horizonBoost",
+            "earlyDayBoost",
+            "daytimeStrength"
+          ],
+          "properties": {
+            "nightAltitude": {
+              "type": "number"
+            },
+            "twilightAltitude": {
+              "type": "number"
+            },
+            "horizonAltitude": {
+              "type": "number"
+            },
+            "twilightBoost": {
+              "type": "number"
+            },
+            "horizonBoost": {
+              "type": "number"
+            },
+            "earlyDayBoost": {
+              "type": "number"
+            },
+            "daytimeStrength": {
+              "type": "number"
+            }
           }
         }
       }
@@ -281,42 +376,6 @@
           }
         ]
       },
-      "fixedSunAngles": {
-        "type": "array",
-        "description": "Fixed sun altitude and azimuth in degrees for fixed cycle modes. Overrides the astronomical position for the sun disk and shadows. Altitude is above the ground (negative is below the horizon); azimuth is clockwise from north.",
-        "minItems": 2,
-        "maxItems": 2,
-        "prefixItems": [
-          {
-            "type": "number",
-            "minimum": -90,
-            "maximum": 90
-          },
-          {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 360
-          }
-        ]
-      },
-      "fixedMoonAngles": {
-        "type": "array",
-        "description": "Static moon altitude and azimuth in degrees. Enables a static moon for this environment. Altitude is above the ground; azimuth is clockwise from north.",
-        "minItems": 2,
-        "maxItems": 2,
-        "prefixItems": [
-          {
-            "type": "number",
-            "minimum": -90,
-            "maximum": 90
-          },
-          {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 360
-          }
-        ]
-      },
       "fogColor": {
         "type": [ "string", "array" ],
         "description": "Sky/fog color in sRGB, specified as a hex color code or an array in the range 0-255. Accepts decimals.",
@@ -359,11 +418,6 @@
         "type": "number",
         "description": "The height where the `windStrength` will be reached. The closer objects are to this height, the stronger the wind will be. Defaults to 1280 (10 tiles in height)."
       },
-      "cycleMode": {
-        "type": "string",
-        "description": "Day & night cycle mode to force in this area, overriding the player's setting. Only applies when the cycle is enabled.",
-        "enum": [ "OFF", "DEFAULT", "REAL_TIME", "DAWN", "DAY", "SUNSET", "TWILIGHT", "NIGHT", "CUSTOM" ]
-      },
       "forceMoonPhase": {
         "type": "string",
         "description": "Moon phase to force in this area, overriding the player's setting. REALISTIC forces an advancing phase even when the player has locked one; omit to use the player's setting. Only applies when the cycle is enabled.",
@@ -400,7 +454,7 @@
       },
       "sunStrength": {
         "type": "number",
-        "description": "Procedural sun strength for the sky gradient (0 to 1). Defaults to 1. Lower values favor `fogColor` by day and the night sky after dusk, and suppress the sun glow. Does not affect directional light; use `sunlightStrength` for that.",
+        "description": "Procedural sun strength for the sky gradient (0 to 1). Defaults to 1. Lower values favor `fogColor` by day and the night sky after sunset, and suppress the sun glow. Does not affect directional light; use `sunlightStrength` for that.",
         "minimum": 0,
         "maximum": 1
       },
@@ -416,52 +470,44 @@
         "minimum": 0,
         "maximum": 90
       },
-      "skyGradient": {
-        "$ref": "#/$defs/skyGradient"
-      },
-      "skyLighting": {
-        "type": "object",
-        "description": "Procedural day & night lighting curves. Environments without a profile inherit the active seasonal overworld profile.",
-        "additionalProperties": false,
-        "required": [ "ambientColor", "directionalTemperature", "regionalBlend", "nightSkyColor", "directionalBaseTemperature", "directionalBaseStrength", "brightness" ],
-        "properties": {
-          "ambientColor": { "$ref": "#/$defs/skyLightingColorKeyframes" },
-          "directionalTemperature": { "$ref": "#/$defs/skyLightingScalarKeyframes" },
-          "regionalBlend": { "$ref": "#/$defs/skyLightingScalarKeyframes" },
-          "nightSkyColor": {
-            "type": [ "string", "array" ],
-            "description": "Deep-night sky color in sRGB, specified as a hex code or an array in the range 0-255.",
-            "pattern": "^#[A-Fa-f0-9]{6}$",
-            "minItems": 3,
-            "maxItems": 3,
-            "items": { "type": "number" }
+      "sky": {
+        "description": "Cycle-driven sky configuration. A preset string is shorthand for an object with that preset; custom angles are altitude and azimuth in degrees.",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [ "GIELINOR", "DAWN", "SUNRISE", "DAY", "SUNSET", "DUSK", "NIGHT" ]
           },
-          "directionalBaseTemperature": {
-            "type": "number",
-            "description": "Directional-light color temperature in kelvin while the sun is below the horizon.",
-            "minimum": 1000
-          },
-          "directionalBaseStrength": {
-            "type": "number",
-            "description": "Directional-light strength while the sun is below the horizon.",
-            "minimum": 0
-          },
-          "brightness": {
+          {
             "type": "object",
-            "description": "Curve applied to the player's minimum-brightness setting across the day.",
             "additionalProperties": false,
-            "required": [ "nightAltitude", "twilightAltitude", "horizonAltitude", "twilightBoost", "horizonBoost", "earlyDayBoost", "daytimeStrength" ],
             "properties": {
-              "nightAltitude": { "type": "number", "description": "Sun altitude in degrees where the minimum-brightness floor begins." },
-              "twilightAltitude": { "type": "number", "description": "Sun altitude in degrees where the twilight ramp ends." },
-              "horizonAltitude": { "type": "number", "description": "Sun altitude in degrees where the daytime ramp begins." },
-              "twilightBoost": { "type": "number", "description": "Added to minimum brightness at the end of the night-to-twilight ramp." },
-              "horizonBoost": { "type": "number", "description": "Added to minimum brightness at the horizon." },
-              "earlyDayBoost": { "type": "number", "description": "Added after the horizon boost before the daytime ramp." },
-              "daytimeStrength": { "type": "number", "description": "Brightness multiplier at the top of the daytime curve." }
+              "preset": {
+                "type": "string",
+                "enum": [ "GIELINOR", "DAWN", "SUNRISE", "DAY", "SUNSET", "DUSK", "NIGHT" ]
+              },
+              "sunAngles": {
+                "$ref": "#/$defs/celestialAngles"
+              },
+              "moonAngles": {
+                "$ref": "#/$defs/celestialAngles"
+              },
+              "hideSun": {
+                "type": "boolean",
+                "description": "Hide the sun disk and glow while retaining the sky gradient."
+              },
+              "hideMoon": {
+                "type": "boolean",
+                "description": "Hide the moon disk."
+              },
+              "gradient": {
+                "$ref": "#/$defs/skyGradient"
+              },
+              "lighting": {
+                "$ref": "#/$defs/skyLighting"
+              }
             }
           }
-        }
+        ]
       },
       "sunlightStrength": {
         "type": "number",

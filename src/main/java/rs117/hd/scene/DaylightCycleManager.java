@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
@@ -14,6 +15,7 @@ import rs117.hd.config.MoonBehavior;
 import rs117.hd.config.MoonPhase;
 import rs117.hd.config.SeasonalHemisphere;
 import rs117.hd.scene.daylight_cycle.DaylightCycleState;
+import rs117.hd.scene.daylight_cycle.SkyConfiguration;
 import rs117.hd.scene.daylight_cycle.SkyLighting;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
@@ -60,7 +62,7 @@ public class DaylightCycleManager {
 	private static final float AURORA_EVENT_DURATION_STD_DEV_SECONDS = 5 * 60;
 	private static final float AURORA_EVENT_FADE_FRACTION = .2f;
 
-	// Used by the Static moon behavior when an environment provides no fixedMoonAngles.
+	// Used by the Static moon behavior when an environment provides no moon position.
 	private static final float[] DEFAULT_STATIC_MOON_ANGLES = HDUtils.sunAngles(15, 30);
 
 	// Representative seasonal latitudes; longitude is irrelevant to the simulated clock.
@@ -97,6 +99,8 @@ public class DaylightCycleManager {
 
 	private final double[] currentLatLong = { 0, 0 };
 	private DaylightCycle currentCycle = DaylightCycle.CUSTOM;
+	@Nullable
+	private SkyConfiguration currentSky;
 	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
 
 	private Instant currentInstant;
@@ -173,10 +177,8 @@ public class DaylightCycleManager {
 	// ===== Sun and shadow directions =============================================
 
 	private float[] computeSunAngles() {
-		if (state.fixedSunAnglesOverride != null)
-			return state.fixedSunAnglesOverride;
-		if (currentCycle.fixedSunAngles != null)
-			return currentCycle.fixedSunAngles;
+		if (state.skySunAngles != null)
+			return state.skySunAngles;
 		return getSunAngles(currentInstant);
 	}
 
@@ -200,8 +202,8 @@ public class DaylightCycleManager {
 	// ===== Moon ==================================================================
 
 	private float[] computeMoonAngles() {
-		if (state.fixedMoonAngles != null)
-			return state.fixedMoonAngles;
+		if (state.skyMoonAngles != null)
+			return state.skyMoonAngles;
 		if (configMoonBehavior.mirrorsSun)
 			return computeMirroredMoonAngles();
 
@@ -212,7 +214,7 @@ public class DaylightCycleManager {
 		if (currentMoonPhase.isLocked)
 			return currentMoonPhase.illumination;
 		// Real-Time keeps the mirrored moon continuous through daylight-saving changes.
-		if (!configMoonBehavior.mirrorsSun || currentCycle.usesCurrentInstantForMoon || currentCycle.fixedSunAngles != null)
+		if (!configMoonBehavior.mirrorsSun || currentCycle.usesCurrentInstantForMoon || state.skySunAngles != null)
 			return getMoonIllumination(getMoonPhaseDate());
 
 		// Default shares its phase; other modes advance it while the moon is unlit.
@@ -238,7 +240,7 @@ public class DaylightCycleManager {
 		if (usesCustomNightMoonPhase())
 			return computeCustomNightMoonPhaseLightDirection();
 
-		return currentCycle.permanentNight
+		return isPermanentNight()
 			? anglesToSkyDirection(getSunAngles(getMoonDate()))
 			: state.sunDirection;
 	}
@@ -260,14 +262,14 @@ public class DaylightCycleManager {
 	}
 
 	private boolean usesCustomNightMoonPhase() {
-		return currentCycle.permanentNight && configMoonBehavior.usesCustomCycleDuration && !currentMoonPhase.isLocked;
+		return isPermanentNight() && configMoonBehavior.usesCustomCycleDuration && !currentMoonPhase.isLocked;
 	}
 
 	/**
 	 * Approximate the Moon's visible east/west and north/south rocking over a month.
 	 */
 	private float[] computeMoonLibration() {
-		if (state.fixedMoonAngles != null || configMoonBehavior.mirrorsSun)
+		if (state.skyMoonAngles != null || configMoonBehavior.mirrorsSun)
 			return vec(0, 0);
 
 		double days = getMoonDate().toEpochMilli() / (double) DAY_MS;
@@ -290,7 +292,7 @@ public class DaylightCycleManager {
 	}
 
 	private float getAuroraEventStart() {
-		if (currentCycle.permanentNight)
+		if (isPermanentNight())
 			return 0;
 		if (currentCycle.usesCurrentInstantForMoon)
 			return ASTRONOMICAL_NIGHT_START;
@@ -300,7 +302,7 @@ public class DaylightCycleManager {
 	}
 
 	private double getAuroraCycleTime() {
-		if (currentCycle.permanentNight)
+		if (isPermanentNight())
 			return fixedAuroraCycleTime;
 		if (currentCycle.usesCurrentInstantForMoon)
 			return currentInstant.toEpochMilli() / (double) DAY_MS;
@@ -386,12 +388,12 @@ public class DaylightCycleManager {
 	 * Map cycle position to the project's twilight-weighted hour of day.
 	 */
 	private double cyclePositionToHour(double cyclePosition) {
-		// 0.0-0.15  dawn/sunrise twilight -> 5am-7am
-		// 0.15-0.35 morning               -> 7am-12pm
-		// 0.35-0.55 afternoon             -> 12pm-5pm
-		// 0.55-0.70 sunset twilight       -> 5pm-7pm
-		// 0.70-0.85 early night           -> 7pm-12am
-		// 0.85-1.0  late night/pre-dawn   -> 12am-5am
+		// 0.0-0.15  sunrise twilight   -> 5am-7am
+		// 0.15-0.35 morning            -> 7am-12pm
+		// 0.35-0.55 afternoon          -> 12pm-5pm
+		// 0.55-0.70 sunset twilight    -> 5pm-7pm
+		// 0.70-0.85 early night        -> 7pm-12am
+		// 0.85-1.0  late night/sunrise -> 12am-5am
 		if (cyclePosition < .15) {
 			return 5 + cyclePosition / .15 * 2;
 		} else if (cyclePosition < .35) {
@@ -436,22 +438,31 @@ public class DaylightCycleManager {
 		state.moonLibration = computeMoonLibration();
 		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
 		state.celestialRotation = (currentInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
-		state.hidesMoon = configMoonBehavior.isDisabled;
 		state.auroraStrength = computeAuroraStrength();
 	}
 
 	private void resolveEnvironmentState() {
-		DaylightCycle forcedMode = environmentManager.getForcedCycleMode();
 		MoonPhase forcedMoonPhase = environmentManager.getForcedMoonPhase();
-		currentCycle = isCycleEnabled() && forcedMode != null ? forcedMode : configCycle;
+		SkyConfiguration sky = environmentManager.getSkyConfiguration();
+		currentCycle = configCycle;
+		SkyConfiguration cycleSky = currentCycle.skyPreset == null ? null : environmentManager.getSkyPreset(currentCycle.skyPreset);
+		currentSky = sky;
 		currentMoonPhase = forcedMoonPhase != null ? forcedMoonPhase : configMoonPhase;
-		float[] sunAngles = environmentManager.getForcedFixedSunAngles();
-		float[] moonAngles = environmentManager.getForcedFixedMoonAngles();
-		state.fixedSunAnglesOverride = currentCycle.fixedSunAngles != null ? sunAngles : null;
+		float[] skySunAngles = sky == null ? null : sky.getSunAngles();
+		if (skySunAngles == null && cycleSky != null)
+			skySunAngles = cycleSky.getSunAngles();
+		state.skySunAngles = isCycleEnabled() ? skySunAngles : null;
+		float[] moonAngles = sky == null ? null : sky.moonAngles;
 		if (moonAngles == null && configMoonBehavior.isStatic)
 			moonAngles = DEFAULT_STATIC_MOON_ANGLES;
-		state.fixedMoonAngles = moonAngles;
+		state.skyMoonAngles = moonAngles;
+		state.hidesSun = sky != null && sky.hideSun;
+		state.hidesMoon = configMoonBehavior.isDisabled || (sky != null && sky.hideMoon);
 		cycleActive = environmentManager.isOverworld() && currentCycle != DaylightCycle.OFF;
+	}
+
+	private boolean isPermanentNight() {
+		return currentCycle.permanentNight || currentSky != null && currentSky.permanentNight;
 	}
 
 	private void advanceCycle(long currentTimeMillis) {
@@ -471,7 +482,7 @@ public class DaylightCycleManager {
 	}
 
 	private Instant resolveCurrentInstant() {
-		if (currentCycle.fixedSunAngles != null)
+		if (state.skySunAngles != null)
 			return getDefaultInstant();
 
 		switch (currentCycle) {
@@ -510,7 +521,7 @@ public class DaylightCycleManager {
 	private Instant getMoonDate() {
 		if (configMoonBehavior.usesCustomCycleDuration)
 			return getCustomMoonDate();
-		if (currentCycle.fixedSunAngles != null || currentCycle.usesCurrentInstantForMoon)
+		if (state.skySunAngles != null || currentCycle.usesCurrentInstantForMoon)
 			return currentInstant;
 
 		return getCustomMoonDate();

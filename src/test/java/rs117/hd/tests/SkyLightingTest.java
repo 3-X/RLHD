@@ -35,7 +35,7 @@ public class SkyLightingTest {
 			.filter(environment -> "OVERWORLD".equals(environment.key))
 			.findFirst()
 			.orElseThrow()
-			.skyLighting;
+			.sky.lighting;
 	}
 
 	private static float[] angles(float altitudeDegrees) {

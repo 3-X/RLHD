@@ -4,9 +4,9 @@ import javax.annotation.Nullable;
 
 public final class DaylightCycleState {
 	@Nullable
-	public float[] fixedSunAnglesOverride;
+	public float[] skySunAngles;
 	@Nullable
-	public float[] fixedMoonAngles;
+	public float[] skyMoonAngles;
 	public float[] sunAngles;
 	public float[] moonAngles;
 	public float[] sunDirection;
@@ -19,5 +19,6 @@ public final class DaylightCycleState {
 	public float moonIllumination;
 	public float moonAltitudeDegrees;
 	public boolean hidesMoon;
+	public boolean hidesSun;
 	public float auroraStrength;
 }

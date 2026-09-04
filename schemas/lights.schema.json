@@ -261,13 +261,13 @@
   "$defs": {
     "lightSchedulePhase": {
       "type": "string",
-      "enum": [ "DAWN", "DAY", "DUSK", "NIGHT", "DEEP_NIGHT", "TWILIGHT" ]
+      "enum": [ "DAWN", "SUNRISE", "DAY", "SUNSET", "DUSK", "NIGHT", "DEEP_NIGHT" ]
     },
     "lightScheduleEndpoint": {
       "oneOf": [
         {
           "type": "string",
-          "enum": [ "DAWN", "DAY", "DUSK", "NIGHT", "DEEP_NIGHT" ]
+          "enum": [ "DAWN", "SUNRISE", "DAY", "SUNSET", "DUSK", "NIGHT", "DEEP_NIGHT" ]
         },
         {
           "type": "number",

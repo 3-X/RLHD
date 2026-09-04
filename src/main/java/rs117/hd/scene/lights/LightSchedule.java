@@ -26,14 +26,14 @@ public class LightSchedule {
 	}
 
 	public enum Phase {
-		// Preserve the old dawn/day altitude boundaries.
-		DAWN(5, -2, Range.Mode.ASCENDING),
+		DAWN(-2, -8.8f, Range.Mode.ASCENDING),
+		SUNRISE(5, -2, Range.Mode.ASCENDING),
 		DAY(-2, 5, Range.Mode.BOTH),
-		DUSK(5, -2, Range.Mode.DESCENDING),
+		SUNSET(5, -2, Range.Mode.DESCENDING),
+		DUSK(-2, -8.8f, Range.Mode.DESCENDING),
 		NIGHT(5, -2, Range.Mode.BOTH),
 		// Preserve the old deep-night altitude boundaries.
-		DEEP_NIGHT(-8.8f, -18, Range.Mode.BOTH),
-		TWILIGHT(DAWN, DUSK);
+		DEEP_NIGHT(-8.8f, -18, Range.Mode.BOTH);
 
 		private static final Phase[] VALUES = values();
 
@@ -41,10 +41,6 @@ public class LightSchedule {
 
 		Phase(float from, float through, Range.Mode mode) {
 			ranges = new Range[] { new Range(from, through, mode) };
-		}
-
-		Phase(Phase first, Phase second) {
-			ranges = new Range[] { first.ranges[0], second.ranges[0] };
 		}
 	}
 
@@ -218,11 +214,7 @@ public class LightSchedule {
 					String name = in.nextString();
 					try {
 						Phase phase = Phase.valueOf(name);
-						if (phase == Phase.TWILIGHT) {
-							log.warn("TWILIGHT cannot be used as a schedule endpoint at {}; ignoring range", timeLocation);
-						} else {
-							time = property.equals("from") ? phase.ranges[0].from : phase.ranges[0].through;
-						}
+						time = property.equals("from") ? phase.ranges[0].from : phase.ranges[0].through;
 					} catch (IllegalArgumentException ex) {
 						log.error("Unknown light schedule phase '{}' at {}; ignoring range", name, timeLocation);
 					}
@@ -315,23 +307,13 @@ public class LightSchedule {
 		private static Phase getPhase(Range[] ranges) {
 			if (ranges.length == 1)
 				return getPhase(ranges[0]);
-			if (ranges.length != 2)
-				return null;
-
-			Phase first = getPhase(ranges[0]);
-			Phase second = getPhase(ranges[1]);
-			if (first == Phase.DAWN && second == Phase.DUSK ||
-				first == Phase.DUSK && second == Phase.DAWN)
-				return Phase.TWILIGHT;
-
 			return null;
 		}
 
 		private static Phase getPhase(Range range) {
 			for (int i = 0; i < Phase.VALUES.length; i++) {
 				Phase phase = Phase.VALUES[i];
-				if (phase != Phase.TWILIGHT &&
-					range.from == phase.ranges[0].from &&
+				if (range.from == phase.ranges[0].from &&
 					range.through == phase.ranges[0].through &&
 					range.mode == phase.ranges[0].mode)
 					return phase;
