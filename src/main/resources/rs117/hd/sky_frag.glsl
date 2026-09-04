@@ -57,6 +57,9 @@ void main() {
 
     SkyGradient sky = computeSkyGradient(viewDir);
     vec3 skyColor = sky.color;
+    // Keep a star-free sky reference for opaque celestial bodies. This lets the
+    // moon cover stars without allowing the day gradient to show through it.
+    vec3 skyColorPreStars = skyColor;
 
     // Shift the shared night-sky horizon line.
     float horizonShift = nightHorizonOffset();
@@ -72,6 +75,7 @@ void main() {
     vec3 celestialAxis = skyCelestialPole;
     float celestialCos = cos(celestialAngle);
     float celestialSin = sin(celestialAngle);
+    vec3 shootingStarColor = vec3(0.0);
     if (nightFactor > 0.001) {
         vec3 starDir = viewDir;
         starDir = starDir * celestialCos + cross(celestialAxis, starDir) * celestialSin +
@@ -85,8 +89,9 @@ void main() {
         skyColor = mix(skyColor, nightSkyColor, nightFactor * horizonStarFade);
 
         // Shooting stars are atmospheric, so they do not follow celestial rotation.
+        // Composite them after the moon so they remain in the foreground.
         if (-viewDir.y > 0.05 + horizonShift) {
-            skyColor += shootingStars(viewDir, elapsedTime) * starBlend;
+            shootingStarColor = shootingStars(viewDir, elapsedTime) * starBlend;
         }
     }
 
@@ -98,15 +103,19 @@ void main() {
 
         float moonDot = dot(viewDir, moonDir);
 
-        // The moon becomes opaque only after the sun is well below the horizon.
-        float moonDayAlpha = 1.0 - smoothstep(-0.17, 0.5, skySunDir.y);
+        // Daylight lowers lunar contrast rather than making the disk transparent.
+        // Scale against the local sky brightness so the moon remains subtly visible
+        // in daytime, but naturally becomes prominent as the sky darkens.
+        float skyLuminance = dot(max(skyColorPreStars, vec3(0.0)), vec3(0.2126, 0.7152, 0.0722));
+        float moonLuminance = dot(max(skyMoonColor, vec3(0.0)), vec3(0.2126, 0.7152, 0.0722));
+        float moonDayVisibility = clamp(moonLuminance / max(moonLuminance + skyLuminance * 6.0, 1e-4), 0.10, 1.0);
 
         // Fade the moon near the sun.
         float sunMoonDot = dot(moonDir, sky.sunDir);
         float sunProximityFade = smoothstep(0.9, 0.7, sunMoonDot);
-        moonDayAlpha *= sunProximityFade;
+        moonDayVisibility *= sunProximityFade;
 
-        if (moonDot > 0.0 && moonDayAlpha > 0.001) {
+        if (moonDot > 0.0 && moonDayVisibility > 0.001) {
             // Deliberately enlarged ~1.9° moon radius, scaled per environment.
             float moonBaseRadius = acos(0.99945);
             float moonAngularRadius = cos(moonBaseRadius * moonSizeMult);
@@ -275,25 +284,39 @@ void main() {
 
                 vec3 litColor = moonLightColor * surfaceBrightness * surfaceColor;
                 litColor *= vec3(0.7529423, 0.79910284, 1.0); // blue ish tint
-                litColor *= 1.350980; // intensity
-                // The unlit disk blocks stars and nebulae, but is no brighter than empty night sky.
-                vec3 darkSideMoon = STARFIELD_BACKGROUND_COLOR;
-                vec3 moonFinalColor = mix(darkSideMoon, litColor, isLit);
+                litColor *= 2.574809; // intensity
+                // Rebuild the star-free sky behind the opaque disk. Individual stars
+                // and nebulas are therefore occluded, while the
+                // dark side matches the surrounding night-sky brightness.
+                vec3 moonStarFreeSky = skyColorPreStars;
+                if (nightFactor > 0.001) {
+                    float horizonStarFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
+                    moonStarFreeSky = mix(moonStarFreeSky, STARFIELD_BACKGROUND_COLOR, nightFactor * horizonStarFade);
+                }
+
+                // Contrast, rather than alpha, controls daytime visibility. Retaining
+                // an opaque disk prevents stars or the sky gradient from bleeding
+                // through the unlit portion of a crescent moon.
+                vec3 moonFinalColor = mix(moonStarFreeSky, litColor, isLit * moonDayVisibility);
                 // Fade moon near the horizon to match the star/nebula horizon fade
                 float moonHorizonFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
-                float moonAlpha = moonDisk * moonDayAlpha * moonVisibility * moonHorizonFade;
+                float moonAlpha = moonDisk * moonVisibility * moonHorizonFade;
 
                 skyColor = mix(skyColor, moonFinalColor, moonAlpha);
             }
 
-            // Subtle atmospheric glow around the moon (also faded by daytime transparency).
+            // Subtle atmospheric glow around the moon, reduced by daytime contrast.
             // Divide the falloff exponent by moonSizeMult so the glow widens with a
             // larger moon (and tightens with a smaller one), matching the disk.
             float glowHorizonFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
-            float moonGlow = pow(moonDot, 256.0 / max(moonSizeMult, 0.001)) * 0.05 * skyMoonIllumination * moonDayAlpha * moonVisibility * glowHorizonFade;
+            float moonGlow = pow(moonDot, 256.0 / max(moonSizeMult, 0.001)) * 0.05 * skyMoonIllumination * moonDayVisibility * moonVisibility * glowHorizonFade;
             skyColor += skyMoonColor * moonGlow;
         }
     }
+
+    // Shooting stars are nearby atmospheric effects and therefore render in front
+    // of the distant moon disk, just like the aurora below.
+    skyColor += shootingStarColor;
 
     // Aurora borealis - animated curtains near the northern horizon. Shown on the
     // randomly-selected aurora nights and faded with the night, but decoupled from

@@ -1,6 +1,6 @@
 #pragma once
 
-#define STARFIELD_BACKGROUND_COLOR vec3(0.00304, 0.00304, 0.00521);
+#define STARFIELD_BACKGROUND_COLOR vec3(0.00304, 0.00304, 0.00521)
 
 // Procedural starfield generator
 // Operates on a 3D direction vector for seamless spherical mapping
