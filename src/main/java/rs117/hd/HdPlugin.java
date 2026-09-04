@@ -1495,7 +1495,7 @@ public class HdPlugin extends Plugin {
 				terrainShadowMapResolution,
 				0,
 				GL_DEPTH_COMPONENT,
-				GL_SHORT,
+				GL_FLOAT,
 				0
 			);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

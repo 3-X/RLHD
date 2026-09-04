@@ -770,6 +770,7 @@ public class ZoneRenderer implements Renderer {
 		if (shouldRenderShadows || shouldClearShadowFbo) {
 			if (plugin.configTerrainShadows && plugin.fboTerrainShadowMap != 0) {
 				renderState.framebuffer.set(GL_FRAMEBUFFER, plugin.fboTerrainShadowMap);
+				renderState.viewport.set(0, 0, plugin.terrainShadowMapResolution, plugin.terrainShadowMapResolution);
 				renderState.apply();
 
 				glClearDepth(1);
