@@ -732,7 +732,7 @@ public class HdPlugin extends Plugin {
 				checkGLErrors();
 
 				client.setDrawCallbacks(renderer);
-				client.setExpandedMapLoading(getExpandedMapLoadingChunks());
+				client.setExpandedMapLoading(configExpandedMapLoadingChunks);
 				// force rebuild of main buffer provider to enable alpha channel
 				client.resizeCanvas();
 
@@ -945,7 +945,7 @@ public class HdPlugin extends Plugin {
 			.define("SHADOW_MODE", configShadowMode)
 			.define("TERRAIN_SHADOWS", configTerrainShadows)
 			.define("TERRAIN_ONLY_PASS", false)
-			.define("SHADOW_TRANSPARENCY", config.shadowTransparency())
+			.define("SHADOW_TRANSPARENCY", configShadowTransparency)
 			.define("SHADOW_FILTERING", config.shadowFiltering().filtering)
 			.define("SHADOW_FILTERING_KERNAL", config.shadowFiltering().kernelSize)
 			.define("SHADOW_RESOLUTION", config.shadowResolution())
@@ -1456,7 +1456,7 @@ public class HdPlugin extends Plugin {
 		glTexImage2D(
 			GL_TEXTURE_2D,
 			0,
-			config.shadowTransparency() ? GL_DEPTH_COMPONENT24 : GL_DEPTH_COMPONENT16,
+			configShadowTransparency ? GL_DEPTH_COMPONENT24 : GL_DEPTH_COMPONENT16,
 			shadowMapResolution,
 			shadowMapResolution,
 			0,
@@ -1735,7 +1735,7 @@ public class HdPlugin extends Plugin {
 	}
 
 	private void updateCachedConfigs() {
-		configExpandedMapLoadingChunks = config.expandedMapLoadingChunks();
+		configExpandedMapLoadingChunks = useLowMemoryMode ? 0 : config.expandedMapLoadingChunks();
 		configMinimumBrightness = config.nightBrightness();
 		configShadowMode = config.shadowMode();
 		configShadowsEnabled = configShadowMode != ShadowMode.OFF;
@@ -1904,7 +1904,7 @@ public class HdPlugin extends Plugin {
 
 						switch (key) {
 							case KEY_EXPANDED_MAP_LOADING_CHUNKS:
-								client.setExpandedMapLoading(getExpandedMapLoadingChunks());
+								client.setExpandedMapLoading(configExpandedMapLoadingChunks);
 								// fall-through
 							case KEY_HIDE_UNRELATED_AREAS:
 								if (client.getGameState() == GameState.LOGGED_IN)
@@ -2086,12 +2086,6 @@ public class HdPlugin extends Plugin {
 		if (config.useLegacyBrightness())
 			return 1;
 		return 100f / config.brightness();
-	}
-
-	public int getExpandedMapLoadingChunks() {
-		if (useLowMemoryMode)
-			return 0;
-		return config.expandedMapLoadingChunks();
 	}
 
 	@Subscribe(priority = -1) // Run after the low detail plugin

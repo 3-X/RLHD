@@ -1267,7 +1267,7 @@ public class LegacyRenderer implements Renderer {
 		if (!plugin.isActive())
 			return;
 
-		int expandedChunks = plugin.getExpandedMapLoadingChunks();
+		int expandedChunks = plugin.configExpandedMapLoadingChunks;
 		if (HDUtils.sceneIntersects(scene, expandedChunks, areaManager.getArea("PLAYER_OWNED_HOUSE"))) {
 			// Reload once the POH is done loading, upon first entering the POH
 			if (sceneContext == null || !sceneContext.isInHouse)
@@ -1304,7 +1304,7 @@ public class LegacyRenderer implements Renderer {
 			nextSceneContext = new LegacySceneContext(
 				client,
 				scene,
-				plugin.getExpandedMapLoadingChunks(),
+				plugin.configExpandedMapLoadingChunks,
 				sceneContext
 			);
 			// If area hiding was determined to be incorrect previously, keep it disabled
