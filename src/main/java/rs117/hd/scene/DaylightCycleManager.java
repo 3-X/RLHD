@@ -43,9 +43,12 @@ public class DaylightCycleManager {
 
 	private static final long DAY_MS = 24L * 60 * 60 * 1000;
 	private static final long HOUR_MS = 60L * 60 * 1000;
+	private static final long LUNAR_MONTH_MS = (long) (29.530588853 * DAY_MS);
 
 	// 2025-03-20 UTC, near the spring equinox.
 	private static final long EQUINOX_EPOCH_MS = 1742428800000L;
+	// 2025-03-29 10:58 UTC, a new moon.
+	private static final long CUSTOM_MOON_PHASE_EPOCH_MS = 1743245880000L;
 	// 2025-06-10 UTC, near the summer solstice.
 	private static final long SOLSTICE_EPOCH_MS = 1749513600000L;
 
@@ -80,6 +83,7 @@ public class DaylightCycleManager {
 	private static final double DRACONIC_MONTH_DAYS = 27.21222;
 	private static final float LONGITUDE_LIBRATION_DEG = 7.9f;
 	private static final float LATITUDE_LIBRATION_DEG = 6.7f;
+	private static final float CUSTOM_NIGHT_MOON_ORBIT_TILT = -.35f;
 
 	// Suppress sub-pixel shadow-camera movement; faster cycles use a smaller threshold.
 	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = .25f * DEG_TO_RAD;
@@ -98,7 +102,7 @@ public class DaylightCycleManager {
 
 	private final double[] currentLatLong = { 0, 0 };
 	private DaylightCycle currentCycle = DaylightCycle.CUSTOM;
-	private MoonPhase currentMoonPhase = MoonPhase.REALISTIC;
+	private MoonPhase currentMoonPhase = MoonPhase.DYNAMIC;
 
 	private Instant currentInstant;
 
@@ -137,7 +141,7 @@ public class DaylightCycleManager {
 	}
 
 	private void updateSeasonalHemisphere() {
-		double[] latLong = currentCycle.isForcesNorthernHemisphere() || plugin.configSeasonalHemisphere != SeasonalHemisphere.SOUTHERN
+		double[] latLong = currentCycle.forcesNorthernHemisphere || plugin.configSeasonalHemisphere != SeasonalHemisphere.SOUTHERN
 			? NORTHERN_LAT_LONG
 			: SOUTHERN_LAT_LONG;
 		currentLatLong[0] = latLong[0];
@@ -212,7 +216,7 @@ public class DaylightCycleManager {
 			return currentMoonPhase.illumination;
 		// Real-Time keeps the mirrored moon continuous through daylight-saving changes.
 		if (!configMoonBehavior.mirrorsSun || currentCycle.usesCurrentInstantForMoon || currentCycle.isFixed)
-			return getMoonIllumination(getMoonDate());
+			return getMoonIllumination(getMoonPhaseDate());
 
 		// Default shares its phase; other modes advance it while the moon is unlit.
 		long phaseDay = currentCycle.usesUtcSyncedTime
@@ -225,17 +229,41 @@ public class DaylightCycleManager {
 		return (float) AstronomyUtils.getMoonIllumination(instant.toEpochMilli())[0];
 	}
 
+	private static float getMoonPhase(Instant instant) {
+		return (float) AstronomyUtils.getMoonIllumination(instant.toEpochMilli())[1];
+	}
+
 	private float computeMoonAltitudeDegrees() {
 		return state.moonAngles[0] * RAD_TO_DEG;
 	}
 
-	/**
-	 * Night hides the sun, but uses Default sun positions for moon phases.
-	 */
 	private float[] computeMoonPhaseLightDirection() {
-		return currentCycle.isPermanentNight()
+		if (usesCustomNightMoonPhase())
+			return computeCustomNightMoonPhaseLightDirection();
+
+		return currentCycle.permanentNight
 			? anglesToSkyDirection(getSunAngles(getMoonDate()))
 			: state.sunDirection;
+	}
+
+	/**
+	 * Keep Night's custom moon phase on a fixed diagonal orbit around the moon.
+	 */
+	private float[] computeCustomNightMoonPhaseLightDirection() {
+		float[] moonUp = abs(state.moonDirection[1]) < .999f ? vec(0, 1, 0) : vec(0, 0, 1);
+		float[] moonRight = normalize(cross(moonUp, state.moonDirection));
+		moonUp = normalize(cross(state.moonDirection, moonRight));
+		float[] orbitTangent = normalize(add(moonRight, multiply(moonUp, CUSTOM_NIGHT_MOON_ORBIT_TILT)));
+		float phaseCos = state.moonIllumination * 2 - 1;
+		float phaseSin = sqrt(max(0, 1 - phaseCos * phaseCos));
+		if (sin(getMoonPhase(getMoonPhaseDate()) * TWO_PI) < 0)
+			phaseSin = -phaseSin;
+
+		return normalize(add(multiply(state.moonDirection, phaseCos), multiply(orbitTangent, phaseSin)));
+	}
+
+	private boolean usesCustomNightMoonPhase() {
+		return currentCycle.permanentNight && configMoonBehavior.usesCustomCycleDuration && !currentMoonPhase.isLocked;
 	}
 
 	/**
@@ -265,7 +293,7 @@ public class DaylightCycleManager {
 	}
 
 	private float getAuroraEventStart() {
-		if (currentCycle.isPermanentNight())
+		if (currentCycle.permanentNight)
 			return 0;
 		if (currentCycle.usesCurrentInstantForMoon)
 			return ASTRONOMICAL_NIGHT_START;
@@ -275,7 +303,7 @@ public class DaylightCycleManager {
 	}
 
 	private double getAuroraCycleTime() {
-		if (currentCycle.isPermanentNight())
+		if (currentCycle.permanentNight)
 			return fixedAuroraCycleTime;
 		if (currentCycle.usesCurrentInstantForMoon)
 			return currentInstant.toEpochMilli() / (double) DAY_MS;
@@ -448,8 +476,8 @@ public class DaylightCycleManager {
 
 	private Instant resolveCurrentInstant() {
 		if (currentCycle.isFixed) {
-			long baseEpochMs = currentCycle.isUsesSolsticeEpoch() ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-			return Instant.ofEpochMilli(baseEpochMs).plusMillis((long) (currentCycle.getFixedHour() * HOUR_MS));
+			long baseEpochMs = currentCycle.usesSolsticeEpoch ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
+			return Instant.ofEpochMilli(baseEpochMs).plusMillis((long) (currentCycle.fixedHour * HOUR_MS));
 		}
 
 		switch (currentCycle) {
@@ -494,6 +522,14 @@ public class DaylightCycleManager {
 			return currentInstant;
 
 		return getCustomMoonDate();
+	}
+
+	private Instant getMoonPhaseDate() {
+		if (!usesCustomNightMoonPhase())
+			return getMoonDate();
+
+		return Instant.ofEpochMilli(
+			CUSTOM_MOON_PHASE_EPOCH_MS + (long) ((completedCycles + accumulatedCycleTime) * LUNAR_MONTH_MS));
 	}
 
 	/**

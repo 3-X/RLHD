@@ -1,5 +1,7 @@
 #pragma once
 
+#define STARFIELD_BACKGROUND_COLOR vec3(0.00304, 0.00304, 0.00521);
+
 // Procedural starfield generator
 // Operates on a 3D direction vector for seamless spherical mapping
 // with no polar distortion artifacts.
@@ -352,7 +354,7 @@ vec3 proceduralStarfield(vec3 dir) {
 // Used for fog blending so the fog matches the sky darkness without
 // showing star points through terrain.
 vec3 proceduralStarfieldBackground(vec3 dir) {
-    vec3 color = vec3(0.00304, 0.00304, 0.00521);
+    vec3 color = STARFIELD_BACKGROUND_COLOR;
     if (nebulaVisibility > 0.0)
         color += sampleNebula(dir) * nebulaVisibility;
     return color;
