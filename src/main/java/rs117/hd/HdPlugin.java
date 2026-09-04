@@ -943,7 +943,7 @@ public class HdPlugin extends Plugin {
 			.define("NORMAL_MAPPING", config.normalMapping())
 			.define("PARALLAX_OCCLUSION_MAPPING", config.parallaxOcclusionMapping())
 			.define("SHADOW_MODE", configShadowMode)
-			.define("TERRAIN_SHADOWS", config.terrainShadows())
+			.define("TERRAIN_SHADOWS", configTerrainShadows)
 			.define("TERRAIN_ONLY_PASS", false)
 			.define("SHADOW_TRANSPARENCY", config.shadowTransparency())
 			.define("SHADOW_FILTERING", config.shadowFiltering().filtering)
@@ -1741,7 +1741,7 @@ public class HdPlugin extends Plugin {
 		configShadowsEnabled = configShadowMode != ShadowMode.OFF;
 		configShadowTransparency = config.shadowTransparency();
 		configRoofShadows = config.roofShadows();
-		configTerrainShadows = config.terrainShadows();
+		configTerrainShadows = config.terrainShadows() && renderer instanceof ZoneRenderer;
 		configGroundTextures = config.groundTextures();
 		var groundBlending = config.groundBlending();
 		configGroundBlending = groundBlending != GroundBlending.OFF;
