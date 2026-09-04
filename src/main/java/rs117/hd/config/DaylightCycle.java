@@ -1,31 +1,28 @@
 package rs117.hd.config;
 
+import javax.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import rs117.hd.utils.HDUtils;
 
 @RequiredArgsConstructor
 public enum DaylightCycle {
-	OFF("Off", false, false, true, false, Double.NaN, false, 0, 0, false, false),
+	OFF("Off", false, true, false, null, false, false),
 	// Moving sun and moon driven by UTC; every client sees the same sky.
-	DEFAULT("Default", false, true, true, false, Double.NaN, false, 0, 0, true, false),
+	DEFAULT("Default", true, true, false, null, true, false),
 	// Moving sun and moon driven by the player's local wall clock.
-	REAL_TIME("Real-Time", false, false, true, false, Double.NaN, false, 0, 0, false, false),
-	// 6.65h (just after sunrise). Reproduces the old date-based Fixed Dawn at the equator.
-	DAWN("Dawn", true, false, false, false, 6.65, false, 7.8f, 90.2f, false, false),
-	// 14h (mid-afternoon), matching the cycle-off sun: altitude 52°, azimuth 235°.
-	DAY("Day", true, false, false, false, 14, true, 52, 235, false, false),
-	// 18.1h. Sun on the horizon in the west.
-	SUNSET("Sunset", true, false, false, false, 18.1, false, 0, 272, false, false),
-	// 18.3h. Sun just below the horizon - Sunset's position before it moved onto it.
-	TWILIGHT("Twilight", true, false, false, false, 18.3, false, -2.5f, 270, false, false),
+	REAL_TIME("Real-Time", false, true, false, null, false, false),
+	// Sun just after sunrise, matching the former date-based mode at the equator.
+	DAWN("Dawn", false, false, false, HDUtils.sunAngles(7.8f, 90.2f), false, false),
+	DAY("Day", false, false, false, HDUtils.sunAngles(52, 235), false, false),
+	SUNSET("Sunset", false, false, false, HDUtils.sunAngles(0, 272), false, false),
+	TWILIGHT("Twilight", false, false, false, HDUtils.sunAngles(-2.5f, 270), false, false),
 	// Keeps the sun below the south-west horizon, opposite the default static moon position.
-	NIGHT("Night", true, false, false, false, 0, false, -15, 210, false, true),
+	NIGHT("Night", false, false, false, HDUtils.sunAngles(-15, 210), false, true),
 	// Moving sun and moon driven by the configured Custom duration and night duration.
-	CUSTOM("Custom", false, false, false, true, Double.NaN, false, 0, 0, false, false),
+	CUSTOM("Custom", false, false, true, null, false, false),
 	;
 
 	private final String name;
-	public final boolean isFixed;
 	public final boolean usesUtcSyncedTime;
 	/** Whether moon calculations use the current cycle instant directly. */
 	public final boolean usesCurrentInstantForMoon;
@@ -33,22 +30,11 @@ public enum DaylightCycle {
 	 * Whether the Custom night duration applies.
 	 */
 	public final boolean usesCustomNightDuration;
-	/**
-	 * Fixed hour on the selected epoch, or NaN for moving modes.
-	 */
-	public final double fixedHour;
-	public final boolean usesSolsticeEpoch;
-	/**
-	 * Fixed {altitude, azimuth} angles; ignored by moving modes.
-	 */
-	private final float fixedSunAltitudeDegrees;
-	private final float fixedSunAzimuthDegrees;
+	/** Fixed {altitude, azimuth} angles in radians, or null to use astronomical angles. */
+	@Nullable
+	public final float[] fixedSunAngles;
 	public final boolean forcesNorthernHemisphere;
 	public final boolean permanentNight;
-
-	public float[] getFixedSunAngles() {
-		return HDUtils.sunAngles(fixedSunAltitudeDegrees, fixedSunAzimuthDegrees);
-	}
 
 	@Override
 	public String toString() {

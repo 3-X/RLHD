@@ -1,7 +1,11 @@
 package rs117.hd.scene.daylight_cycle;
 
+import javax.annotation.Nullable;
+
 public final class DaylightCycleState {
+	@Nullable
 	public float[] fixedSunAnglesOverride;
+	@Nullable
 	public float[] fixedMoonAngles;
 	public float[] sunAngles;
 	public float[] moonAngles;

@@ -49,8 +49,6 @@ public class DaylightCycleManager {
 	private static final long EQUINOX_EPOCH_MS = 1742428800000L;
 	// 2025-03-29 10:58 UTC, a new moon.
 	private static final long CUSTOM_MOON_PHASE_EPOCH_MS = 1743245880000L;
-	// 2025-06-10 UTC, near the summer solstice.
-	private static final long SOLSTICE_EPOCH_MS = 1749513600000L;
 
 	// 5am–7pm occupies the first 70% of the unwarped cycle.
 	private static final float NATURAL_DAY_BOUNDARY = .7f;
@@ -68,9 +66,6 @@ public class DaylightCycleManager {
 	// Representative seasonal latitudes; longitude is irrelevant to the simulated clock.
 	private static final double[] NORTHERN_LAT_LONG = { 52.2347902, 0.1407562 }; // Jagex office, Cambridge
 	private static final double[] SOUTHERN_LAT_LONG = { -33.8472331, 150.6016524 }; // Sidney, Australia
-
-	private boolean hasFixedSunOverride;
-	private boolean moonIsStatic;
 
 	// The Mirrored moon behavior advances lunar phase only after its light has faded out.
 	private long mirroredMoonDayOffset = 0;
@@ -178,8 +173,10 @@ public class DaylightCycleManager {
 	// ===== Sun and shadow directions =============================================
 
 	private float[] computeSunAngles() {
-		if (currentCycle.isFixed)
-			return hasFixedSunOverride ? state.fixedSunAnglesOverride : currentCycle.getFixedSunAngles();
+		if (state.fixedSunAnglesOverride != null)
+			return state.fixedSunAnglesOverride;
+		if (currentCycle.fixedSunAngles != null)
+			return currentCycle.fixedSunAngles;
 		return getSunAngles(currentInstant);
 	}
 
@@ -203,7 +200,7 @@ public class DaylightCycleManager {
 	// ===== Moon ==================================================================
 
 	private float[] computeMoonAngles() {
-		if (moonIsStatic)
+		if (state.fixedMoonAngles != null)
 			return state.fixedMoonAngles;
 		if (configMoonBehavior.mirrorsSun)
 			return computeMirroredMoonAngles();
@@ -215,7 +212,7 @@ public class DaylightCycleManager {
 		if (currentMoonPhase.isLocked)
 			return currentMoonPhase.illumination;
 		// Real-Time keeps the mirrored moon continuous through daylight-saving changes.
-		if (!configMoonBehavior.mirrorsSun || currentCycle.usesCurrentInstantForMoon || currentCycle.isFixed)
+		if (!configMoonBehavior.mirrorsSun || currentCycle.usesCurrentInstantForMoon || currentCycle.fixedSunAngles != null)
 			return getMoonIllumination(getMoonPhaseDate());
 
 		// Default shares its phase; other modes advance it while the moon is unlit.
@@ -270,7 +267,7 @@ public class DaylightCycleManager {
 	 * Approximate the Moon's visible east/west and north/south rocking over a month.
 	 */
 	private float[] computeMoonLibration() {
-		if (moonIsStatic || configMoonBehavior.mirrorsSun)
+		if (state.fixedMoonAngles != null || configMoonBehavior.mirrorsSun)
 			return vec(0, 0);
 
 		double days = getMoonDate().toEpochMilli() / (double) DAY_MS;
@@ -438,8 +435,7 @@ public class DaylightCycleManager {
 		state.moonPhaseReversed = currentMoonPhase.reversesTerminator;
 		state.moonLibration = computeMoonLibration();
 		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
-		Instant celestialInstant = currentCycle.isFixed ? getDefaultInstant() : currentInstant;
-		state.celestialRotation = (celestialInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
+		state.celestialRotation = (currentInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
 		state.hidesMoon = configMoonBehavior.isDisabled;
 		state.auroraStrength = computeAuroraStrength();
 	}
@@ -451,10 +447,10 @@ public class DaylightCycleManager {
 		currentMoonPhase = forcedMoonPhase != null ? forcedMoonPhase : configMoonPhase;
 		float[] sunAngles = environmentManager.getForcedFixedSunAngles();
 		float[] moonAngles = environmentManager.getForcedFixedMoonAngles();
-		state.fixedSunAnglesOverride = sunAngles;
-		state.fixedMoonAngles = moonAngles != null ? moonAngles : DEFAULT_STATIC_MOON_ANGLES;
-		hasFixedSunOverride = currentCycle.isFixed && state.fixedSunAnglesOverride != null;
-		moonIsStatic = configMoonBehavior.isStatic || moonAngles != null;
+		state.fixedSunAnglesOverride = currentCycle.fixedSunAngles != null ? sunAngles : null;
+		if (moonAngles == null && configMoonBehavior.isStatic)
+			moonAngles = DEFAULT_STATIC_MOON_ANGLES;
+		state.fixedMoonAngles = moonAngles;
 		cycleActive = environmentManager.isOverworld() && currentCycle != DaylightCycle.OFF;
 	}
 
@@ -475,10 +471,8 @@ public class DaylightCycleManager {
 	}
 
 	private Instant resolveCurrentInstant() {
-		if (currentCycle.isFixed) {
-			long baseEpochMs = currentCycle.usesSolsticeEpoch ? SOLSTICE_EPOCH_MS : EQUINOX_EPOCH_MS;
-			return Instant.ofEpochMilli(baseEpochMs).plusMillis((long) (currentCycle.fixedHour * HOUR_MS));
-		}
+		if (currentCycle.fixedSunAngles != null)
+			return getDefaultInstant();
 
 		switch (currentCycle) {
 			case OFF:
@@ -516,9 +510,7 @@ public class DaylightCycleManager {
 	private Instant getMoonDate() {
 		if (configMoonBehavior.usesCustomCycleDuration)
 			return getCustomMoonDate();
-		if (currentCycle.isFixed)
-			return getDefaultInstant();
-		if (currentCycle.usesCurrentInstantForMoon)
+		if (currentCycle.fixedSunAngles != null || currentCycle.usesCurrentInstantForMoon)
 			return currentInstant;
 
 		return getCustomMoonDate();
