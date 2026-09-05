@@ -28,7 +28,6 @@ import rs117.hd.scene.daylight_cycle.SkyConfiguration;
 import rs117.hd.scene.daylight_cycle.SkyState;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.lights.Light;
-import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.utils.AstronomyUtils;
 import rs117.hd.utils.Camera;
 import rs117.hd.utils.FileWatcher;
@@ -574,7 +573,7 @@ public class SkyManager {
 			nightFactor = smoothstep(5, -18, scheduleSunAltitude);
 	}
 
-	public void applyLightSchedule(Light light) {
+	public void prepareLightSchedule(Light light) {
 		light.daylightCycleActivation = 1;
 		if (light.def.schedule == null)
 			return;
@@ -584,16 +583,12 @@ public class SkyManager {
 			light.visible = false;
 	}
 
-	public float getLightCullingRadius(Light light) {
-		return light.def.radius * getNightRadiusScale(light.def, light.daylightCycleActivation);
-	}
-
-	public void applyDaylightCycleLighting(Light light) {
+	public void applyLightSchedule(Light light) {
 		if (!cycleActive && light.def.schedule == null)
 			return;
 
-		light.strength *= getNightStrengthScale(light.def, light.daylightCycleActivation);
-		light.radius *= getNightRadiusScale(light.def, light.daylightCycleActivation);
+		light.strength *= getNightStrengthScale(light);
+		light.radius *= getNightRadiusScale(light);
 	}
 
 	private float getScheduleActivation(Light light) {
@@ -620,19 +615,19 @@ public class SkyManager {
 		return (hash & 0x7FFFFFFF) / 2147483647f;
 	}
 
-	private float getNightStrengthScale(LightDefinition def, float scheduleActivation) {
-		float nightScale = cycleActive ? mix(1, def.nightMultiplier, nightFactor) : 1;
-		return nightScale * scheduleActivation;
+	public float getNightStrengthScale(Light light) {
+		float nightScale = cycleActive ? mix(1, light.def.nightMultiplier, nightFactor) : 1;
+		return nightScale * light.daylightCycleActivation;
 	}
 
-	private float getNightRadiusScale(LightDefinition def, float scheduleActivation) {
-		float multiplier = def.nightMultiplier;
+	public float getNightRadiusScale(Light light) {
+		float multiplier = light.def.nightMultiplier;
 		if (!cycleActive)
-			return scheduleActivation;
+			return light.daylightCycleActivation;
 		if (multiplier <= 0)
-			return def.schedule != null ? 0 : mix(1, 0, nightFactor);
+			return light.def.schedule != null ? 0 : mix(1, 0, nightFactor);
 
 		// Unscheduled lights retain their authored culling radius unless boosted at night.
-		return scheduleActivation * mix(1, multiplier, nightFactor * NIGHT_RADIUS_BOOST_FRACTION);
+		return light.daylightCycleActivation * mix(1, multiplier, nightFactor * NIGHT_RADIUS_BOOST_FRACTION);
 	}
 }

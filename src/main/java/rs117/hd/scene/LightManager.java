@@ -459,8 +459,8 @@ public class LightManager {
 				float distZ = plugin.cameraFocalPoint[1] - light.pos[2];
 				light.distanceSquared = distX * distX + distZ * distZ;
 
-				skyManager.applyLightSchedule(light);
-				float maxRadius = skyManager.getLightCullingRadius(light);
+				skyManager.prepareLightSchedule(light);
+				float maxRadius = light.def.radius * skyManager.getNightRadiusScale(light);
 				switch (light.def.type) {
 					case FLICKER:
 						maxRadius *= 1.5f;
@@ -546,6 +546,7 @@ public class LightManager {
 				light.radius = light.def.radius;
 			}
 
+			skyManager.applyLightSchedule(light);
 			skyRenderer.applyOutdoorLighting(light);
 
 			// Spawn & despawn fade-in and fade-out
@@ -553,8 +554,6 @@ public class LightManager {
 				light.strength *= saturate((light.elapsedTime - light.spawnDelay) / light.fadeInDuration);
 			if (light.fadeOutDuration > 0 && light.lifetime != -1)
 				light.strength *= saturate((light.lifetime - light.elapsedTime) / light.fadeOutDuration);
-
-			skyManager.applyDaylightCycleLighting(light);
 
 			light.applyTemporaryVisibilityFade();
 		}
