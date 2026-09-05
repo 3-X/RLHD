@@ -388,7 +388,8 @@ public class SkyManager {
 	}
 
 	/**
-	 * Map cycle position to the project's dawn- and sunset-weighted hour of day.
+	 * Map cycle position to the project's dawn- and sunset-weighted hours since midnight.
+	 * The final segment extends past midnight so the result remains continuous at the cycle wrap.
 	 */
 	private double cyclePositionToHour(double cyclePosition) {
 		// 0.0-0.15  dawn               -> 5am-7am
@@ -396,7 +397,7 @@ public class SkyManager {
 		// 0.35-0.55 afternoon          -> 12pm-5pm
 		// 0.55-0.70 sunset             -> 5pm-7pm
 		// 0.70-0.85 early night        -> 7pm-12am
-		// 0.85-1.0  late night         -> 12am-5am
+		// 0.85-1.0  late night         -> 12am-5am on the following day
 		if (cyclePosition < .15) {
 			return 5 + cyclePosition / .15 * 2;
 		} else if (cyclePosition < .35) {
@@ -408,7 +409,7 @@ public class SkyManager {
 		} else if (cyclePosition < .85) {
 			return 19 + (cyclePosition - .7) / .15 * 5;
 		} else {
-			return (cyclePosition - .85) / .15 * 5;
+			return 24 + (cyclePosition - .85) / .15 * 5;
 		}
 	}
 
