@@ -17,6 +17,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.callback.ClientThread;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DaylightCycle;
@@ -30,7 +31,9 @@ import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.lights.LightDefinition;
 import rs117.hd.utils.AstronomyUtils;
 import rs117.hd.utils.Camera;
+import rs117.hd.utils.FileWatcher;
 import rs117.hd.utils.HDUtils;
+import rs117.hd.utils.Props;
 import rs117.hd.utils.ResourcePath;
 
 import static rs117.hd.HdPlugin.SEED;
@@ -44,8 +47,12 @@ import static rs117.hd.utils.ResourcePath.path;
 @Slf4j
 @Singleton
 public class SkyManager {
-	private static final ResourcePath SKY_PRESETS_PATH = path(SkyConfiguration.class, "sky_presets.json");
+	private static final ResourcePath SKY_PRESETS_PATH = Props
+		.getFile("rlhd.sky-presets-path", () -> path(SkyConfiguration.class, "sky_presets.json"));
 	private static volatile Map<String, JsonObject> presetJson = Map.of();
+
+	@Inject
+	private ClientThread clientThread;
 
 	@Inject
 	private HdPlugin plugin;
@@ -83,6 +90,8 @@ public class SkyManager {
 	private static final float LATITUDE_LIBRATION_DEG = 6.7f;
 	// Suppress sub-pixel shadow-camera movement; faster cycles use a smaller threshold.
 	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = .25f * DEG_TO_RAD;
+
+	private FileWatcher.UnregisterCallback fileWatcher;
 
 	private long lastUpdateTime = 0;
 	// Start Custom at midday.
@@ -141,14 +150,21 @@ public class SkyManager {
 	}
 
 	public void startUp() {
-		try {
-			loadPresets();
-		} catch (IOException ex) {
-			log.error("Failed to load sky presets:", ex);
-		}
+		fileWatcher = SKY_PRESETS_PATH.watch((path, first) -> {
+			try {
+				loadPresets(path);
+				if (!first)
+					clientThread.invoke(environmentManager::reload);
+			} catch (IOException ex) {
+				log.error("Failed to load sky presets:", ex);
+			}
+		});
 	}
 
 	public void shutDown() {
+		if (fileWatcher != null)
+			fileWatcher.unregister();
+		fileWatcher = null;
 		configurations = Map.of();
 		presetJson = Map.of();
 		gielinorSky = null;
@@ -161,11 +177,11 @@ public class SkyManager {
 		return configCycle != DaylightCycle.OFF;
 	}
 
-	private void loadPresets() throws IOException {
+	private void loadPresets(ResourcePath path) throws IOException {
 		var gson = plugin.getGson();
-		JsonArray rawPresets = SKY_PRESETS_PATH.loadJson(gson, JsonArray.class);
+		JsonArray rawPresets = path.loadJson(gson, JsonArray.class);
 		if (rawPresets == null)
-			throw new IOException("Empty or invalid: " + SKY_PRESETS_PATH);
+			throw new IOException("Empty or invalid: " + path);
 
 		var rawPresetMap = new HashMap<String, JsonObject>();
 		for (int i = 0; i < rawPresets.size(); i++) {
