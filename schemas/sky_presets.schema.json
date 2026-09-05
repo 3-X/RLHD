@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sky_presets.schema.json",
+  "title": "Sky Presets",
+  "$defs": {
+    "color": {
+      "type": [ "string", "array" ],
+      "description": "sRGB color, specified as a hex code or an array in the range 0-255.",
+      "pattern": "^#[A-Fa-f0-9]{6}$",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    }
+  },
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [ "name" ],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Unique preset name used by environments and other presets."
+      },
+      "parent": {
+        "type": "string",
+        "description": "Optional preset to inherit before applying this preset's values."
+      },
+      "sunAngles": {
+        "$ref": "environments.schema.json#/$defs/celestialAngles"
+      },
+      "moonAngles": {
+        "$ref": "environments.schema.json#/$defs/celestialAngles"
+      },
+      "hideMoon": {
+        "type": "boolean"
+      },
+      "permanentNight": {
+        "type": "boolean"
+      },
+      "gradient": {
+        "$ref": "environments.schema.json#/$defs/skyGradient"
+      },
+      "lighting": {
+        "$ref": "environments.schema.json#/$defs/skyLighting"
+      },
+      "forceMoonPhase": {
+        "type": "string",
+        "enum": [
+          "REALISTIC",
+          "NEW_MOON",
+          "WAXING_CRESCENT",
+          "FIRST_QUARTER",
+          "WAXING_GIBBOUS",
+          "FULL_MOON",
+          "WANING_GIBBOUS",
+          "LAST_QUARTER",
+          "WANING_CRESCENT"
+        ]
+      },
+      "forceMoonActive": {
+        "type": "boolean"
+      },
+      "moonDirectionalStrength": {
+        "type": "number",
+        "minimum": 0
+      },
+      "moonShadowStrength": {
+        "type": "number",
+        "minimum": 0
+      },
+      "minMoonIllumination": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "moonDiskColor": {
+        "$ref": "#/$defs/color"
+      },
+      "moonLightColor": {
+        "$ref": "#/$defs/color"
+      },
+      "moonDiskStrength": {
+        "type": "number",
+        "minimum": 0
+      },
+      "nightSkyColor": {
+        "$ref": "#/$defs/color"
+      },
+      "nightSkyColorStrength": {
+        "type": "number",
+        "minimum": 0
+      },
+      "starVisibility": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "moonVisibility": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "auroraVisibility": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "nebulaVisibility": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "moonSizeMult": {
+        "type": "number",
+        "minimum": 0
+      },
+      "starHorizonHeight": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 2
+      },
+      "sunStrength": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "sunriseSunsetStrength": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "skyColorTakeoverAngle": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 90
+      },
+      "sunlightStrength": {
+        "type": "number",
+        "minimum": 0
+      },
+      "minBrightnessBoost": {
+        "type": "number",
+        "minimum": 0
+      }
+    }
+  }
+}

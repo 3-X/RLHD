@@ -1,6 +1,8 @@
 [
   {
     "name": "GIELINOR",
+    "moonDiskColor": "#E1E5FF",
+    "moonDiskStrength": 3,
     "gradient": {
       "zenith": [
         {
@@ -236,32 +238,49 @@
   },
   {
     "name": "DAWN",
-    "preset": "GIELINOR",
+    "parent": "GIELINOR",
     "sunAngles": [ -2.5, 90 ]
   },
   {
     "name": "SUNRISE",
-    "preset": "GIELINOR",
+    "parent": "GIELINOR",
     "sunAngles": [ 7.8, 90.2 ]
   },
   {
     "name": "DAY",
-    "preset": "GIELINOR",
+    "parent": "GIELINOR",
     "sunAngles": [ 52, 235 ]
   },
   {
     "name": "SUNSET",
-    "preset": "GIELINOR",
+    "parent": "GIELINOR",
     "sunAngles": [ 0, 272 ]
   },
   {
     "name": "DUSK",
-    "preset": "GIELINOR",
+    "parent": "GIELINOR",
     "sunAngles": [ -2.5, 270 ]
   },
   {
     "name": "NIGHT",
-    "preset": "GIELINOR",
+    "parent": "GIELINOR",
     "sunAngles": [ -90, 0 ]
+  },
+  {
+    "name": "BLOOD_MOON",
+    "parent": "NIGHT",
+    "moonAngles": [
+      22.6,
+      89.75
+    ],
+    "forceMoonPhase": "FULL_MOON",
+    "moonDiskColor": "#ED3D3D",
+    "moonDiskStrength": 1.75,
+    "moonLightColor": "#ED8B8B",
+    "nightSkyColor": "#FF0000",
+    "nightSkyColorStrength": 2.5,
+    "starVisibility": 0.8,
+    "auroraVisibility": 0,
+    "moonSizeMult": 3.05
   }
 ]

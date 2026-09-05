@@ -384,21 +384,7 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "sky": {
-      "preset": "NIGHT",
-      "moonAngles": [
-        22.6,
-        89.75
-      ],
-      "forceMoonPhase": "FULL_MOON",
-      "moonColor": "#ED3D3D",
-      "moonLightColor": "#ED8B8B",
-      "nightSkyColor": "#FF0000",
-      "nightSkyColorStrength": 2.5,
-      "starVisibility": 0.8,
-      "auroraVisibility": 0,
-      "moonSizeMult": 3.05
-    }
+    "sky": "BLOOD_MOON"
   },
   {
     "area": "VER_SINHAZA_TRANSITION",
@@ -416,7 +402,7 @@
     "windSpeed": 7,
     "windStrength": 26,
     "sky": {
-      "moonColor": "#FF0000",
+      "moonDiskColor": "#FF0000",
       "moonLightColor": "#FF6D6D",
       "starVisibility": 0.3,
       "sunStrength": 0.020,
@@ -438,21 +424,7 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "sky": {
-      "preset": "NIGHT",
-      "moonAngles": [
-        22.6,
-        89.75
-      ],
-      "forceMoonPhase": "FULL_MOON",
-      "moonColor": "#ED3D3D",
-      "moonLightColor": "#ED8B8B",
-      "nightSkyColor": "#FF0000",
-      "nightSkyColorStrength": 2.5,
-      "starVisibility": 0.8,
-      "auroraVisibility": 0,
-      "moonSizeMult": 3.05
-    }
+    "sky": "BLOOD_MOON"
   },
   {
     "area": "VER_SINHAZA",
@@ -469,7 +441,7 @@
     "windSpeed": 7,
     "windStrength": 26,
     "sky": {
-      "moonColor": "#FF0000",
+      "moonDiskColor": "#FF0000",
       "moonLightColor": "#FF6D6D",
       "starVisibility": 0.3,
       "sunStrength": 0.020,
@@ -599,21 +571,7 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "sky": {
-      "preset": "NIGHT",
-      "moonAngles": [
-        22.6,
-        89.75
-      ],
-      "forceMoonPhase": "FULL_MOON",
-      "moonColor": "#ED3D3D",
-      "moonLightColor": "#ED8B8B",
-      "nightSkyColor": "#FF0000",
-      "nightSkyColorStrength": 2.5,
-      "starVisibility": 0.8,
-      "auroraVisibility": 0,
-      "moonSizeMult": 3.05
-    }
+    "sky": "BLOOD_MOON"
   },
   {
     "area": "BARROWS",
@@ -651,21 +609,7 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "sky": {
-      "preset": "NIGHT",
-      "moonAngles": [
-        22.6,
-        89.75
-      ],
-      "forceMoonPhase": "FULL_MOON",
-      "moonColor": "#ED3D3D",
-      "moonLightColor": "#ED8B8B",
-      "nightSkyColor": "#FF0000",
-      "nightSkyColorStrength": 2.5,
-      "starVisibility": 0.8,
-      "auroraVisibility": 0,
-      "moonSizeMult": 3.05
-    }
+    "sky": "BLOOD_MOON"
   },
   {
     "area": "DARKMEYER",
@@ -680,7 +624,7 @@
     "windSpeed": 10,
     "windStrength": 30,
     "sky": {
-      "moonColor": "#FF0000",
+      "moonDiskColor": "#FF0000",
       "starVisibility": 0.3,
       "auroraVisibility": 0,
       "sunStrength": 0.020,
@@ -749,19 +693,9 @@
     "groundFogEnd": -350,
     "groundFogOpacity": 0.425,
     "sky": {
-      "preset": "NIGHT",
-      "moonAngles": [
-        22.6,
-        89.75
-      ],
-      "forceMoonPhase": "FULL_MOON",
-      "moonColor": "#ED3D3D",
-      "moonLightColor": "#ED8B8B",
-      "nightSkyColor": "#FF0000",
+      "preset": "BLOOD_MOON",
       "nightSkyColorStrength": 4.5,
       "starVisibility": 0.9,
-      "auroraVisibility": 0,
-      "moonSizeMult": 3.05,
       "minBrightnessBoost": 1.25
     }
   },
@@ -837,21 +771,7 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "sky": {
-      "preset": "NIGHT",
-      "moonAngles": [
-        22.6,
-        89.75
-      ],
-      "forceMoonPhase": "FULL_MOON",
-      "moonColor": "#ED3D3D",
-      "moonLightColor": "#ED8B8B",
-      "nightSkyColor": "#FF0000",
-      "nightSkyColorStrength": 2.5,
-      "starVisibility": 0.8,
-      "auroraVisibility": 0,
-      "moonSizeMult": 3.05
-    }
+    "sky": "BLOOD_MOON"
   },
   {
     "description": "Default Morytania Environment",
@@ -2749,17 +2669,12 @@
     "windStrength": 50,
     "fogColor": "#330D0D",
     "sky": {
-      "preset": "NIGHT",
+      "preset": "BLOOD_MOON",
       "moonAngles": [
         14.05,
         89.85
       ],
-      "forceMoonPhase": "FULL_MOON",
-      "moonColor": "#ED3D3D",
-      "moonLightColor": "#ED8B8B",
-      "nightSkyColor": "#FF0000",
       "nightSkyColorStrength": 10,
-      "auroraVisibility": 0,
       "moonSizeMult": 2.8,
       "sunStrength": 0.2,
       "sunlightStrength": 2,

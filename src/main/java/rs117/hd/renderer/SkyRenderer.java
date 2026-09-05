@@ -575,7 +575,11 @@ public class SkyRenderer {
 		ubo.skyCelestialPole.set(state.celestialPole[0], -state.celestialPole[1], state.celestialPole[2]);
 		ubo.skyCelestialRotation.set(state.celestialRotation);
 		ubo.skyMoonDir.set(state.moonDirection);
-		ubo.skyMoonColor.set(configuration.moonColor);
+		ubo.skyMoonDiskColor.set(
+			configuration.moonDiskColor[0] * configuration.moonDiskStrength,
+			configuration.moonDiskColor[1] * configuration.moonDiskStrength,
+			configuration.moonDiskColor[2] * configuration.moonDiskStrength
+		);
 		ubo.skyMoonIllumination.set(moonIllumination);
 		ubo.skyMoonPhaseLightDirection.set(state.moonPhaseLightDirection);
 		ubo.skyMoonLibration.set(state.moonLibration);

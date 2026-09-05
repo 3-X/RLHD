@@ -420,7 +420,8 @@
               "DAY",
               "SUNSET",
               "DUSK",
-              "NIGHT"
+              "NIGHT",
+              "BLOOD_MOON"
             ]
           },
           {
@@ -436,7 +437,8 @@
                   "DAY",
                   "SUNSET",
                   "DUSK",
-                  "NIGHT"
+                  "NIGHT",
+                  "BLOOD_MOON"
                 ]
               },
               "sunAngles": {
@@ -494,12 +496,12 @@
                 "minimum": 0,
                 "maximum": 1
               },
-              "moonColor": {
+              "moonDiskColor": {
                 "type": [
                   "string",
                   "array"
                 ],
-                "description": "Moon color in sRGB, specified as a hex color code or an array in the range 0-255. Controls the disk, glow and, unless `moonLightColor` is set, moonlight. Defaults to cool silver (~8000K).",
+                "description": "Moon-disk color in sRGB, specified as a hex color code or an array in the range 0-255. Controls the disk and glow. Defaults to cool silver (~8000K).",
                 "pattern": "^#[A-Fa-f0-9]{6}$",
                 "minItems": 3,
                 "maxItems": 3,
@@ -512,7 +514,7 @@
                   "string",
                   "array"
                 ],
-                "description": "Moonlight color in sRGB, specified as a hex color code or an array in the range 0-255. Defaults to `moonColor`.",
+                "description": "Moonlight color in sRGB, specified as a hex color code or an array in the range 0-255. Defaults to `moonDiskColor`.",
                 "pattern": "^#[A-Fa-f0-9]{6}$",
                 "minItems": 3,
                 "maxItems": 3,
@@ -520,12 +522,17 @@
                   "type": "number"
                 }
               },
+              "moonDiskStrength": {
+                "type": "number",
+                "description": "Lit moon-disk brightness multiplier. Defaults to 1.",
+                "minimum": 0
+              },
               "nightSkyColor": {
                 "type": [
                   "string",
                   "array"
                 ],
-                "description": "Night-sky tint color in sRGB, specified as a hex color code or an array in the range 0-255. Defaults to `moonColor`.",
+                "description": "Night-sky tint color in sRGB, specified as a hex color code or an array in the range 0-255. Defaults to `moonDiskColor`.",
                 "pattern": "^#[A-Fa-f0-9]{6}$",
                 "minItems": 3,
                 "maxItems": 3,

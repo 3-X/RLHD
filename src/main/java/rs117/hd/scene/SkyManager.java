@@ -87,6 +87,7 @@ public class SkyManager {
 	private static final double DRACONIC_MONTH_DAYS = 27.21222;
 	private static final float LONGITUDE_LIBRATION_DEG = 7.9f;
 	private static final float LATITUDE_LIBRATION_DEG = 6.7f;
+	private static final float NIGHT_MOON_PHASE_TILT = -.35f;
 	// Suppress sub-pixel shadow-camera movement; faster cycles use a smaller threshold.
 	private static final float DIRECTIONAL_ANGLE_UPDATE_THRESHOLD = .25f * DEG_TO_RAD;
 
@@ -150,7 +151,7 @@ public class SkyManager {
 			try {
 				loadPresets(path);
 				if (!first)
-					clientThread.invoke(environmentManager::reload);
+					clientThread.invoke(environmentManager::reloadImmediately);
 			} catch (IOException ex) {
 				log.error("Failed to load sky presets:", ex);
 			}
@@ -239,17 +240,17 @@ public class SkyManager {
 			return null;
 		}
 		result = new JsonObject();
-		JsonElement parent = preset.get("preset");
+		JsonElement parent = preset.get("parent");
 		if (parent != null && parent.isJsonPrimitive() && parent.getAsJsonPrimitive().isString()) {
 			JsonObject base = resolveSkyPreset(parent.getAsString(), raw, resolved, resolving);
 			if (base != null)
 				SkyConfiguration.merge(result, base);
 		} else if (parent != null) {
-			log.error("Sky preset '{}' has a non-string preset", name);
+			log.error("Sky preset '{}' has a non-string parent", name);
 		}
 		SkyConfiguration.merge(result, preset);
 		result.remove("name");
-		result.remove("preset");
+		result.remove("parent");
 		resolving.remove(name);
 		resolved.put(name, result);
 		return result;
@@ -446,7 +447,9 @@ public class SkyManager {
 		state.moonAltitudeDegrees = state.moonAngles[0] * RAD_TO_DEG;
 		state.sunDirection = anglesToSkyDirection(state.sunAngles[0], state.sunAngles[1]);
 		state.moonDirection = anglesToSkyDirection(state.moonAngles[0], state.moonAngles[1]);
-		if (state.permanentNight) {
+		if (configCycle == DaylightCycle.NIGHT) {
+			state.moonPhaseLightDirection = getNightMoonPhaseLightDirection(moonInstant);
+		} else if (state.permanentNight) {
 			float[] sunAngles = vec(AstronomyUtils.getSunAngles(moonInstant.toEpochMilli(), currentLatLong));
 			state.moonPhaseLightDirection = anglesToSkyDirection(sunAngles[0], sunAngles[1]);
 		} else {
@@ -466,6 +469,21 @@ public class SkyManager {
 		state.celestialPole = anglesToSkyDirection((float) currentLatLong[0] * DEG_TO_RAD, 0);
 		state.celestialRotation = (currentInstant.toEpochMilli() % DAY_MS) / (float) DAY_MS * TWO_PI;
 		resolveAuroraStrength();
+	}
+
+	/**
+	 * Keep Night's realistic moon phase on a fixed diagonal orbit around the moon.
+	 */
+	private float[] getNightMoonPhaseLightDirection(Instant moonInstant) {
+		float[] moonUp = abs(state.moonDirection[1]) < .999f ? vec(0, 1, 0) : vec(0, 0, 1);
+		float[] moonRight = normalize(cross(moonUp, state.moonDirection));
+		moonUp = normalize(cross(state.moonDirection, moonRight));
+		float[] orbitTangent = normalize(add(moonRight, multiply(moonUp, NIGHT_MOON_PHASE_TILT)));
+		float phaseCos = state.moonIllumination * 2 - 1;
+		float phaseSin = sqrt(max(0, 1 - phaseCos * phaseCos));
+		if (sin((float) AstronomyUtils.getMoonIllumination(moonInstant.toEpochMilli())[1] * TWO_PI) < 0)
+			phaseSin = -phaseSin;
+		return normalize(add(multiply(state.moonDirection, phaseCos), multiply(orbitTangent, phaseSin)));
 	}
 
 	private void resolveSkyConfiguration() {

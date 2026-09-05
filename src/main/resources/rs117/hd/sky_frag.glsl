@@ -110,9 +110,8 @@ void main() {
         // Daylight lowers lunar contrast rather than making the disk transparent.
         // Scale against the local sky brightness so the moon remains subtly visible
         // in daytime, but naturally becomes prominent as the sky darkens.
-        float skyLuminance = dot(max(skyColorPreStars, vec3(0.0)), vec3(0.2126, 0.7152, 0.0722));
-        float moonLuminance = dot(max(skyMoonColor, vec3(0.0)), vec3(0.2126, 0.7152, 0.0722));
-        float moonDayVisibility = clamp(moonLuminance / max(moonLuminance + skyLuminance * 6.0, 1e-4), 0.10, 1.0);
+        float skyLuminance = linearSrgbLuma(skyColorPreStars);
+        float moonDayVisibility = 1.0 / (1.0 + skyLuminance * 12.0);
 
         // Fade the moon near the sun.
         float sunMoonDot = dot(moonDir, sky.sunDir);
@@ -126,7 +125,6 @@ void main() {
             float edgeWidth = moonDot > 0.01 ? fwidth(moonDot) * 1.5 : 0;
 
             float moonDisk = smoothstep(moonAngularRadius - edgeWidth, moonAngularRadius, moonDot);
-
             if (moonDisk > 0.0) {
                 // Moon-local coordinates for the phase shape.
                 float angDist = acos(clamp(moonDot, 0.0, 1.0));
@@ -157,7 +155,12 @@ void main() {
                 // Libration moves surface detail without rotating the sun-facing terminator.
                 vec2 moonSurface = moonLocal + skyMoonLibration * (2.0 / PI);
                 float librationRoll = (skyMoonLibration.x + skyMoonLibration.y) * 0.25;
-                mat2 librationRotation = mat2(cos(librationRoll), -sin(librationRoll), sin(librationRoll), cos(librationRoll));
+                float librationRollCos = cos(librationRoll);
+                float librationRollSin = sin(librationRoll);
+                mat2 librationRotation = mat2(
+                    librationRollCos, -librationRollSin,
+                    librationRollSin, librationRollCos
+                );
                 vec2 moonDetail = librationRotation * moonSurface;
                 vec2 moonUV = moonDetail * 4.0 + vec2(50.0, 50.0);
 
@@ -171,13 +174,13 @@ void main() {
                 float fineTerrain = moonFbm(moonUV * 5.0);
 
                 // Base brightness from blended terrain layers
-                float surfaceBrightness = largeTerrain * 0.4 + medTerrain * 0.4 + fineTerrain * 0.2;
-                surfaceBrightness = mix(0.6, 1, surfaceBrightness);
+                float surfaceNoise = largeTerrain * 0.4 + medTerrain * 0.4 + fineTerrain * 0.2;
+                surfaceNoise = mix(0.6, 1, surfaceNoise);
 
                 // Dark maria (seas) - a few subtle darker patches
                 float seaNoise = moonFbm(moonUV * 0.8 + vec2(30.0, 70.0));
                 float seaMask = smoothstep(0.50, 0.40, seaNoise);
-                surfaceBrightness *= mix(1.0, 0.88, seaMask);
+                surfaceNoise *= mix(1.0, 0.88, seaMask);
 
                 vec2 impactPositions[3] = vec2[3](
                     vec2(0.6, -0.25),
@@ -186,10 +189,10 @@ void main() {
                 );
                 float impactMaxDistance[3] = float[3](1.8, 2.0, 2.8);
                 float impactRadius[3] = float[3](0.10, 0.1, 0.11);
-                float impactLightening = 0.0;
+                float impactHighlight = 0.0;
                 for (int impact = 0; impact < 3; impact++) {
                     vec2 impactDetail = impactPositions[impact];
-                    vec2 impactLocal = transpose(librationRotation) * impactDetail - skyMoonLibration * (2.0 / PI);
+                    vec2 impactLocal = transpose(librationRotation) * impactDetail - skyMoonLibration * 2.0 / PI;
                     float impactLocalZ = sqrt(max(0.0, 1.0 - dot(impactLocal, impactLocal)));
                     vec3 impactNormal = vec3(impactLocal, impactLocalZ);
                     float distanceFromImpact = acos(clamp(dot(moonSurfaceNormal, impactNormal), -1.0, 1.0)) * 4.0;
@@ -245,16 +248,14 @@ void main() {
                         float rayIntensity = 0.5 + moonHash(vec2(float(ray) * 11.0, float(impact) * 6.0)) * 0.5;
                         impactRays = max(impactRays, rayLine * rayIntensity);
                     }
-                    float impactBrightness = (impactRays * distanceFade * 0.09 + halo + webbing) *
-                        ejectaStartFade * ejectaFade;
-                    float impactDarkness = 1.0 - smoothstep(0.7, 1, surfaceBrightness);
-                    impactLightening = max(impactLightening, impactBrightness * impactDarkness * 8.0);
+                    impactHighlight = max(impactHighlight, saturate(
+                        (impactRays * distanceFade * 0.07 + halo + webbing) * ejectaStartFade * ejectaFade * 8.0
+                    ));
                 }
 
                 float lambert = dot(moonSurfaceNormal, moonLightDir);
-
                 float terminatorJitter =
-                    (surfaceBrightness - 0.85) * 0.01 +
+                    (surfaceNoise - 0.85) * 0.01 +
                     (fineTerrain - 0.5) * 0.03;
                 // Surface relief only perturbs incidence near the terminator.
                 float terminatorRoughness =
@@ -265,49 +266,39 @@ void main() {
                 float viewCos = moonLocalZ;
                 // Lunar regolith scatters closer to Lommel-Seeliger than ideal Lambertian diffuse.
                 float lommelSeeliger = 2.0 * lightCos / max(lightCos + viewCos, 1e-4);
-                float lunarLambertWeight = mix(0.75, 0.25, max(phaseCos, 0.0));
+                float lunarLambertWeight = mix(0.6, 0.15, max(phaseCos, 0.0));
                 float lunarDiffuse = mix(lommelSeeliger, lightCos, lunarLambertWeight);
                 float terminatorFade = smoothstep(-0.14, 0.08, roughLambert);
-                float isLit = skyMoonIllumination > 0.001
-                    ? clamp(lunarDiffuse, 0.0, 1.0) * terminatorFade
-                    : 0.0;
+                float isLit = skyMoonIllumination < 0.001 ? 0.0 : clamp(lunarDiffuse, 0.0, 1.0) * terminatorFade;
                 float terminatorProximity = 1.0 - smoothstep(0.02, 0.2, abs(roughLambert));
                 float crescentEdgeFade = smoothstep(0.0, 0.25, moonLocalZ);
                 isLit *= mix(1.0, crescentEdgeFade, terminatorProximity);
 
-                // Darker surface detail is slightly warmer than brighter detail.
-                float colorBlend = smoothstep(0.7, 0.95, surfaceBrightness);
-                vec3 darkTone = vec3(0.8);
-                vec3 brightTone = vec3(1.0);
-                vec3 surfaceColor = mix(darkTone, brightTone, colorBlend);
-                surfaceColor = mix(surfaceColor, brightTone, min(impactLightening, 1.0));
+                float surfaceDetail = mix(0.7, 1.0, smoothstep(0.7, 0.95, surfaceNoise));
+                surfaceDetail = mix(surfaceDetail, 1.0, impactHighlight) * surfaceNoise;
+                vec3 moonBrightSide = skyMoonDiskColor * surfaceDetail;
 
-                float moonBrightness = max(max(skyMoonColor.r, skyMoonColor.g), skyMoonColor.b);
-                vec3 moonLightColor = mix(skyMoonColor, moonBrightness * vec3(1.0, 0.94, 0.84), 0.6);
-
-                vec3 litColor = moonLightColor * surfaceBrightness * surfaceColor;
-                litColor *= vec3(0.7529423, 0.79910284, 1.0); // blue ish tint
-                litColor *= 2.574809; // intensity
                 // The opaque disk occludes stars and nebulas while its dark side matches the night sky.
-                vec3 moonStarFreeSky = skyColorPreStars;
+                vec3 moonDarkSide = skyColorPreStars;
                 if (nightFactor > 0.001) {
                     float horizonStarFade = nightSkyHorizonFade(sky.upAmount, horizonShift);
-                    moonStarFreeSky = mix(moonStarFreeSky, STARFIELD_BACKGROUND_COLOR, nightFactor * horizonStarFade);
+                    moonDarkSide = mix(moonDarkSide, STARFIELD_BACKGROUND_COLOR, nightFactor * horizonStarFade);
                 }
 
                 // Keep the disk opaque so stars and the sky gradient cannot show through crescents.
-                vec3 moonFinalColor = mix(moonStarFreeSky, litColor, isLit * moonDayVisibility);
+                vec3 moonColor = mix(moonDarkSide, moonBrightSide, isLit * moonDayVisibility);
+
                 // Fade moon near the horizon to match the star/nebula horizon fade
                 float moonHorizonFade = nightSkyHorizonFade(sky.upAmount, horizonShift);
                 float moonAlpha = moonDisk * moonVisibility * moonHorizonFade;
 
-                skyColor = mix(skyColor, moonFinalColor, moonAlpha);
+                skyColor = mix(skyColor, moonColor, moonAlpha);
             }
 
             // Scale the glow with the disk and reduce it in daylight.
             float glowHorizonFade = nightSkyHorizonFade(sky.upAmount, horizonShift);
             float moonGlow = pow(moonDot, 256.0 / max(moonSizeMult, 0.001)) * 0.05 * skyMoonIllumination * moonDayVisibility * moonVisibility * glowHorizonFade;
-            skyColor += skyMoonColor * moonGlow;
+            skyColor += skyMoonDiskColor * moonGlow;
         }
     }
 

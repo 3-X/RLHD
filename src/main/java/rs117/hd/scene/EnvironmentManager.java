@@ -105,6 +105,7 @@ public class EnvironmentManager {
 
 	private boolean lightningEnabled = false;
 	private boolean forceNextTransition = false;
+	private boolean forceNextTransitionInstant;
 
 	private Environment[] environments = {};
 	private FileWatcher.UnregisterCallback fileWatcher;
@@ -173,13 +174,23 @@ public class EnvironmentManager {
 	public void reset() {
 		state.target = Environment.NONE;
 		forceNextTransition = false;
+		forceNextTransitionInstant = false;
 	}
 
 	public void reload() {
+		reload(false);
+	}
+
+	public void reloadImmediately() {
+		reload(true);
+	}
+
+	private void reload(boolean instant) {
 		var previous = state.target;
 		shutDown();
 		startUp();
 		forceNextTransition = true;
+		forceNextTransitionInstant = instant;
 		state.target = previous;
 	}
 
@@ -281,7 +292,8 @@ public class EnvironmentManager {
 			skipTransition = true;
 		} else if (forceNextTransition) {
 			forceNextTransition = false;
-			skipTransition = false;
+			skipTransition = forceNextTransitionInstant;
+			forceNextTransitionInstant = false;
 		}
 
 		if (state.target.instantTransition || newEnvironment.instantTransition)

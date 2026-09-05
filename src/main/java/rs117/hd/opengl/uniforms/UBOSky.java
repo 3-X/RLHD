@@ -20,7 +20,7 @@ public class UBOSky extends UniformBuffer<GLBuffer> {
 	public Property skyCelestialRotation = addProperty(PropertyType.Float, "skyCelestialRotation");
 
 	public Property skyMoonDir = addProperty(PropertyType.FVec3, "skyMoonDir");
-	public Property skyMoonColor = addProperty(PropertyType.FVec3, "skyMoonColor");
+	public Property skyMoonDiskColor = addProperty(PropertyType.FVec3, "skyMoonDiskColor");
 	public Property skyMoonIllumination = addProperty(PropertyType.Float, "skyMoonIllumination");
 	public Property skyMoonPhaseLightDirection = addProperty(PropertyType.FVec3, "skyMoonPhaseLightDirection");
 	public Property skyMoonLibration = addProperty(PropertyType.FVec2, "skyMoonLibration");

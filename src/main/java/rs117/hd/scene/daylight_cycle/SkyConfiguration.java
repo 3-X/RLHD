@@ -43,9 +43,10 @@ public class SkyConfiguration {
 	public float moonShadowStrength = 1;
 	public float minMoonIllumination;
 	@JsonAdapter(SrgbToLinearAdapter.class)
-	public float[] moonColor;
+	public float[] moonDiskColor;
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] moonLightColor;
+	public float moonDiskStrength = 1;
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] nightSkyColor;
 	public float nightSkyColorStrength = 1;
@@ -64,12 +65,12 @@ public class SkyConfiguration {
 	public SkyLightingProfile lighting;
 
 	public SkyConfiguration normalize() {
-		if (moonColor == null)
-			moonColor = ColorUtils.colorTemperatureToLinearRgb(8000);
+		if (moonDiskColor == null)
+			moonDiskColor = ColorUtils.colorTemperatureToLinearRgb(8000);
 		if (moonLightColor == null)
-			moonLightColor = moonColor;
+			moonLightColor = moonDiskColor;
 		if (nightSkyColor == null)
-			nightSkyColor = moonColor;
+			nightSkyColor = moonDiskColor;
 		if (auroraVisibility == -1)
 			auroraVisibility = starVisibility;
 		return this;
@@ -88,8 +89,9 @@ public class SkyConfiguration {
 	public SkyConfiguration interpolate(SkyConfiguration from, SkyConfiguration to, float t) {
 		moonShadowStrength = from.moonShadowStrength * (1 - t) + to.moonShadowStrength * t;
 		minMoonIllumination = from.minMoonIllumination * (1 - t) + to.minMoonIllumination * t;
-		moonColor = interpolate(moonColor, from.moonColor, to.moonColor, t);
+		moonDiskColor = interpolate(moonDiskColor, from.moonDiskColor, to.moonDiskColor, t);
 		moonLightColor = interpolate(moonLightColor, from.moonLightColor, to.moonLightColor, t);
+		moonDiskStrength = from.moonDiskStrength * (1 - t) + to.moonDiskStrength * t;
 		nightSkyColor = interpolate(nightSkyColor, from.nightSkyColor, to.nightSkyColor, t);
 		nightSkyColorStrength = from.nightSkyColorStrength * (1 - t) + to.nightSkyColorStrength * t;
 		starVisibility = from.starVisibility * (1 - t) + to.starVisibility * t;
@@ -229,9 +231,11 @@ public class SkyConfiguration {
 					}
 					JsonObject resolved = base.deepCopy();
 					merge(resolved, override);
-					if (override.has("moonColor")) {
+					if (override.has("moonDiskColor")) {
 						if (!override.has("moonLightColor"))
 							resolved.remove("moonLightColor");
+						if (!override.has("moonDiskStrength"))
+							resolved.remove("moonDiskStrength");
 						if (!override.has("nightSkyColor"))
 							resolved.remove("nightSkyColor");
 					}
