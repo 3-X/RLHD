@@ -445,10 +445,6 @@
               "moonAngles": {
                 "$ref": "#/$defs/celestialAngles"
               },
-              "hideSun": {
-                "type": "boolean",
-                "description": "Hide the sun disk and glow while retaining the sky gradient."
-              },
               "hideMoon": {
                 "type": "boolean",
                 "description": "Hide the moon disk."

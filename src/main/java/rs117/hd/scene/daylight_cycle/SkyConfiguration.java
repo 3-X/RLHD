@@ -34,7 +34,6 @@ public class SkyConfiguration {
 	@Nullable
 	@JsonAdapter(DegreesToRadians.class)
 	public float[] moonAngles;
-	public boolean hideSun;
 	public boolean hideMoon;
 	public boolean permanentNight;
 	@Nullable

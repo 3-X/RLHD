@@ -112,9 +112,6 @@ public class SkyManager {
 	private MoonPhase currentMoonPhase = MoonPhase.REALISTIC;
 	@Nullable
 	private float[] sunAnglesOverride;
-	@Nullable
-	private float[] skySunAnglesOverride;
-	@Nullable
 	private float[] moonAnglesOverride;
 
 	private Instant currentInstant;
@@ -434,7 +431,6 @@ public class SkyManager {
 		state.sunAngles = sunAnglesOverride != null
 			? sunAnglesOverride
 			: vec(AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong));
-		state.skySunAngles = skySunAnglesOverride != null ? skySunAnglesOverride : state.sunAngles;
 		Instant moonInstant = resolveMoonInstant();
 		if (moonAnglesOverride != null)
 			state.moonAngles = moonAnglesOverride;
@@ -444,13 +440,11 @@ public class SkyManager {
 			state.moonAngles = vec(AstronomyUtils.getMoonPosition(moonInstant.toEpochMilli(), currentLatLong));
 		state.shadowAngles = state.sunAngles[0] < 0 && state.moonAngles[0] > 0 ? state.moonAngles : state.sunAngles;
 		state.sunAltitudeDegrees = state.sunAngles[0] * RAD_TO_DEG;
-		state.skySunAltitudeDegrees = state.skySunAngles[0] * RAD_TO_DEG;
 		state.moonIllumination = currentMoonPhase.isLocked
 			? currentMoonPhase.illumination
 			: (float) AstronomyUtils.getMoonIllumination(moonInstant.toEpochMilli())[0];
 		state.moonAltitudeDegrees = state.moonAngles[0] * RAD_TO_DEG;
 		state.sunDirection = anglesToSkyDirection(state.sunAngles[0], state.sunAngles[1]);
-		state.skySunDirection = anglesToSkyDirection(state.skySunAngles[0], state.skySunAngles[1]);
 		state.moonDirection = anglesToSkyDirection(state.moonAngles[0], state.moonAngles[1]);
 		if (state.permanentNight) {
 			float[] sunAngles = vec(AstronomyUtils.getSunAngles(moonInstant.toEpochMilli(), currentLatLong));
@@ -495,7 +489,6 @@ public class SkyManager {
 			if (cycleSky != null)
 				skySunAngles = cycleSky.sunAngles;
 		}
-		skySunAnglesOverride = isCycleConfigured() ? skySunAngles : null;
 		sunAnglesOverride = isCycleConfigured() && skySunAngles != null && (sky.sunAngles != null || configCycle.usesPresetSunAngles)
 			? skySunAngles
 			: null;
@@ -503,7 +496,6 @@ public class SkyManager {
 		if (moonAngles == null && configMoonBehavior.isStatic)
 			moonAngles = DEFAULT_STATIC_MOON_ANGLES;
 		moonAnglesOverride = moonAngles;
-		state.hidesSun = sky.hideSun || configCycle.hidesSun;
 		state.hidesMoon = sky.hideMoon || configMoonBehavior.isDisabled && !sky.forceMoonActive && sky.forceMoonPhase == null;
 		state.permanentNight = sky.permanentNight;
 		cycleActive = environmentManager.getTargetEnvironment().isOverworld && isCycleConfigured();

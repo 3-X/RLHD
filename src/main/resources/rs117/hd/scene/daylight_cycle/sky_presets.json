@@ -262,6 +262,6 @@
   {
     "name": "NIGHT",
     "preset": "GIELINOR",
-    "sunAngles": [ -88, 210 ]
+    "sunAngles": [ -90, 0 ]
   }
 ]

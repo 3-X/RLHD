@@ -273,15 +273,15 @@ public class SkyRenderer {
 		SkyConfiguration sky = transition < 1 ? currentSky.interpolate(fromSky, toSky, transition) : toSky;
 		SkyLightingProfile fromProfile = fromSky.lighting;
 		SkyLightingProfile toProfile = toSky.lighting;
-		float sunAltDeg = state.skySunAltitudeDegrees;
+		float sunAltDeg = state.sunAltitudeDegrees;
 		float regionalBlend = mix(
 			interpolate(sunAltDeg, fromProfile.regionalBlend)[0],
 			interpolate(sunAltDeg, toProfile.regionalBlend)[0],
 			transition
 		);
 		float[] directionalLight = mix(
-			getDirectionalLight(state.skySunAngles[0], fromProfile),
-			getDirectionalLight(state.skySunAngles[0], toProfile),
+			getDirectionalLight(state.sunAngles[0], fromProfile),
+			getDirectionalLight(state.sunAngles[0], toProfile),
 			transition
 		);
 		float[] ambientLight = mix(
@@ -430,7 +430,7 @@ public class SkyRenderer {
 		float defLuma = linearSrgbLuma(authoredColor);
 		float noonLuma = max(linearSrgbLuma(lighting.noonHorizonLinear), 1e-4f);
 		float[] lightColor = copy(lighting.horizonLinear);
-		float sunAltDeg = state.skySunAltitudeDegrees;
+		float sunAltDeg = state.sunAltitudeDegrees;
 
 		float moonStrengthFloor = 0;
 		if (sunAltDeg < 5) {
@@ -480,12 +480,12 @@ public class SkyRenderer {
 		SkyLightingProfile profile = sky.lighting;
 		float[] fogColor = environmentManager.getFogColor(environment);
 		sampleSkyGradient(
-			environmentSample, state.skySunAltitudeDegrees, gradient, profile, fogColor,
+			environmentSample, state.sunAltitudeDegrees, gradient, profile, fogColor,
 			sky.sunStrength, sky.sunriseSunsetStrength, sky.skyColorTakeoverAngle
 		);
 		environmentSample.horizonLinear = ColorUtils.srgbToLinear(environmentSample.horizonSrgb);
 		environmentSample.noonHorizonLinear = fogColor;
-		environmentSample.brightnessMultiplier = getBrightnessMultiplier(state.skySunAltitudeDegrees, profile);
+		environmentSample.brightnessMultiplier = getBrightnessMultiplier(state.sunAltitudeDegrees, profile);
 		return environmentSample;
 	}
 
@@ -570,11 +570,8 @@ public class SkyRenderer {
 		ubo.skyGradientEnabled.set(1);
 		ubo.skyZenithColor.set(sky.zenithSrgb);
 		ubo.skyHorizonColor.set(sky.horizonSrgb);
-		if (state.hidesSun)
-			ubo.skySunColor.set(0, 0, 0);
-		else
-			ubo.skySunColor.set(sky.sunGlowSrgb);
-		ubo.skySunDir.set(state.skySunDirection);
+		ubo.skySunColor.set(sky.sunGlowSrgb);
+		ubo.skySunDir.set(state.sunDirection);
 		ubo.skyCelestialPole.set(state.celestialPole[0], -state.celestialPole[1], state.celestialPole[2]);
 		ubo.skyCelestialRotation.set(state.celestialRotation);
 		ubo.skyMoonDir.set(state.moonDirection);
