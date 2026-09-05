@@ -104,6 +104,8 @@ public class SkyManager {
 	@Nullable
 	private float[] sunAnglesOverride;
 	@Nullable
+	private float[] skySunAnglesOverride;
+	@Nullable
 	private float[] moonAnglesOverride;
 
 	private Instant currentInstant;
@@ -335,18 +337,21 @@ public class SkyManager {
 	private void resolveAuroraStrength() {
 		double cycleTime;
 		float eventStart;
+		float sunAltitude = state.sunAngles[0];
 		if (state.permanentNight) {
 			cycleTime = fixedAuroraCycleTime;
 			eventStart = 0;
-		} else if (!configCycle.usesAccumulatedCycleTime) {
+		} else if (!configCycle.usesCustomNightDuration) {
 			cycleTime = currentInstant.toEpochMilli() / (double) DAY_MS;
 			eventStart = ASTRONOMICAL_NIGHT_START;
+			if (configCycle.usesPresetSunAngles)
+				sunAltitude = (float) AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong)[0];
 		} else {
 			cycleTime = completedCycles + accumulatedCycleTime;
-			eventStart = configCycle.usesCustomNightDuration ? 1 - configNightFraction : NATURAL_DAY_BOUNDARY;
+			eventStart = 1 - configNightFraction;
 		}
 		// The sky shader supplies the near-horizon fade; skip when the sun is above the horizon.
-		state.auroraStrength = state.sunAngles[0] < 0 ? getAuroraEventStrength(cycleTime, eventStart) : 0;
+		state.auroraStrength = sunAltitude < 0 ? getAuroraEventStrength(cycleTime, eventStart) : 0;
 	}
 
 	private static float[] mirrorAngles(float[] angles) {
@@ -413,6 +418,7 @@ public class SkyManager {
 		state.sunAngles = sunAnglesOverride != null
 			? sunAnglesOverride
 			: vec(AstronomyUtils.getSunAngles(currentInstant.toEpochMilli(), currentLatLong));
+		state.skySunAngles = skySunAnglesOverride != null ? skySunAnglesOverride : state.sunAngles;
 		Instant moonInstant = resolveMoonInstant();
 		if (moonAnglesOverride != null)
 			state.moonAngles = moonAnglesOverride;
@@ -422,11 +428,13 @@ public class SkyManager {
 			state.moonAngles = vec(AstronomyUtils.getMoonPosition(moonInstant.toEpochMilli(), currentLatLong));
 		state.shadowAngles = state.sunAngles[0] < 0 && state.moonAngles[0] > 0 ? state.moonAngles : state.sunAngles;
 		state.sunAltitudeDegrees = state.sunAngles[0] * RAD_TO_DEG;
+		state.skySunAltitudeDegrees = state.skySunAngles[0] * RAD_TO_DEG;
 		state.moonIllumination = currentMoonPhase.isLocked
 			? currentMoonPhase.illumination
 			: (float) AstronomyUtils.getMoonIllumination(moonInstant.toEpochMilli())[0];
 		state.moonAltitudeDegrees = state.moonAngles[0] * RAD_TO_DEG;
 		state.sunDirection = anglesToSkyDirection(state.sunAngles[0], state.sunAngles[1]);
+		state.skySunDirection = anglesToSkyDirection(state.skySunAngles[0], state.skySunAngles[1]);
 		state.moonDirection = anglesToSkyDirection(state.moonAngles[0], state.moonAngles[1]);
 		if (state.permanentNight) {
 			float[] sunAngles = vec(AstronomyUtils.getSunAngles(moonInstant.toEpochMilli(), currentLatLong));
@@ -471,14 +479,17 @@ public class SkyManager {
 			if (cycleSky != null)
 				skySunAngles = cycleSky.sunAngles;
 		}
-		sunAnglesOverride = isCycleConfigured() ? skySunAngles : null;
+		skySunAnglesOverride = isCycleConfigured() ? skySunAngles : null;
+		sunAnglesOverride = isCycleConfigured() && skySunAngles != null && (sky.sunAngles != null || configCycle.usesPresetSunAngles)
+			? skySunAngles
+			: null;
 		float[] moonAngles = sky.moonAngles;
 		if (moonAngles == null && configMoonBehavior.isStatic)
 			moonAngles = DEFAULT_STATIC_MOON_ANGLES;
 		moonAnglesOverride = moonAngles;
-		state.hidesSun = sky.hideSun;
+		state.hidesSun = sky.hideSun || configCycle.hidesSun;
 		state.hidesMoon = sky.hideMoon || configMoonBehavior.isDisabled && !sky.forceMoonActive && sky.forceMoonPhase == null;
-		state.permanentNight = configCycle.permanentNight || sky.permanentNight;
+		state.permanentNight = sky.permanentNight;
 		cycleActive = environmentManager.getTargetEnvironment().isOverworld && isCycleConfigured();
 	}
 
@@ -499,14 +510,12 @@ public class SkyManager {
 	}
 
 	private Instant resolveCurrentInstant() {
-		if (sunAnglesOverride != null)
+		if (sunAnglesOverride != null || configCycle.usesDefaultCycleTime)
 			return getDefaultInstant();
 
 		switch (configCycle) {
 			case OFF:
 				return frameWallClockInstant;
-			case DEFAULT:
-				return getDefaultInstant();
 			case REAL_TIME:
 				// The session-local timestamp advances in Unix time, so daylight-saving changes
 				// cannot cause a discontinuity in the sun, moon, or seasonal date.
@@ -535,7 +544,7 @@ public class SkyManager {
 	private Instant resolveMoonInstant() {
 		if (sunAnglesOverride != null)
 			return currentInstant;
-		if (!configCycle.usesAccumulatedCycleTime)
+		if (!configCycle.usesCustomNightDuration)
 			return currentInstant;
 
 		double cyclePosition = configCycle.usesCustomNightDuration
