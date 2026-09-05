@@ -192,31 +192,13 @@ public class DeveloperTools implements KeyListener {
 
 	private void handleVarCommand(String type, String[] args) {
 		assert client.isClientThread();
-		String usage = "Usage: ::117hd " + type + " get <name|id> | ::117hd " + type + " set <name|id> <value>";
-		if (args.length < 2) {
+		String usage = "Usage: ::117hd " + type + " <name|id> [value]";
+		if (args.length != 2 && args.length != 3) {
 			postMessage(usage);
 			return;
 		}
 
-		String subAction = args[1].toLowerCase();
-		int expectedArgs;
-		switch (subAction) {
-			case "get":
-				expectedArgs = 3;
-				break;
-			case "set":
-				expectedArgs = 4;
-				break;
-			default:
-				postMessage(usage);
-				return;
-		}
-		if (args.length != expectedArgs) {
-			postMessage(usage);
-			return;
-		}
-
-		String nameOrId = args[2].toUpperCase();
+		String nameOrId = args[1].toUpperCase();
 		Integer id;
 		try {
 			id = Integer.parseInt(nameOrId);
@@ -240,7 +222,7 @@ public class DeveloperTools implements KeyListener {
 		}
 
 		int[] varps = client.getVarps();
-		if (expectedArgs == 3) {
+		if (args.length == 2) {
 			int value;
 			switch (type) {
 				case "varbit":
@@ -258,9 +240,9 @@ public class DeveloperTools implements KeyListener {
 
 		final int value;
 		try {
-			value = Integer.parseInt(args[3]);
+			value = Integer.parseInt(args[2]);
 		} catch (NumberFormatException e) {
-			postMessage("Invalid value: " + args[3]);
+			postMessage("Invalid value: " + args[2]);
 			return;
 		}
 
