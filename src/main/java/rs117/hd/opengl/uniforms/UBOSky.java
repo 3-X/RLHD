@@ -10,7 +10,7 @@ public class UBOSky extends UniformBuffer<GLBuffer> {
 		super(GL_DYNAMIC_DRAW);
 	}
 
-	// Sky gradient uniforms for day & night cycle
+	// Sky gradient and celestial state
 	public Property skyGradientEnabled = addProperty(PropertyType.Int, "skyGradientEnabled");
 	public Property skyZenithColor = addProperty(PropertyType.FVec3, "skyZenithColor");
 	public Property skyHorizonColor = addProperty(PropertyType.FVec3, "skyHorizonColor");
@@ -19,7 +19,6 @@ public class UBOSky extends UniformBuffer<GLBuffer> {
 	public Property skyCelestialPole = addProperty(PropertyType.FVec3, "skyCelestialPole");
 	public Property skyCelestialRotation = addProperty(PropertyType.Float, "skyCelestialRotation");
 
-	// Moon uniforms for day & night Cycle
 	public Property skyMoonDir = addProperty(PropertyType.FVec3, "skyMoonDir");
 	public Property skyMoonColor = addProperty(PropertyType.FVec3, "skyMoonColor");
 	public Property skyMoonIllumination = addProperty(PropertyType.Float, "skyMoonIllumination");
@@ -27,22 +26,12 @@ public class UBOSky extends UniformBuffer<GLBuffer> {
 	public Property skyMoonLibration = addProperty(PropertyType.FVec2, "skyMoonLibration");
 	public Property skyMoonPhaseReversed = addProperty(PropertyType.Float, "skyMoonPhaseReversed");
 
-	// Star visibility (from environment override)
+	// Environment visibility controls
 	public Property starVisibility = addProperty(PropertyType.Float, "starVisibility");
-
-	// Nebula visibility (toggled via config)
 	public Property nebulaVisibility = addProperty(PropertyType.Float, "nebulaVisibility");
-
-	// Moon visibility (from environment override)
 	public Property moonVisibility = addProperty(PropertyType.Float, "moonVisibility");
-
-	// Aurora visibility (1 on randomly-selected aurora nights, otherwise 0)
 	public Property auroraVisibility = addProperty(PropertyType.Float, "auroraVisibility");
-
-	// Moon size multiplier (from environment override) - scales moon disk, glow, and star mask
 	public Property moonSizeMult = addProperty(PropertyType.Float, "moonSizeMult");
-
-	// Night-sky horizon line position (from environment override) - 1 = default, 0 = no line
 	public Property starHorizonHeight = addProperty(PropertyType.Float, "starHorizonHeight");
 
 	public final Property[] nebulaClusters = addPropertyArray(PropertyType.FVec4, "nebulaClusters", StarField.CLUSTER_COUNT);

@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
  */
 @RequiredArgsConstructor
 public enum MoonPhase {
-	DYNAMIC(-1f, false, false),
+	REALISTIC(-1f, false, false),
 	NEW_MOON(0.0f, true, false),
 	WAXING_CRESCENT(0.25f, true, false),
 	FIRST_QUARTER(0.5f, true, false),

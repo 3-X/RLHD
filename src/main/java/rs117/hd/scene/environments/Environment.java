@@ -1,16 +1,12 @@
 package rs117.hd.scene.environments;
 
 import com.google.gson.annotations.JsonAdapter;
-import java.util.Objects;
-import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import rs117.hd.config.MoonPhase;
 import rs117.hd.scene.AreaManager;
 import rs117.hd.scene.areas.Area;
 import rs117.hd.scene.daylight_cycle.SkyConfiguration;
-import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.ExpressionParser;
 import rs117.hd.utils.ExpressionPredicate;
 import rs117.hd.utils.GsonUtils.DegreesToRadians;
@@ -23,13 +19,15 @@ import static rs117.hd.utils.MathUtils.*;
 @Slf4j
 @Setter(value = AccessLevel.PRIVATE)
 public class Environment {
-	public static final float[] DEFAULT_SUN_ANGLES = HDUtils.sunAngles(52, 235);
+	public static final float[] DEFAULT_SHADOW_ANGLES = HDUtils.sunAngles(52, 235);
+	private static final float[] DEFAULT_FOG_COLOR = rgb("#000000");
+	private static final float[] DEFAULT_WATER_COLOR = rgb("#66eaff");
 	public static final Environment DEFAULT = new Environment()
 		.setKey("DEFAULT")
 		.setArea(Area.ALL)
-		.setFogColor(rgb("#000000"))
-		.setWaterColor(rgb("#66eaff"))
-		.setSunAngles(DEFAULT_SUN_ANGLES)
+		.setFogColor(DEFAULT_FOG_COLOR)
+		.setWaterColor(DEFAULT_WATER_COLOR)
+		.setShadowAngles(DEFAULT_SHADOW_ANGLES)
 		.normalize();
 	public static final Environment NONE = new Environment()
 		.setKey("NONE")
@@ -49,29 +47,16 @@ public class Environment {
 	public boolean allowRoofShadows = true;
 	public boolean lightningEffects = false;
 	public boolean instantTransition = false;
-	@Nullable
 	@JsonAdapter(ExpressionParser.PredicateAdapter.class)
-	public ExpressionPredicate varbitCondition;
-	@Nullable
+	public ExpressionPredicate varbitCondition = ExpressionPredicate.TRUE;
 	@JsonAdapter(ExpressionParser.PredicateAdapter.class)
-	public ExpressionPredicate varpCondition;
+	public ExpressionPredicate varpCondition = ExpressionPredicate.TRUE;
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] ambientColor = rgb("#ffffff");
 	public float ambientStrength = 1;
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] directionalColor = rgb("#ffffff");
 	public float directionalStrength = .25f;
-	public float moonDirectionalStrength = -1;
-	public float moonShadowStrength = 1;
-	public float minMoonIllumination = 0;
-	@JsonAdapter(SrgbToLinearAdapter.class)
-	public float[] moonColor;
-	@JsonAdapter(SrgbToLinearAdapter.class)
-	public float[] moonLightColor;
-	@JsonAdapter(SrgbToLinearAdapter.class)
-	public float[] nightSkyColor;
-	public float nightSkyColorStrength = 1;
-	@Nullable
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] waterColor;
 	@JsonAdapter(SrgbToLinearAdapter.class)
@@ -80,128 +65,114 @@ public class Environment {
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] underglowColor = rgb("#000000");
 	public float underglowStrength = 0;
-	@Nullable
 	@JsonAdapter(DegreesToRadians.class)
-	public float[] sunAngles; // horizontal coordinate system, in radians
-	@Nullable
+	public float[] shadowAngles; // horizontal coordinate system, in radians
 	@JsonAdapter(SrgbToLinearAdapter.class)
 	public float[] fogColor;
 	public float fogDepth = 25;
-	public int groundFogStart = -200;
-	public int groundFogEnd = -500;
+	public float groundFogStart = -200;
+	public float groundFogEnd = -500;
 	public float groundFogOpacity = 0;
 	@JsonAdapter(DegreesToRadians.class)
 	public float windAngle = 0.0f;
 	public float windSpeed = 15.0f;
 	public float windStrength = 0.0f;
 	public float windCeiling = 1280.0f;
-	@Nullable
-	public MoonPhase forceMoonPhase;
-	public float starVisibility = 1;
-	public float moonVisibility = 1;
-	public float auroraVisibility = -1;
-	public float moonSizeMult = 1;
-	public float starHorizonHeight = 1;
-	public float sunStrength = 1;
-	public float sunriseSunsetStrength = 1;
-	public float skyColorTakeoverAngle = 40;
-	@Nullable
+	@JsonAdapter(SkyConfiguration.Adapter.class)
 	public SkyConfiguration sky;
-	public float sunlightStrength = 1;
-	public float minBrightnessBoost = 0;
 	public boolean hideVanillaSkyboxes = false;
-	public boolean forceHideNebulas = false;
+
+	public transient boolean hasWaterColorOverride;
+	public transient boolean hasFogColorOverride;
+	public transient boolean hasSkyOverride;
 
 	public Environment normalize() {
+		if (area == null) area = Area.NONE;
+		if (varbitCondition == null) varbitCondition = ExpressionPredicate.TRUE;
+		if (varpCondition == null) varpCondition = ExpressionPredicate.TRUE;
+		if (ambientColor == null) ambientColor = rgb("#ffffff");
+		if (directionalColor == null) directionalColor = rgb("#ffffff");
+		if (underglowColor == null) underglowColor = rgb("#000000");
+
+		if (fogColor == null) fogColor = DEFAULT_FOG_COLOR;
+		else hasFogColorOverride = true;
+		if (waterColor == null) waterColor = DEFAULT_WATER_COLOR;
+		else hasWaterColorOverride = true;
+		if (sky == null) sky = new SkyConfiguration();
+		else hasSkyOverride = true;
+
 		if (area != Area.ALL && area != Area.NONE) {
 			isOverworld = Area.OVERWORLD.intersects(area);
-			// Non-overworld areas inherit unspecified sky, fog, and water values from DEFAULT.
-			if (!isOverworld && DEFAULT != null) {
-				sunAngles = Objects.requireNonNullElse(sunAngles, DEFAULT.sunAngles);
-				fogColor = Objects.requireNonNullElse(fogColor, DEFAULT.fogColor);
-				waterColor = Objects.requireNonNullElse(waterColor, DEFAULT.waterColor);
+			if (!isOverworld) {
+				if (!hasFogColorOverride) {
+					fogColor = DEFAULT.fogColor;
+					hasFogColorOverride = true;
+				}
+				if (!hasWaterColorOverride) {
+					waterColor = DEFAULT.waterColor;
+					hasWaterColorOverride = true;
+				}
 			}
 		}
 
-		if (sunAngles != null)
-			sunAngles = HDUtils.ensureArrayLength(sunAngles, 2);
+		if (shadowAngles == null) shadowAngles = DEFAULT_SHADOW_ANGLES;
+		else shadowAngles = HDUtils.ensureArrayLength(shadowAngles, 2);
 
-		// Default moon color to slightly cool white (~8000K)
-		if (moonColor == null)
-			moonColor = ColorUtils.colorTemperatureToLinearRgb(8000);
-
-		// Preserve the original single-color moon behavior by default.
-		if (moonLightColor == null)
-			moonLightColor = moonColor;
-
-		// Preserve the original moon-colored night sky by default.
-		if (nightSkyColor == null)
-			nightSkyColor = moonColor;
-
-		// Preserve the original shared directional strength by default.
-		if (moonDirectionalStrength == -1)
-			moonDirectionalStrength = directionalStrength;
-
-		// Base water caustics on directional lighting by default
 		if (waterCausticsColor == null)
 			waterCausticsColor = directionalColor;
 		if (waterCausticsStrength == -1)
 			waterCausticsStrength = directionalStrength;
 
-		// Preserve the original coupling of aurora and star visibility by default.
-		if (auroraVisibility == -1)
-			auroraVisibility = starVisibility;
+		if (hasSkyOverride)
+			sky.normalize();
+
+		return this;
+	}
+
+	public Environment copy() {
+		var env = new Environment();
+		env.fogColor = new float[3];
+		env.waterColor = new float[3];
+		env.ambientColor = new float[3];
+		env.directionalColor = new float[3];
+		env.underglowColor = new float[3];
+		env.shadowAngles = new float[3];
+		env.waterCausticsColor = new float[3];
+		this.copyTo(env);
+		return env;
+	}
+
+	public void copyTo(Environment target) {
+		target.interpolate(this, this, 0);
+	}
+
+	public Environment interpolate(Environment from, Environment to, float t) {
+		mix(fogColor, from.fogColor, to.fogColor, t);
+		mix(waterColor, from.waterColor, to.waterColor, t);
+		mix(ambientColor, from.ambientColor, to.ambientColor, t);
+		mix(directionalColor, from.directionalColor, to.directionalColor, t);
+		mix(underglowColor, from.underglowColor, to.underglowColor, t);
+		mix(shadowAngles, from.shadowAngles, to.shadowAngles, t);
+		mix(waterCausticsColor, from.waterCausticsColor, to.waterCausticsColor, t);
+		fogDepth = mix(from.fogDepth, to.fogDepth, t);
+		ambientStrength = mix(from.ambientStrength, to.ambientStrength, t);
+		directionalStrength = mix(from.directionalStrength, to.directionalStrength, t);
+		underglowStrength = mix(from.underglowStrength, to.underglowStrength, t);
+		groundFogStart = mix(from.groundFogStart, to.groundFogStart, t);
+		groundFogEnd = mix(from.groundFogEnd, to.groundFogEnd, t);
+		groundFogOpacity = mix(from.groundFogOpacity, to.groundFogOpacity, t);
+		waterCausticsStrength = mix(from.waterCausticsStrength, to.waterCausticsStrength, t);
+		windAngle = mix(from.windAngle, to.windAngle, t);
+		windSpeed = mix(from.windSpeed, to.windSpeed, t);
+		windStrength = mix(from.windStrength, to.windStrength, t);
+		windCeiling = mix(from.windCeiling, to.windCeiling, t);
+		sky = t == 1 ? to.sky : from.sky;
+		hasSkyOverride = t == 1 ? to.hasSkyOverride : from.hasSkyOverride;
 		return this;
 	}
 
 	@Override
 	public String toString() {
-		if (key != null)
-			return key;
-		return area.name;
-	}
-
-	public static class SkyGradient {
-		public Keyframe[] zenith;
-		public Keyframe[] horizon;
-		public Keyframe[] sunGlow;
-	}
-
-	/**
-	 * A value sampled at a sun altitude in degrees.
-	 */
-	public static class Keyframe {
-		public float altitude;
-		@JsonAdapter(SrgbToLinearAdapter.class)
-		public float[] color;
-		public Float value;
-
-		public float[] values() {
-			return color != null ? color : vec(value);
-		}
-	}
-
-	/**
-	 * Tunable procedural lighting curves for the day & night cycle.
-	 */
-	public static class SkyLightingProfile {
-		public Keyframe[] ambientColor;
-		public Keyframe[] directionalTemperature;
-		public Keyframe[] regionalBlend;
-		@JsonAdapter(SrgbToLinearAdapter.class)
-		public float[] nightSkyColor;
-		public float directionalBaseTemperature;
-		public float directionalBaseStrength;
-		public BrightnessCurve brightness;
-
-		public static class BrightnessCurve {
-			public float nightAltitude;
-			public float twilightAltitude;
-			public float horizonAltitude;
-			public float twilightBoost;
-			public float horizonBoost;
-			public float earlyDayBoost;
-			public float daytimeStrength;
-		}
+		return key != null ? key : area.name;
 	}
 }

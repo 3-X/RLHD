@@ -42,6 +42,10 @@ float moonFbm(in vec2 st) {
     return value;
 }
 
+float nightSkyHorizonFade(float upAmount, float horizonShift) {
+    return smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, upAmount);
+}
+
 void main() {
     // Unproject a near/far ray to get the view direction.
     vec4 nearClip = vec4(fScreenPos, -1.0, 1.0);
@@ -64,7 +68,7 @@ void main() {
     // Shift the shared night-sky horizon line.
     float horizonShift = nightHorizonOffset();
 
-    // Stars appear first opposite the sun, then spread through twilight.
+    // Stars appear first opposite the sun, then spread across the low-sun sky.
     float baseProgress = 1.0 - sky.nightFade;
     float sunProximity = sky.sunSideBlend * (1.0 - sky.zenithBlend);
     // Aurora visibility is independent of the star field's environment override.
@@ -85,7 +89,7 @@ void main() {
         vec3 nightSkyColor = proceduralStarfieldBackground(starDir);
 
         // Converge to the fog-matched gradient at the horizon.
-        float horizonStarFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
+        float horizonStarFade = nightSkyHorizonFade(sky.upAmount, horizonShift);
         skyColor = mix(skyColor, nightSkyColor, nightFactor * horizonStarFade);
 
         // Shooting stars are atmospheric, so they do not follow celestial rotation.
@@ -271,8 +275,7 @@ void main() {
                 float crescentEdgeFade = smoothstep(0.0, 0.25, moonLocalZ);
                 isLit *= mix(1.0, crescentEdgeFade, terminatorProximity);
 
-                // Warm gray color that shifts subtly with brightness
-                // Darker areas slightly warmer, brighter areas slightly cooler
+                // Darker surface detail is slightly warmer than brighter detail.
                 float colorBlend = smoothstep(0.7, 0.95, surfaceBrightness);
                 vec3 darkTone = vec3(0.8);
                 vec3 brightTone = vec3(1.0);
@@ -285,60 +288,43 @@ void main() {
                 vec3 litColor = moonLightColor * surfaceBrightness * surfaceColor;
                 litColor *= vec3(0.7529423, 0.79910284, 1.0); // blue ish tint
                 litColor *= 2.574809; // intensity
-                // Rebuild the star-free sky behind the opaque disk. Individual stars
-                // and nebulas are therefore occluded, while the
-                // dark side matches the surrounding night-sky brightness.
+                // The opaque disk occludes stars and nebulas while its dark side matches the night sky.
                 vec3 moonStarFreeSky = skyColorPreStars;
                 if (nightFactor > 0.001) {
-                    float horizonStarFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
+                    float horizonStarFade = nightSkyHorizonFade(sky.upAmount, horizonShift);
                     moonStarFreeSky = mix(moonStarFreeSky, STARFIELD_BACKGROUND_COLOR, nightFactor * horizonStarFade);
                 }
 
-                // Contrast, rather than alpha, controls daytime visibility. Retaining
-                // an opaque disk prevents stars or the sky gradient from bleeding
-                // through the unlit portion of a crescent moon.
+                // Keep the disk opaque so stars and the sky gradient cannot show through crescents.
                 vec3 moonFinalColor = mix(moonStarFreeSky, litColor, isLit * moonDayVisibility);
                 // Fade moon near the horizon to match the star/nebula horizon fade
-                float moonHorizonFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
+                float moonHorizonFade = nightSkyHorizonFade(sky.upAmount, horizonShift);
                 float moonAlpha = moonDisk * moonVisibility * moonHorizonFade;
 
                 skyColor = mix(skyColor, moonFinalColor, moonAlpha);
             }
 
-            // Subtle atmospheric glow around the moon, reduced by daytime contrast.
-            // Divide the falloff exponent by moonSizeMult so the glow widens with a
-            // larger moon (and tightens with a smaller one), matching the disk.
-            float glowHorizonFade = smoothstep(-0.1 + horizonShift, 0.07 + horizonShift, sky.upAmount);
+            // Scale the glow with the disk and reduce it in daylight.
+            float glowHorizonFade = nightSkyHorizonFade(sky.upAmount, horizonShift);
             float moonGlow = pow(moonDot, 256.0 / max(moonSizeMult, 0.001)) * 0.05 * skyMoonIllumination * moonDayVisibility * moonVisibility * glowHorizonFade;
             skyColor += skyMoonColor * moonGlow;
         }
     }
 
-    // Shooting stars are nearby atmospheric effects and therefore render in front
-    // of the distant moon disk, just like the aurora below.
+    // Shooting stars are atmospheric and render in front of the moon.
     skyColor += shootingStarColor;
 
-    // Aurora borealis - animated curtains near the northern horizon. Shown on the
-    // randomly-selected aurora nights and faded with the night, but decoupled from
-    // starVisibility so it can be scaled independently per environment via
-    // auroraVisibility (0 on non-aurora nights or aurora-hidden areas). Uses
-    // nightFactor (the star-independent night fade) in place of the previous
-    // nightSkyBlend so it no longer disappears when starVisibility is 0.
-    // Drawn AFTER the moon disk so the aurora composites visually in front of the moon.
-    if (auroraVisibility > 0.001 && nightFactor > 0.001) {
+    // Aurora visibility is independent of stars and renders in front of the moon.
+    if (auroraVisibility > 0.001 && nightFactor > 0.001)
         skyColor += proceduralAurora(viewDir, elapsedTime) * nightFactor * auroraVisibility;
-    }
 
     skyColor = applySkyHaze(skyColor, sky.upAmount, sky.sunSideBlend, sky.zenithBlend);
 
-    // Apply gamma correction
     skyColor = pow(skyColor, vec3(gammaCorrection));
 
-    // Apply color blindness compensation
     skyColor = colorBlindnessCompensation(skyColor);
 
-    // Dithering to eliminate color banding in dark sky gradients
-    // Add ±0.5/255 noise per pixel to break up 8-bit quantization bands
+    // Break up 8-bit gradient bands with ±0.5/255 noise.
     float dither = moonHash(gl_FragCoord.xy) - 0.5;
     skyColor += dither / 255.0;
 

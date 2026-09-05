@@ -75,6 +75,7 @@ public class LightSchedule {
 
 	private static float getRangeActivation(Range range, float sunAltitude, boolean sunDescending) {
 		float transition = 1 - smoothstep(range.through, range.from, sunAltitude);
+		// Directional phases are a smooth pulse between their two altitude boundaries.
 		switch (range.mode) {
 			case BOTH:
 				return transition;

@@ -43,13 +43,14 @@ import rs117.hd.overlays.Timer;
 import rs117.hd.renderer.Renderer;
 import rs117.hd.renderer.SkyRenderer;
 import rs117.hd.scene.AreaManager;
-import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.FishingSpotReplacer;
 import rs117.hd.scene.LightManager;
 import rs117.hd.scene.ModelOverrideManager;
 import rs117.hd.scene.ProceduralGenerator;
+import rs117.hd.scene.SkyManager;
 import rs117.hd.scene.areas.Area;
+import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
 import rs117.hd.utils.HDUtils;
@@ -105,13 +106,13 @@ public class LegacyRenderer implements Renderer {
 	private LightManager lightManager;
 
 	@Inject
+	private SkyManager skyManager;
+
+	@Inject
 	private EnvironmentManager environmentManager;
 
 	@Inject
 	private ModelOverrideManager modelOverrideManager;
-
-	@Inject
-	private DaylightCycleManager daylightCycleManager;
 
 	@Inject
 	private LegacySceneUploader sceneUploader;
@@ -653,10 +654,11 @@ public class LegacyRenderer implements Renderer {
 				uboCompute.cameraY.set(plugin.cameraPosition[1]);
 				uboCompute.cameraZ.set(plugin.cameraPosition[2]);
 
-				uboCompute.windDirectionX.set(cos(environmentManager.currentWindAngle));
-				uboCompute.windDirectionZ.set(sin(environmentManager.currentWindAngle));
-				uboCompute.windStrength.set(environmentManager.currentWindStrength);
-				uboCompute.windCeiling.set(environmentManager.currentWindCeiling);
+				Environment env = environmentManager.getCurrentEnvironment();
+				uboCompute.windDirectionX.set(cos(env.windAngle));
+				uboCompute.windDirectionZ.set(sin(env.windAngle));
+				uboCompute.windStrength.set(env.windStrength);
+				uboCompute.windCeiling.set(env.windCeiling);
 				uboCompute.windOffset.set(plugin.windOffset);
 
 				if (plugin.configCharacterDisplacement && localPlayer != null) {
@@ -702,9 +704,9 @@ public class LegacyRenderer implements Renderer {
 						environmentManager.update(sceneContext);
 						frameTimer.end(Timer.UPDATE_ENVIRONMENT);
 
-						frameTimer.begin(Timer.UPDATE_DAYLIGHT_CYCLE);
-						daylightCycleManager.update();
-						frameTimer.end(Timer.UPDATE_DAYLIGHT_CYCLE);
+						frameTimer.begin(Timer.UPDATE_SKY);
+						skyManager.update();
+						frameTimer.end(Timer.UPDATE_SKY);
 
 						frameTimer.begin(Timer.UPDATE_LIGHTS);
 						lightManager.update(sceneContext, plugin.cameraShift, plugin.cameraFrustum);
@@ -1009,6 +1011,7 @@ public class LegacyRenderer implements Renderer {
 			}
 
 			skyRenderer.update(plugin.uboGlobal);
+			Environment env = environmentManager.getCurrentEnvironment();
 
 			float fogDepth = 0;
 			switch (config.fogDepthMode()) {
@@ -1016,7 +1019,7 @@ public class LegacyRenderer implements Renderer {
 					fogDepth = config.fogDepth();
 					break;
 				case DYNAMIC:
-					fogDepth = environmentManager.currentFogDepth;
+					fogDepth = env.fogDepth;
 					break;
 			}
 			fogDepth *= min(plugin.getDrawDistance(), 90) / 10.f;
@@ -1029,13 +1032,13 @@ public class LegacyRenderer implements Renderer {
 
 			plugin.uboGlobal.gammaCorrection.set(plugin.getGammaCorrection());
 
-			plugin.uboGlobal.underglowStrength.set(environmentManager.currentUnderglowStrength);
-			plugin.uboGlobal.underglowColor.set(environmentManager.currentUnderglowColor);
+			plugin.uboGlobal.underglowStrength.set(env.underglowStrength);
+			plugin.uboGlobal.underglowColor.set(env.underglowColor);
 
-			plugin.uboGlobal.groundFogStart.set(environmentManager.currentGroundFogStart);
-			plugin.uboGlobal.groundFogEnd.set(environmentManager.currentGroundFogEnd);
+			plugin.uboGlobal.groundFogStart.set(env.groundFogStart);
+			plugin.uboGlobal.groundFogEnd.set(env.groundFogEnd);
 			plugin.uboGlobal.groundFogOpacity.set(config.groundFog() ?
-				environmentManager.currentGroundFogOpacity :
+				env.groundFogOpacity :
 				0);
 
 			// Lights & lightning
@@ -1044,14 +1047,15 @@ public class LegacyRenderer implements Renderer {
 
 			plugin.uboGlobal.saturation.set(config.saturation() / 100f);
 			plugin.uboGlobal.contrast.set(config.contrast() / 100f);
-			plugin.uboGlobal.underwaterEnvironment.set(environmentManager.isUnderwater() ? 1 : 0);
+			plugin.uboGlobal.underwaterEnvironment.set(environmentManager.getTargetEnvironment().isUnderwater ? 1 : 0);
 			plugin.uboGlobal.underwaterCaustics.set(config.underwaterCaustics() ? 1 : 0);
-			plugin.uboGlobal.underwaterCausticsColor.set(environmentManager.currentUnderwaterCausticsColor);
-			plugin.uboGlobal.underwaterCausticsStrength.set(environmentManager.currentUnderwaterCausticsStrength);
+			plugin.uboGlobal.underwaterCausticsColor.set(env.waterCausticsColor);
+			plugin.uboGlobal.underwaterCausticsStrength.set(env.waterCausticsStrength);
 			plugin.uboGlobal.elapsedTime.set((float) (plugin.elapsedTime % MAX_FLOAT_WITH_128TH_PRECISION));
 
-			float[] lightViewMatrix = Mat4.rotateX(environmentManager.currentSunAngles[0]);
-			Mat4.mul(lightViewMatrix, Mat4.rotateY(PI - environmentManager.currentSunAngles[1]));
+			float[] shadowAngles = skyManager.isCycleActive() ? skyManager.getState().shadowAngles : env.shadowAngles;
+			float[] lightViewMatrix = Mat4.rotateX(shadowAngles[0]);
+			Mat4.mul(lightViewMatrix, Mat4.rotateY(PI - shadowAngles[1]));
 			// Extract the 3rd column from the light view matrix (the float array is column-major).
 			// This produces the light's direction vector in world space, which we negate in order to
 			// get the light's direction vector pointing away from each fragment
@@ -1064,8 +1068,7 @@ public class LegacyRenderer implements Renderer {
 				plugin.uboGlobal.colorFilterFade.set(clamp(timeSinceChange / COLOR_FILTER_FADE_DURATION, 0, 1));
 			}
 
-			if (plugin.configShadowsEnabled && plugin.fboShadowMap != 0
-				&& environmentManager.currentDirectionalStrength > 0) {
+			if (plugin.configShadowsEnabled && plugin.fboShadowMap != 0 && skyRenderer.castsShadows()) {
 				frameTimer.begin(Timer.RENDER_SHADOWS);
 
 				// Render to the shadow depth map

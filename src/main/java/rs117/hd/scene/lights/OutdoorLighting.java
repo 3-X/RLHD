@@ -55,8 +55,8 @@ public class OutdoorLighting {
 				out.value(true);
 			} else {
 				out.beginArray();
-				for (int coordinate : outdoorLighting.sampleWorldPos)
-					out.value(coordinate);
+				for (int i = 0; i < outdoorLighting.sampleWorldPos.length; i++)
+					out.value(outdoorLighting.sampleWorldPos[i]);
 				out.endArray();
 			}
 		}

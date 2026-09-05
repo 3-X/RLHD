@@ -620,10 +620,11 @@ public interface HdPluginConfig extends Config
 			"'Off' disables the day & night cycle entirely.<br>" +
 			"'Default' everyone sees the same sky, with a full day passing per hour.<br>" +
 			"'Real-Time' follows your local time, roughly matching the real sun in your hemisphere.<br>" +
-			"'Sunrise' shows a constant sunrise at dawn.<br>" +
+			"'Dawn' shows the sky just before sunrise.<br>" +
+			"'Sunrise' shows a constant sunrise.<br>" +
 			"'Day' shows constant daytime.<br>" +
 			"'Sunset' shows a constant sunset.<br>" +
-			"'Twilight' moves the sun just below the horizon, so the night sky shows through.<br>" +
+			"'Dusk' shows the sky just after sunset.<br>" +
 			"'Night' shows constant night-time.<br>" +
 			"'Custom' lets you control the cycle via the custom duration & night portion settings below.",
 		position = 0,
@@ -666,8 +667,7 @@ public interface HdPluginConfig extends Config
 			"'Disabled' gets rid of the moon entirely.<br>" +
 			"'Realistic' makes the moon orbit naturally, independent of the sun.<br>" +
 			"'Mirrored' keeps the moon at the opposite side of the sun.<br>" +
-			"'Static' keeps the moon at a fixed point in the sky.<br>" +
-			"'Custom' makes the moon orbit naturally using the Custom cycle duration.",
+			"'Static' keeps the moon at a fixed point in the sky.",
 		position = 3,
 		section = daylightCycleSettings
 	)
@@ -681,13 +681,13 @@ public interface HdPluginConfig extends Config
 		name = "Moon phase",
 		description =
 			"Controls the portion of the moon which is lit by the sun.<br>" +
-			"'Dynamic' lights up the moon based on its position relative to the sun.<br>" +
+			"'Realistic' lights up the moon based on its position relative to the sun.<br>" +
 			"Other options lock the moon in a particular lunar phase.",
 		position = 4,
 		section = daylightCycleSettings
 	)
 	default MoonPhase moonPhase() {
-		return MoonPhase.DYNAMIC;
+		return MoonPhase.REALISTIC;
 	}
 
 	String KEY_NIGHT_BRIGHTNESS = "nightBrightness";
@@ -737,7 +737,6 @@ public interface HdPluginConfig extends Config
 		position = 7,
 		section = daylightCycleSettings
 	)
-	// TODO: double -> int
 	default double customCycleDurationMinutes() {
 		return 60;
 	}

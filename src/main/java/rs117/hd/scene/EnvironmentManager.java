@@ -24,17 +24,11 @@
  */
 package rs117.hd.scene;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -45,11 +39,7 @@ import net.runelite.client.callback.ClientThread;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.config.DefaultSkyColor;
-import rs117.hd.config.MoonPhase;
-import rs117.hd.scene.daylight_cycle.SkyConfiguration;
 import rs117.hd.scene.environments.Environment;
-import rs117.hd.scene.environments.Environment.SkyGradient;
-import rs117.hd.scene.environments.Environment.SkyLightingProfile;
 import rs117.hd.utils.ExpressionParser;
 import rs117.hd.utils.ExpressionPredicate;
 import rs117.hd.utils.FileWatcher;
@@ -65,7 +55,6 @@ import static rs117.hd.utils.ResourcePath.path;
 public class EnvironmentManager {
 	private static final ResourcePath ENVIRONMENTS_PATH = Props
 		.getFile("rlhd.environments-path", () -> path(EnvironmentManager.class, "environments.json"));
-	private static final ResourcePath SKY_PRESETS_PATH = path(SkyConfiguration.class, "sky_presets.json");
 
 	@Inject
 	private Client client;
@@ -100,166 +89,25 @@ public class EnvironmentManager {
 
 	// when the current transition began, relative to plugin startup
 	private boolean transitionComplete = true;
+	@Getter
+	private float transitionProgress = 1;
 	private double transitionStartTime = 0;
 	private int[] previousPosition = new int[3];
 
-	private float[] startFogColor = new float[] { 0, 0, 0 };
-	public float[] currentFogColor = new float[] { 0, 0, 0 };
-	private float[] targetFogColor = new float[] { 0, 0, 0 };
+	private static final class State {
+		final Environment current = Environment.DEFAULT.copy();
+		final Environment from = Environment.DEFAULT.copy();
+		final Environment to = Environment.DEFAULT.copy();
+		Environment target = Environment.NONE;
+	}
 
-	private float[] startWaterColor = new float[] { 0, 0, 0 };
-	public float[] currentWaterColor = new float[] { 0, 0, 0 };
-	private float[] targetWaterColor = new float[] { 0, 0, 0 };
-
-	private float startFogDepth = 0;
-	public float currentFogDepth = 0;
-	private float targetFogDepth = 0;
-
-	private float startAmbientStrength = 0f;
-	public float currentAmbientStrength = 0f;
-	private float targetAmbientStrength = 0f;
-
-	private float[] startAmbientColor = new float[] { 0, 0, 0 };
-	public float[] currentAmbientColor = new float[] { 0, 0, 0 };
-	private float[] targetAmbientColor = new float[] { 0, 0, 0 };
-
-	private float startDirectionalStrength = 0f;
-	public float currentDirectionalStrength = 0f;
-	private float targetDirectionalStrength = 0f;
-
-	private float startMoonDirectionalStrength = 0f;
-	public float currentMoonDirectionalStrength = 0f;
-	private float targetMoonDirectionalStrength = 0f;
-
-	private float startMoonShadowStrength = 1f;
-	public float currentMoonShadowStrength = 1f;
-	private float targetMoonShadowStrength = 1f;
-
-	private float startMinMoonIllumination = 0f;
-	public float currentMinMoonIllumination = 0f;
-	private float targetMinMoonIllumination = 0f;
-
-	private float[] startUnderwaterCausticsColor = new float[] { 0, 0, 0 };
-	public float[] currentUnderwaterCausticsColor = new float[] { 0, 0, 0 };
-	private float[] targetUnderwaterCausticsColor = new float[] { 0, 0, 0 };
-
-	private float startUnderwaterCausticsStrength = 1f;
-	public float currentUnderwaterCausticsStrength = 1f;
-	private float targetUnderwaterCausticsStrength = 1f;
-
-	private float[] startDirectionalColor = new float[] { 0, 0, 0 };
-	public float[] currentDirectionalColor = new float[] { 0, 0, 0 };
-	private float[] targetDirectionalColor = new float[] { 0, 0, 0 };
-
-	private float startUnderglowStrength = 0f;
-	public float currentUnderglowStrength = 0f;
-	private float targetUnderglowStrength = 0f;
-
-	private float[] startUnderglowColor = new float[] { 0, 0, 0 };
-	public float[] currentUnderglowColor = new float[] { 0, 0, 0 };
-	private float[] targetUnderglowColor = new float[] { 0, 0, 0 };
-
-	private float[] startMoonColor = new float[] { 0, 0, 0 };
-	public float[] currentMoonColor = new float[] { 0, 0, 0 };
-	private float[] targetMoonColor = new float[] { 0, 0, 0 };
-
-	private float[] startMoonLightColor = new float[] { 0, 0, 0 };
-	public float[] currentMoonLightColor = new float[] { 0, 0, 0 };
-	private float[] targetMoonLightColor = new float[] { 0, 0, 0 };
-
-	private float[] startNightSkyColor = new float[] { 0, 0, 0 };
-	public float[] currentNightSkyColor = new float[] { 0, 0, 0 };
-	private float[] targetNightSkyColor = new float[] { 0, 0, 0 };
-
-	private float startGroundFogStart = 0f;
-	public float currentGroundFogStart = 0f;
-	private float targetGroundFogStart = 0f;
-
-	private float startGroundFogEnd = 0f;
-	public float currentGroundFogEnd = 0f;
-	private float targetGroundFogEnd = 0f;
-
-	private float startGroundFogOpacity = 0f;
-	public float currentGroundFogOpacity = 0f;
-	private float targetGroundFogOpacity = 0f;
-
-	private final float[] startSunAngles = { 0, 0 };
-	public final float[] currentSunAngles = { 0, 0 };
-	private final float[] targetSunAngles = { 0, 0 };
-
-	private float startWindAngle = 0f;
-	public float currentWindAngle = 0f;
-	private float targetWindAngle = 0f;
-
-	private float startWindSpeed = 0f;
-	public float currentWindSpeed = 0f;
-	private float targetWindSpeed = 0f;
-
-	private float startWindStrength = 0f;
-	public float currentWindStrength = 0f;
-	private float targetWindStrength = 0f;
-
-	private float startWindCeiling = 0f;
-	public float currentWindCeiling = 0f;
-	private float targetWindCeiling = 0f;
-
-	private float startStarVisibility = 1f;
-	public float currentStarVisibility = 1f;
-	private float targetStarVisibility = 1f;
-
-	private float startMoonVisibility = 1f;
-	public float currentMoonVisibility = 1f;
-	private float targetMoonVisibility = 1f;
-
-	private float startAuroraVisibility = 1f;
-	public float currentAuroraVisibility = 1f;
-	private float targetAuroraVisibility = 1f;
-
-	private float startNebulaVisibility = 1f;
-	public float currentNebulaVisibility = 1f;
-	private float targetNebulaVisibility = 1f;
-
-	private float startMoonSizeMult = 1f;
-	public float currentMoonSizeMult = 1f;
-	private float targetMoonSizeMult = 1f;
-
-	private float startStarHorizonHeight = 1f;
-	public float currentStarHorizonHeight = 1f;
-	private float targetStarHorizonHeight = 1f;
-
-	private float startNightSkyColorStrength = 1f;
-	public float currentNightSkyColorStrength = 1f;
-	private float targetNightSkyColorStrength = 1f;
-
-	private float startSunStrength = 1f;
-	public float currentSunStrength = 1f;
-	private float targetSunStrength = 1f;
-
-	private float startSunriseSunsetStrength = 1f;
-	public float currentSunriseSunsetStrength = 1f;
-	private float targetSunriseSunsetStrength = 1f;
-
-	private float startSkyColorTakeoverAngle = 40f;
-	public float currentSkyColorTakeoverAngle = 40f;
-	private float targetSkyColorTakeoverAngle = 40f;
-
-	private float startSunlightStrength = 1f;
-	public float currentSunlightStrength = 1f;
-	private float targetSunlightStrength = 1f;
-
-	private float startMinBrightnessBoost = 0f;
-	public float currentMinBrightnessBoost = 0f;
-	private float targetMinBrightnessBoost = 0f;
+	private final State state = new State();
 
 	private boolean lightningEnabled = false;
 	private boolean forceNextTransition = false;
 
-	private Environment[] environments;
-	private Map<String, SkyConfiguration> skyPresets = Map.of();
+	private Environment[] environments = {};
 	private FileWatcher.UnregisterCallback fileWatcher;
-
-	@Nonnull
-	private Environment currentEnvironment = Environment.NONE;
 
 	public void startUp() {
 		fileWatcher = ENVIRONMENTS_PATH.watch((path, first) -> {
@@ -308,147 +156,31 @@ public class EnvironmentManager {
 	}
 
 	private Environment[] loadEnvironments(ResourcePath path) throws IOException {
-		var gson = plugin.getGson();
-		JsonArray rawEnvironments = path.loadJson(gson, JsonArray.class);
-		JsonArray rawPresets = SKY_PRESETS_PATH.loadJson(gson, JsonArray.class);
-		if (rawEnvironments == null)
+		Environment[] loaded = path.loadJson(plugin.getGson(), Environment[].class);
+		if (loaded == null)
 			throw new IOException("Empty or invalid: " + path);
-		if (rawPresets == null)
-			throw new IOException("Empty or invalid: " + SKY_PRESETS_PATH);
-
-		var rawPresetMap = new HashMap<String, JsonObject>();
-		for (int i = 0; i < rawPresets.size(); i++) {
-			JsonElement element = rawPresets.get(i);
-			if (!element.isJsonObject()) {
-				log.error("Sky preset at index {} is not an object", i);
-				continue;
-			}
-			JsonObject preset = element.getAsJsonObject();
-			JsonElement name = preset.get("name");
-			if (name == null || !name.isJsonPrimitive() || !name.getAsJsonPrimitive().isString()) {
-				log.error("Sky preset at index {} has no string name", i);
-				continue;
-			}
-			if (rawPresetMap.putIfAbsent(name.getAsString(), preset) != null)
-				log.error("Duplicate sky preset '{}'", name.getAsString());
-		}
-
-		var resolvedPresets = new HashMap<String, JsonObject>();
-		var names = rawPresetMap.keySet().iterator();
-		while (names.hasNext())
-			resolveSkyPreset(names.next(), rawPresetMap, resolvedPresets, new HashSet<>());
-
-		var parsedPresets = new HashMap<String, SkyConfiguration>();
-		var entries = resolvedPresets.entrySet().iterator();
-		while (entries.hasNext()) {
-			var entry = entries.next();
-			parsedPresets.put(entry.getKey(), gson.fromJson(entry.getValue(), SkyConfiguration.class));
-		}
-		skyPresets = parsedPresets;
-
-		for (int i = 0; i < rawEnvironments.size(); i++) {
-			JsonElement element = rawEnvironments.get(i);
-			if (!element.isJsonObject())
-				continue;
-			JsonObject environment = element.getAsJsonObject();
-			JsonElement sky = environment.get("sky");
-			if (sky != null)
-				environment.add("sky", resolveSky(sky, rawPresetMap, resolvedPresets));
-		}
-
-		return gson.fromJson(rawEnvironments, Environment[].class);
-	}
-
-	@Nullable
-	private JsonObject resolveSkyPreset(
-		String name,
-		Map<String, JsonObject> rawPresets,
-		Map<String, JsonObject> resolvedPresets,
-		HashSet<String> resolving
-	) {
-		JsonObject resolved = resolvedPresets.get(name);
-		if (resolved != null)
-			return resolved;
-		JsonObject preset = rawPresets.get(name);
-		if (preset == null) {
-			log.error("Unknown sky preset '{}'", name);
-			return null;
-		}
-		if (!resolving.add(name)) {
-			log.error("Sky preset '{}' contains a preset loop", name);
-			return null;
-		}
-
-		resolved = new JsonObject();
-		JsonElement parent = preset.get("preset");
-		if (parent != null) {
-			if (!parent.isJsonPrimitive() || !parent.getAsJsonPrimitive().isString()) {
-				log.error("Sky preset '{}' has a non-string preset", name);
-			} else {
-				JsonObject base = resolveSkyPreset(parent.getAsString(), rawPresets, resolvedPresets, resolving);
-				if (base != null)
-					copyAll(resolved, base);
-			}
-		}
-		copyAll(resolved, preset);
-		resolved.remove("name");
-		resolved.remove("preset");
-		resolving.remove(name);
-		resolvedPresets.put(name, resolved);
-		return resolved;
-	}
-
-	private JsonObject resolveSky(JsonElement sky, Map<String, JsonObject> rawPresets, Map<String, JsonObject> resolvedPresets) {
-		JsonObject override = new JsonObject();
-		if (sky.isJsonPrimitive() && sky.getAsJsonPrimitive().isString()) {
-			override.addProperty("preset", sky.getAsString());
-		} else if (sky.isJsonObject()) {
-			override = sky.getAsJsonObject();
-		} else {
-			log.error("Expected a sky preset or object; ignoring value '{}'", sky);
-			return new JsonObject();
-		}
-
-		String preset = "GIELINOR";
-		JsonElement presetField = override.get("preset");
-		if (presetField != null && presetField.isJsonPrimitive() && presetField.getAsJsonPrimitive().isString())
-			preset = presetField.getAsString();
-		JsonObject result = new JsonObject();
-		JsonObject base = resolveSkyPreset(preset, rawPresets, resolvedPresets, new HashSet<>());
-		if (base != null)
-			copyAll(result, base);
-		copyAll(result, override);
-		result.remove("preset");
-		return result;
-	}
-
-	private static void copyAll(JsonObject target, JsonObject source) {
-		var entries = source.entrySet().iterator();
-		while (entries.hasNext()) {
-			var entry = entries.next();
-			target.add(entry.getKey(), entry.getValue().deepCopy());
-		}
+		return loaded;
 	}
 
 	public void shutDown() {
 		if (fileWatcher != null)
 			fileWatcher.unregister();
 		fileWatcher = null;
-		environments = null;
+		environments = new Environment[0];
 		reset();
 	}
 
 	public void reset() {
-		currentEnvironment = Environment.NONE;
+		state.target = Environment.NONE;
 		forceNextTransition = false;
 	}
 
 	public void reload() {
-		var previous = currentEnvironment;
+		var previous = state.target;
 		shutDown();
 		startUp();
 		forceNextTransition = true;
-		currentEnvironment = previous;
+		state.target = previous;
 	}
 
 	private void bindConditionVars(GamevalManager.Handle gamevals) {
@@ -486,14 +218,12 @@ public class EnvironmentManager {
 
 	private boolean isConditionSatisfied(Environment environment) {
 		return
-			(environment.varbitCondition == null || environment.varbitCondition.test(varbitVariableSupplier)) &&
-			(environment.varpCondition == null || environment.varpCondition.test(varpVariableSupplier));
+			environment.varbitCondition.test(varbitVariableSupplier) &&
+			environment.varpCondition.test(varpVariableSupplier);
 	}
 
 	/**
-	 * Updates variables used in transition effects
-	 *
-	 * @param sceneContext to possible environments from
+	 * Resolve and interpolate the environment at the camera's focal point.
 	 */
 	public void update(SceneContext sceneContext) {
 		assert client.isClientThread();
@@ -501,7 +231,7 @@ public class EnvironmentManager {
 		int[] focalPoint = sceneContext.localToWorld(
 			plugin.cameraFocalPoint[0],
 			plugin.cameraFocalPoint[1],
-			client.getPlane()
+			client.getTopLevelWorldView().getPlane()
 		);
 
 		// skip the transitional fade if the player has moved too far
@@ -511,7 +241,8 @@ public class EnvironmentManager {
 		previousPosition = focalPoint;
 
 		boolean skipTransition = tileChange >= SKIP_TRANSITION_DISTANCE;
-		for (var environment : sceneContext.environments) {
+		for (int i = 0; i < sceneContext.environments.size(); i++) {
+			Environment environment = sceneContext.environments.get(i);
 			if (!environment.area.containsPoint(focalPoint))
 				continue;
 			if (!isConditionSatisfied(environment))
@@ -520,204 +251,94 @@ public class EnvironmentManager {
 			break;
 		}
 
-		updateTargetSkyColor(); // Update every frame, since other plugins may control it
+		// Update every frame, since other plugins may control it.
+		updateTargetSkyColor(getResolvedTargetEnvironment());
 
 		if (transitionComplete) {
 			// Always write fog and water color, since they're affected by lightning
-			currentFogColor = targetFogColor;
-			currentWaterColor = targetWaterColor;
+			copyTo(state.current.fogColor, state.to.fogColor);
+			copyTo(state.current.waterColor, state.to.waterColor);
 		} else {
-			// interpolate between start and target values
-			float t = smoothstep(0, 1, (float) (plugin.elapsedTime - transitionStartTime) / TRANSITION_DURATION);
-			if (t >= 1)
+			transitionProgress = smoothstep(0, 1, (float) (plugin.elapsedTime - transitionStartTime) / TRANSITION_DURATION);
+			state.current.interpolate(state.from, state.to, transitionProgress);
+			if (transitionProgress == 1)
 				transitionComplete = true;
-			currentFogColor = mix(startFogColor, targetFogColor, t);
-			currentWaterColor = mix(startWaterColor, targetWaterColor, t);
-			currentFogDepth = mix(startFogDepth, targetFogDepth, t);
-			currentAmbientStrength = mix(startAmbientStrength, targetAmbientStrength, t);
-			currentAmbientColor = mix(startAmbientColor, targetAmbientColor, t);
-			currentDirectionalStrength = mix(startDirectionalStrength, targetDirectionalStrength, t);
-			currentMoonDirectionalStrength = mix(startMoonDirectionalStrength, targetMoonDirectionalStrength, t);
-			currentMoonShadowStrength = mix(startMoonShadowStrength, targetMoonShadowStrength, t);
-			currentMinMoonIllumination = mix(startMinMoonIllumination, targetMinMoonIllumination, t);
-			currentDirectionalColor = mix(startDirectionalColor, targetDirectionalColor, t);
-			currentUnderglowStrength = mix(startUnderglowStrength, targetUnderglowStrength, t);
-			currentUnderglowColor = mix(startUnderglowColor, targetUnderglowColor, t);
-			currentMoonColor = mix(startMoonColor, targetMoonColor, t);
-			currentMoonLightColor = mix(startMoonLightColor, targetMoonLightColor, t);
-			currentNightSkyColor = mix(startNightSkyColor, targetNightSkyColor, t);
-			currentGroundFogStart = mix(startGroundFogStart, targetGroundFogStart, t);
-			currentGroundFogEnd = mix(startGroundFogEnd, targetGroundFogEnd, t);
-			currentGroundFogOpacity = mix(startGroundFogOpacity, targetGroundFogOpacity, t);
-			mix(currentSunAngles, startSunAngles, targetSunAngles, t);
-			currentUnderwaterCausticsColor = mix(startUnderwaterCausticsColor, targetUnderwaterCausticsColor, t);
-			currentUnderwaterCausticsStrength = mix(startUnderwaterCausticsStrength, targetUnderwaterCausticsStrength, t);
-			currentWindAngle = mix(startWindAngle, targetWindAngle, t);
-			currentWindSpeed = mix(startWindSpeed, targetWindSpeed, t);
-			currentWindStrength = mix(startWindStrength, targetWindStrength, t);
-			currentWindCeiling = mix(startWindCeiling, targetWindCeiling, t);
-			currentStarVisibility = mix(startStarVisibility, targetStarVisibility, t);
-			currentMoonVisibility = mix(startMoonVisibility, targetMoonVisibility, t);
-			currentAuroraVisibility = mix(startAuroraVisibility, targetAuroraVisibility, t);
-			currentNebulaVisibility = mix(startNebulaVisibility, targetNebulaVisibility, t);
-			currentMoonSizeMult = mix(startMoonSizeMult, targetMoonSizeMult, t);
-			currentStarHorizonHeight = mix(startStarHorizonHeight, targetStarHorizonHeight, t);
-			currentNightSkyColorStrength = mix(startNightSkyColorStrength, targetNightSkyColorStrength, t);
-			currentSunStrength = mix(startSunStrength, targetSunStrength, t);
-			currentSunriseSunsetStrength = mix(startSunriseSunsetStrength, targetSunriseSunsetStrength, t);
-			currentSkyColorTakeoverAngle = mix(startSkyColorTakeoverAngle, targetSkyColorTakeoverAngle, t);
-			currentSunlightStrength = mix(startSunlightStrength, targetSunlightStrength, t);
-			currentMinBrightnessBoost = mix(startMinBrightnessBoost, targetMinBrightnessBoost, t);
 		}
 
 		updateLightning();
 	}
 
 	/**
-	 * Updates variables used in transition effects
-	 *
-	 * @param newEnvironment the new environment to transition to
-	 * @param skipTransition whether the transition should be done instantly
+	 * Begin a transition to {@code newEnvironment}.
 	 */
 	private void changeEnvironment(Environment newEnvironment, boolean skipTransition) {
 		// Skip changing the environment unless the transition is forced, since reapplying
 		// the overworld environment is required when switching between seasonal themes
-		if (currentEnvironment == newEnvironment && !forceNextTransition)
+		if (state.target == newEnvironment && !forceNextTransition)
 			return;
 
-		if (currentEnvironment == Environment.NONE) {
+		if (state.target == Environment.NONE) {
 			skipTransition = true;
 		} else if (forceNextTransition) {
 			forceNextTransition = false;
 			skipTransition = false;
 		}
 
-		if (currentEnvironment.instantTransition || newEnvironment.instantTransition)
+		if (state.target.instantTransition || newEnvironment.instantTransition)
 			skipTransition = true;
 
-		log.debug("changing environment from {} to {} (instant: {})", currentEnvironment, newEnvironment, skipTransition);
-		currentEnvironment = newEnvironment;
+		log.debug("changing environment from {} to {} (instant: {})", state.target, newEnvironment, skipTransition);
+		state.target = newEnvironment;
 		transitionComplete = false;
+		transitionProgress = 0;
 		transitionStartTime = plugin.elapsedTime - (skipTransition ? TRANSITION_DURATION : 0);
 
-		// Start transitioning from the current values
-		startFogColor = currentFogColor;
-		startWaterColor = currentWaterColor;
-		startFogDepth = currentFogDepth;
-		startAmbientStrength = currentAmbientStrength;
-		startAmbientColor = currentAmbientColor;
-		startDirectionalStrength = currentDirectionalStrength;
-		startMoonDirectionalStrength = currentMoonDirectionalStrength;
-		startMoonShadowStrength = currentMoonShadowStrength;
-		startMinMoonIllumination = currentMinMoonIllumination;
-		startDirectionalColor = currentDirectionalColor;
-		startUnderglowStrength = currentUnderglowStrength;
-		startUnderglowColor = currentUnderglowColor;
-		startMoonColor = currentMoonColor;
-		startMoonLightColor = currentMoonLightColor;
-		startNightSkyColor = currentNightSkyColor;
-		startGroundFogStart = currentGroundFogStart;
-		startGroundFogEnd = currentGroundFogEnd;
-		startGroundFogOpacity = currentGroundFogOpacity;
-		startUnderwaterCausticsColor = currentUnderwaterCausticsColor;
-		startUnderwaterCausticsStrength = currentUnderwaterCausticsStrength;
-		startWindAngle = currentWindAngle;
-		startWindSpeed = currentWindSpeed;
-		startWindStrength = currentWindStrength;
-		startWindCeiling = currentWindCeiling;
-		startStarVisibility = currentStarVisibility;
-		startMoonVisibility = currentMoonVisibility;
-		startAuroraVisibility = currentAuroraVisibility;
-		startNebulaVisibility = currentNebulaVisibility;
-		startMoonSizeMult = currentMoonSizeMult;
-		startStarHorizonHeight = currentStarHorizonHeight;
-		startNightSkyColorStrength = currentNightSkyColorStrength;
-		startSunStrength = currentSunStrength;
-		startSunriseSunsetStrength = currentSunriseSunsetStrength;
-		startSkyColorTakeoverAngle = currentSkyColorTakeoverAngle;
-		startSunlightStrength = currentSunlightStrength;
-		startMinBrightnessBoost = currentMinBrightnessBoost;
-		mod(startSunAngles, currentSunAngles, TWO_PI);
+		state.current.copyTo(state.from);
+		mod(state.from.shadowAngles, state.current.shadowAngles, TWO_PI);
 
-		updateTargetSkyColor();
+		Environment areaEnvironment = getResolvedTargetEnvironment();
+		Environment lightingEnvironment = areaEnvironment;
+		if (!config.atmosphericLighting() && !lightingEnvironment.force)
+			lightingEnvironment = getOverworldEnvironment();
+		lightingEnvironment.copyTo(state.to);
+		state.to.fogDepth = areaEnvironment.fogDepth;
+		state.to.groundFogStart = areaEnvironment.groundFogStart;
+		state.to.groundFogEnd = areaEnvironment.groundFogEnd;
+		state.to.groundFogOpacity = areaEnvironment.groundFogOpacity;
+		lightningEnabled = areaEnvironment.lightningEffects;
 
-		var env = getCurrentEnvironment();
-		targetFogDepth = env.fogDepth;
-		targetGroundFogStart = env.groundFogStart;
-		targetGroundFogEnd = env.groundFogEnd;
-		targetGroundFogOpacity = env.groundFogOpacity;
-		lightningEnabled = env.lightningEffects;
-
-		var overworldEnv = getOverworldEnvironment();
-		float[] sunAngles = env.sunAngles;
-		if (sunAngles == null)
-			sunAngles = Objects.requireNonNullElse(overworldEnv.sunAngles, Environment.DEFAULT_SUN_ANGLES);
-		copyTo(targetSunAngles, sunAngles);
-
-		if (!config.atmosphericLighting() && !env.force)
-			env = overworldEnv;
-		targetAmbientStrength = env.ambientStrength;
-		targetAmbientColor = env.ambientColor;
-		targetDirectionalStrength = env.directionalStrength;
-		targetMoonDirectionalStrength = env.moonDirectionalStrength;
-		targetMoonShadowStrength = env.moonShadowStrength;
-		targetMinMoonIllumination = env.minMoonIllumination;
-		targetDirectionalColor = env.directionalColor;
-		targetUnderglowStrength = env.underglowStrength;
-		targetUnderglowColor = env.underglowColor;
-		targetMoonColor = env.moonColor;
-		targetMoonLightColor = env.moonLightColor;
-		targetNightSkyColor = env.nightSkyColor;
-		targetNightSkyColorStrength = env.nightSkyColorStrength;
-		targetUnderwaterCausticsColor = env.waterCausticsColor;
-		targetUnderwaterCausticsStrength = env.waterCausticsStrength;
-		targetWindAngle = env.windAngle;
-		targetWindSpeed = env.windSpeed;
-		targetWindStrength = env.windStrength;
-		targetWindCeiling = env.windCeiling;
-		targetStarVisibility = env.starVisibility;
-		targetMoonVisibility = env.moonVisibility;
-		targetAuroraVisibility = env.auroraVisibility;
-		targetNebulaVisibility = env.forceHideNebulas ? 0 : 1;
-		targetMoonSizeMult = env.moonSizeMult;
-		targetStarHorizonHeight = env.starHorizonHeight;
-		targetSunStrength = env.sunStrength;
-		targetSunriseSunsetStrength = env.sunriseSunsetStrength;
-		targetSkyColorTakeoverAngle = env.skyColorTakeoverAngle;
-		targetSunlightStrength = env.sunlightStrength;
-		targetMinBrightnessBoost = env.minBrightnessBoost;
+		state.to.shadowAngles = mix(areaEnvironment.shadowAngles, areaEnvironment.shadowAngles, 0);
+		updateTargetSkyColor(areaEnvironment);
 
 		// Prevent transitions from taking the long way around
 		for (int i = 0; i < 2; i++) {
-			float diff = startSunAngles[i] - targetSunAngles[i];
+			float diff = state.from.shadowAngles[i] - state.to.shadowAngles[i];
 			if (abs(diff) > PI)
-				targetSunAngles[i] += TWO_PI * sign(diff);
+				state.to.shadowAngles[i] += TWO_PI * sign(diff);
 		}
 	}
 
-	public void updateTargetSkyColor() {
-		Environment env = getCurrentEnvironment();
-
-		targetFogColor = getFogColor(env);
+	private void updateTargetSkyColor(Environment env) {
+		state.to.fogColor = getFogColor(env);
 		if (usesDefaultSkyColor(env)) {
 			DefaultSkyColor sky = plugin.configDefaultSkyColor;
 			if (sky == DefaultSkyColor.OSRS)
 				sky = DefaultSkyColor.DEFAULT;
-			targetWaterColor = sky.getRgb(client);
+			state.to.waterColor = sky.getRgb(client);
 		} else {
-			targetWaterColor = env.fogColor;
+			state.to.waterColor = env.fogColor;
 		}
 
 		// Override with decoupled water/sky color if present
-		if (env.waterColor != null) {
-			targetWaterColor = env.waterColor;
+		if (env.hasWaterColorOverride) {
+			state.to.waterColor = env.waterColor;
 		} else if (config.decoupleSkyAndWaterColor()) {
-			targetWaterColor = DefaultSkyColor.DEFAULT.getRgb(client);
+			state.to.waterColor = DefaultSkyColor.DEFAULT.getRgb(client);
 		}
 	}
 
 	private boolean usesDefaultSkyColor(Environment env) {
-		return env.fogColor == null || env.allowSkyOverride && plugin.configOverrideSky;
+		return !env.hasFogColorOverride || env.allowSkyOverride && plugin.configOverrideSky;
 	}
 
 	public float[] getFogColor(Environment env) {
@@ -725,14 +346,14 @@ public class EnvironmentManager {
 	}
 
 	/**
-	 * Figures out which Areas exist in the current scene and
-	 * adds them to lists for easy access.
+	 * Add the environments which can intersect the current scene.
 	 */
 	public void loadSceneEnvironments(SceneContext sceneContext) {
 		log.debug("Loading environments for scene: {}", sceneContext.sceneBounds);
 
 		sceneContext.environments.clear();
-		for (var environment : environments) {
+		for (int i = 0; i < environments.length; i++) {
+			Environment environment = environments[i];
 			if (sceneContext.sceneBounds.intersects(environment.area.aabbs)) {
 				log.debug("Added environment: {}", environment);
 				sceneContext.environments.add(environment);
@@ -778,8 +399,8 @@ public class EnvironmentManager {
 
 		if (lightningEnabled && config.flashingEffects()) {
 			float t = clamp(lightningBrightness, 0, 1);
-			currentFogColor = mix(currentFogColor, LIGHTNING_COLOR, t);
-			currentWaterColor = mix(currentWaterColor, LIGHTNING_COLOR, t);
+			state.current.fogColor = mix(state.current.fogColor, LIGHTNING_COLOR, t);
+			state.current.waterColor = mix(state.current.waterColor, LIGHTNING_COLOR, t);
 		} else {
 			lightningBrightness = 0f;
 		}
@@ -801,25 +422,26 @@ public class EnvironmentManager {
 		}
 	}
 
-	private Environment getCurrentEnvironment() {
-		if (currentEnvironment == Environment.OVERWORLD)
+	private Environment getResolvedTargetEnvironment() {
+		if (state.target == Environment.OVERWORLD)
 			return getOverworldEnvironment();
-		return currentEnvironment;
+		return state.target;
 	}
 
-	@Nullable
-	public MoonPhase getForcedMoonPhase() {
-		return getCurrentEnvironment().forceMoonPhase;
+	Environment getFromEnvironment() {
+		return state.from;
 	}
 
-	@Nullable
-	public SkyConfiguration getSkyConfiguration() {
-		return getCurrentEnvironment().sky;
+	Environment getToEnvironment() {
+		return state.to;
 	}
 
-	@Nullable
-	public SkyConfiguration getSkyPreset(String name) {
-		return skyPresets.get(name);
+	public Environment getCurrentEnvironment() {
+		return state.current;
+	}
+
+	public Environment getTargetEnvironment() {
+		return state.target;
 	}
 
 	public Environment getOverworldEnvironment() {
@@ -833,73 +455,13 @@ public class EnvironmentManager {
 		}
 	}
 
-	@Nonnull
-	public SkyGradient getSkyGradient() {
-		return getSkyGradient(getCurrentEnvironment());
-	}
-
-	/**
-	 * Resolve the sky-gradient profile for lighting sampled at {@code environment}.
-	 */
-	@Nonnull
-	public SkyGradient getSkyGradient(Environment environment) {
-		if (environment.sky != null && environment.sky.gradient != null)
-			return environment.sky.gradient;
-
-		Environment overworld = getOverworldEnvironment();
-		if (overworld.sky != null && overworld.sky.gradient != null)
-			return overworld.sky.gradient;
-
-		return Objects.requireNonNull(Environment.OVERWORLD.sky, "OVERWORLD environment must define sky")
-			.gradient;
-	}
-
-	/**
-	 * Resolve the procedural DaylightCycle lighting profile for the active seasonal theme.
-	 */
-	@Nonnull
-	public SkyLightingProfile getSkyLighting() {
-		return getSkyLighting(getCurrentEnvironment());
-	}
-
-	/**
-	 * Resolve the procedural daylight-cycle lighting profile for {@code environment}.
-	 */
-	@Nonnull
-	public SkyLightingProfile getSkyLighting(Environment environment) {
-		if (environment.sky != null && environment.sky.lighting != null)
-			return environment.sky.lighting;
-
-		Environment overworld = getOverworldEnvironment();
-		if (overworld.sky != null && overworld.sky.lighting != null)
-			return overworld.sky.lighting;
-
-		return Objects.requireNonNull(Environment.OVERWORLD.sky, "OVERWORLD environment must define sky")
-			.lighting;
-	}
-
-	public boolean isOverworld() {
-		return currentEnvironment.isOverworld;
-	}
-
-	public boolean isUnderwater() {
-		return currentEnvironment.isUnderwater;
-	}
-
-	public boolean allowRoofShadows() {
-		return currentEnvironment.allowRoofShadows;
-	}
-
-	public boolean hideVanillaSkyboxes() {
-		return currentEnvironment.hideVanillaSkyboxes;
-	}
-
 	@Nullable
 	public Environment getEnvironmentAt(int[] worldPos) {
-		if (environments != null)
-			for (var environment : environments)
-				if (environment.area.containsPoint(worldPos) && isConditionSatisfied(environment))
-					return environment;
+		for (int i = 0; i < environments.length; i++) {
+			Environment env = environments[i];
+			if (env.area.containsPoint(worldPos) && isConditionSatisfied(env))
+				return env;
+		}
 		return null;
 	}
 }

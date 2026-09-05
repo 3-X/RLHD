@@ -154,10 +154,10 @@
       "nightMultiplier": {
         "type": "number",
         "minimum": 0,
-        "description": "Overworld night brightness multiplier while the day & night cycle is active. Defaults to 1; 0 disables the light and values above 1 brighten it."
+        "description": "Overworld night brightness multiplier while the daylight cycle is active. Defaults to 1; 0 disables the light and values above 1 brighten it."
       },
       "schedule": {
-        "description": "When the light turns on or off based on the sun's altitude. Scheduled lights are disabled when the day & night cycle is disabled.",
+        "description": "When the light turns on or off based on the sun's altitude. Scheduled lights are disabled when the daylight cycle is disabled.",
         "oneOf": [
           { "$ref": "#/$defs/lightScheduleRange" },
           {

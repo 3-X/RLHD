@@ -105,7 +105,6 @@ import rs117.hd.renderer.legacy.LegacyRenderer;
 import rs117.hd.renderer.zone.SceneManager;
 import rs117.hd.renderer.zone.ZoneRenderer;
 import rs117.hd.scene.AreaManager;
-import rs117.hd.scene.DaylightCycleManager;
 import rs117.hd.scene.EnvironmentManager;
 import rs117.hd.scene.FishingSpotReplacer;
 import rs117.hd.scene.GamevalManager;
@@ -115,6 +114,7 @@ import rs117.hd.scene.MaterialManager;
 import rs117.hd.scene.ModelOverrideManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SceneContext;
+import rs117.hd.scene.SkyManager;
 import rs117.hd.scene.TextureManager;
 import rs117.hd.scene.TileOverrideManager;
 import rs117.hd.scene.WaterTypeManager;
@@ -273,10 +273,10 @@ public class HdPlugin extends Plugin {
 	private LightManager lightManager;
 
 	@Inject
-	private EnvironmentManager environmentManager;
+	private SkyManager skyManager;
 
 	@Inject
-	private DaylightCycleManager daylightCycleManager;
+	private EnvironmentManager environmentManager;
 
 	@Inject
 	private TextureManager textureManager;
@@ -741,6 +741,7 @@ public class HdPlugin extends Plugin {
 				tileOverrideManager.startUp();
 				modelOverrideManager.startUp();
 				lightManager.startUp();
+				skyManager.startUp();
 				environmentManager.startUp();
 				fishingSpotReplacer.startUp();
 				gammaCalibrationOverlay.initialize();
@@ -811,6 +812,7 @@ public class HdPlugin extends Plugin {
 			modelOverrideManager.shutDown();
 			lightManager.shutDown();
 			environmentManager.shutDown();
+			skyManager.shutDown();
 			fishingSpotReplacer.shutDown();
 			areaManager.shutDown();
 			gamevalManager.shutDown();
@@ -1826,7 +1828,7 @@ public class HdPlugin extends Plugin {
 			}
 		}
 
-		daylightCycleManager.updateConfig(config);
+		skyManager.updateConfig(config);
 	}
 
 	@Subscribe
@@ -2117,7 +2119,7 @@ public class HdPlugin extends Plugin {
 			deltaClientTime = (float) (elapsedClientTime - lastFrameClientTime);
 
 			elapsedTime += deltaTime;
-			windOffset += deltaTime * environmentManager.currentWindSpeed;
+			windOffset += deltaTime * environmentManager.getCurrentEnvironment().windSpeed;
 		}
 		lastFrameTimeMillis = System.currentTimeMillis();
 		lastFrameClientTime = elapsedClientTime;

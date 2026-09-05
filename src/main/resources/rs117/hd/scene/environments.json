@@ -14,7 +14,7 @@
     "ambientStrength": 3,
     "directionalColor": "#aecfc9",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -64,7 +64,7 @@
     "directionalStrength": 0.5,
     "fogColor": "#aebde0",
     "fogDepth": 70,
-    "sunAngles": [
+    "shadowAngles": [
       68,
       190
     ]
@@ -84,11 +84,13 @@
     "windAngle": 40,
     "windSpeed": 10,
     "windStrength": 20,
-    "sunStrength": 0.05,
-    "sunlightStrength": 0.5,
-    "starVisibility": 0.01,
-    "moonVisibility": 0.1,
-    "minBrightnessBoost": 0.8
+    "sky": {
+      "starVisibility": 0.01,
+      "moonVisibility": 0.1,
+      "sunStrength": 0.05,
+      "sunlightStrength": 0.5,
+      "minBrightnessBoost": 0.8
+    }
   },
   {
     "area": "WILDERNESS_LOW",
@@ -101,11 +103,13 @@
     "windAngle": 40,
     "windSpeed": 15,
     "windStrength": 40,
-    "sunStrength": 0.1,
-    "sunlightStrength": 0.7,
-    "starVisibility": 0.3,
-    "moonVisibility": 0.3,
-    "minBrightnessBoost": 0.8
+    "sky": {
+      "starVisibility": 0.3,
+      "moonVisibility": 0.3,
+      "sunStrength": 0.1,
+      "sunlightStrength": 0.7,
+      "minBrightnessBoost": 0.8
+    }
   },
   {
     "area": "WILDERNESS_MID",
@@ -121,11 +125,13 @@
     "windAngle": 40,
     "windSpeed": 15,
     "windStrength": 25,
-    "sunStrength": 0.05,
-    "sunlightStrength": 0.5,
-    "starVisibility": 0.2,
-    "moonVisibility": 0.2,
-    "minBrightnessBoost": 0.8
+    "sky": {
+      "starVisibility": 0.2,
+      "moonVisibility": 0.2,
+      "sunStrength": 0.05,
+      "sunlightStrength": 0.5,
+      "minBrightnessBoost": 0.8
+    }
   },
   {
     "area": "HUNTER_GUILD",
@@ -149,7 +155,7 @@
     "ambientColor": "#b59b79",
     "ambientStrength": 2,
     "directionalStrength": 0.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -161,7 +167,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -175,7 +181,7 @@
     "ambientStrength": 1.3,
     "directionalColor": "#f5bc67",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -187,7 +193,7 @@
     "ambientColor": "#a2c35d",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -202,7 +208,7 @@
     "ambientColor": "#844A5E",
     "ambientStrength": 1.5,
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -214,7 +220,7 @@
     "ambientStrength": 1.3,
     "directionalColor": "#cb4848",
     "directionalStrength": 1.8,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -227,7 +233,7 @@
     "ambientStrength": 1.3,
     "directionalColor": "#4c78b6",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -240,7 +246,7 @@
     "ambientStrength": 1.3,
     "directionalColor": "#4e9dd0",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -251,7 +257,7 @@
     "area": "DORGESHKAAN",
     "directionalColor": "#a29b71",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -264,7 +270,7 @@
     "ambientStrength": 1.7,
     "directionalColor": "#fff6ca",
     "directionalStrength": 0.7,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -279,7 +285,7 @@
     "ambientStrength": 0.8,
     "directionalColor": "#ffa400",
     "directionalStrength": 1.8,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -292,7 +298,7 @@
     "ambientStrength": 0.7,
     "directionalColor": "#a0bbe2",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -305,7 +311,7 @@
     "ambientStrength": 0.9,
     "directionalColor": "#75e7ff",
     "directionalStrength": 1.8,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -318,7 +324,7 @@
     "ambientStrength": 0.875,
     "directionalColor": "#74d6f7",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -331,7 +337,7 @@
     "ambientStrength": 0.85,
     "directionalColor": "#73c4f0",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -344,7 +350,7 @@
     "ambientStrength": 0.825,
     "directionalColor": "#72b2e9",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -357,7 +363,7 @@
     "ambientStrength": 0.8,
     "directionalColor": "#71a0e2",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -371,25 +377,28 @@
     "varbitCondition": "MYQ6 >=128 && MYQ6 < 178",
     "fogDepth": 20,
     "windAngle": 40,
-	"directionalStrength": 2,
+    "directionalStrength": 2,
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#4B1715",
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "starVisibility": 0.8,
-    "nightSkyColor": "#FF0000",
-    "moonColor": "#ED3D3D",
-    "moonLightColor": "#ED8B8B",
     "sky": {
       "preset": "NIGHT",
-      "moonAngles": [ 22.6, 89.75 ]
-    },
-    "auroraVisibility": 0,
-    "nightSkyColorStrength": 2.5,
-    "moonSizeMult": 3.05,
-    "forceMoonPhase": "FULL_MOON"
+      "moonAngles": [
+        22.6,
+        89.75
+      ],
+      "forceMoonPhase": "FULL_MOON",
+      "moonColor": "#ED3D3D",
+      "moonLightColor": "#ED8B8B",
+      "nightSkyColor": "#FF0000",
+      "nightSkyColorStrength": 2.5,
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "moonSizeMult": 3.05
+    }
   },
   {
     "area": "VER_SINHAZA_TRANSITION",
@@ -403,15 +412,17 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.5,
-    "moonColor": "#FF0000",
-    "moonLightColor": "#FF6D6D",
-    "sunStrength": 0.020,
-    "starVisibility": 0.3,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 3,
     "windAngle": 40,
     "windSpeed": 7,
-    "windStrength": 26
+    "windStrength": 26,
+    "sky": {
+      "moonColor": "#FF0000",
+      "moonLightColor": "#FF6D6D",
+      "starVisibility": 0.3,
+      "sunStrength": 0.020,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 3
+    }
   },
   {
     "description": "With blood moon and Night, for the portion of the quest immediately after returning from Vampyrium to the overworld. Must remain above the default Ver Sinhaza environment",
@@ -420,25 +431,28 @@
     "varbitCondition": "MYQ6 >=128 && MYQ6 < 178",
     "fogDepth": 20,
     "windAngle": 40,
-	"directionalStrength": 2,
+    "directionalStrength": 2,
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#4B1715",
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "starVisibility": 0.8,
-    "nightSkyColor": "#FF0000",
-    "moonColor": "#ED3D3D",
-    "moonLightColor": "#ED8B8B",
     "sky": {
       "preset": "NIGHT",
-      "moonAngles": [ 22.6, 89.75 ]
-    },
-    "auroraVisibility": 0,
-    "nightSkyColorStrength": 2.5,
-    "moonSizeMult": 3.05,
-    "forceMoonPhase": "FULL_MOON"
+      "moonAngles": [
+        22.6,
+        89.75
+      ],
+      "forceMoonPhase": "FULL_MOON",
+      "moonColor": "#ED3D3D",
+      "moonLightColor": "#ED8B8B",
+      "nightSkyColor": "#FF0000",
+      "nightSkyColorStrength": 2.5,
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "moonSizeMult": 3.05
+    }
   },
   {
     "area": "VER_SINHAZA",
@@ -451,15 +465,17 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.5,
-    "moonColor": "#FF0000",
-    "moonLightColor": "#FF6D6D",
-    "sunStrength": 0.020,
-    "starVisibility": 0.3,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 3,
     "windAngle": 40,
     "windSpeed": 7,
-    "windStrength": 26
+    "windStrength": 26,
+    "sky": {
+      "moonColor": "#FF0000",
+      "moonLightColor": "#FF6D6D",
+      "starVisibility": 0.3,
+      "sunStrength": 0.020,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 3
+    }
   },
   {
     "description": "Needs to be above the non-legacy version",
@@ -469,7 +485,7 @@
     "ambientStrength": 3,
     "directionalColor": "#dda6a6",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -482,7 +498,7 @@
     "ambientStrength": 3,
     "directionalColor": "#dda6a6",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -522,7 +538,7 @@
     "area": "TOA_ENTRANCE_LOBBY",
     "directionalStrength": 0.75,
     "fogColor": "#050505",
-    "sunAngles": [
+    "shadowAngles": [
       43,
       0
     ],
@@ -550,7 +566,7 @@
     "groundFogStart": -1900,
     "groundFogEnd": -2750,
     "instantTransition": true,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -563,7 +579,7 @@
     "directionalColor": "#ffc875",
     "directionalStrength": 0.5,
     "instantTransition": true,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -576,25 +592,28 @@
     "varbitCondition": "MYQ6 >=128 && MYQ6 < 178",
     "fogDepth": 20,
     "windAngle": 40,
-	"directionalStrength": 2,
+    "directionalStrength": 2,
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#4B1715",
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "starVisibility": 0.8,
-    "nightSkyColor": "#FF0000",
-    "moonColor": "#ED3D3D",
-    "moonLightColor": "#ED8B8B",
     "sky": {
       "preset": "NIGHT",
-      "moonAngles": [ 22.6, 89.75 ]
-    },
-    "auroraVisibility": 0,
-    "nightSkyColorStrength": 2.5,
-    "moonSizeMult": 3.05,
-    "forceMoonPhase": "FULL_MOON"
+      "moonAngles": [
+        22.6,
+        89.75
+      ],
+      "forceMoonPhase": "FULL_MOON",
+      "moonColor": "#ED3D3D",
+      "moonLightColor": "#ED8B8B",
+      "nightSkyColor": "#FF0000",
+      "nightSkyColorStrength": 2.5,
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "moonSizeMult": 3.05
+    }
   },
   {
     "area": "BARROWS",
@@ -607,14 +626,16 @@
     "fogDepth": 50,
     "groundFogStart": -300,
     "groundFogOpacity": 0.5,
-    "starVisibility": 0.25,
-    "moonVisibility": 0.35,
-    "sunStrength": 0.025,
-    "sunlightStrength": 0.15,
     "windAngle": 40,
     "windSpeed": 7,
     "windStrength": 26,
-    "minBrightnessBoost": 0.75
+    "sky": {
+      "starVisibility": 0.25,
+      "moonVisibility": 0.35,
+      "sunStrength": 0.025,
+      "sunlightStrength": 0.15,
+      "minBrightnessBoost": 0.75
+    }
   },
   {
     "description": "With blood moon and Night, for the portion of the quest immediately after returning from Vampyrium to the overworld. Must remain above the default Darkmeyer environment",
@@ -623,25 +644,28 @@
     "varbitCondition": "MYQ6 >=128 && MYQ6 < 178",
     "fogDepth": 20,
     "windAngle": 40,
-	"directionalStrength": 2,
+    "directionalStrength": 2,
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#4B1715",
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "starVisibility": 0.8,
-    "nightSkyColor": "#FF0000",
-    "moonColor": "#ED3D3D",
-    "moonLightColor": "#ED8B8B",
     "sky": {
       "preset": "NIGHT",
-      "moonAngles": [ 22.6, 89.75 ]
-    },
-    "auroraVisibility": 0,
-    "nightSkyColorStrength": 2.5,
-    "moonSizeMult": 3.05,
-    "forceMoonPhase": "FULL_MOON"
+      "moonAngles": [
+        22.6,
+        89.75
+      ],
+      "forceMoonPhase": "FULL_MOON",
+      "moonColor": "#ED3D3D",
+      "moonLightColor": "#ED8B8B",
+      "nightSkyColor": "#FF0000",
+      "nightSkyColorStrength": 2.5,
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "moonSizeMult": 3.05
+    }
   },
   {
     "area": "DARKMEYER",
@@ -653,15 +677,17 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.5,
-    "moonColor": "#FF0000",
-    "sunStrength": 0.020,
-    "starVisibility": 0.3,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 1.2,
     "windSpeed": 10,
     "windStrength": 30,
-	"sunriseSunsetStrength": 0.2,
-	"auroraVisibility": 0
+    "sky": {
+      "moonColor": "#FF0000",
+      "starVisibility": 0.3,
+      "auroraVisibility": 0,
+      "sunStrength": 0.020,
+      "sunriseSunsetStrength": 0.2,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 1.2
+    }
   },
   {
     "area": "MEIYERDITCH",
@@ -674,13 +700,15 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.5,
-    "starVisibility": 0.05,
-    "moonVisibility": 0.4,
-    "sunStrength": 0.04,
-    "sunlightStrength": 0.15,
     "windSpeed": 10,
     "windStrength": 30,
-    "minBrightnessBoost": 0.85
+    "sky": {
+      "starVisibility": 0.05,
+      "moonVisibility": 0.4,
+      "sunStrength": 0.04,
+      "sunlightStrength": 0.15,
+      "minBrightnessBoost": 0.85
+    }
   },
   {
     "area": "MEIYERDITCH_MYREQUE_HIDEOUT",
@@ -688,7 +716,7 @@
     "ambientStrength": 1.5,
     "directionalColor": "#ced6da",
     "directionalStrength": 0.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -700,7 +728,7 @@
     "ambientStrength": 1.5,
     "directionalColor": "#ced6da",
     "directionalStrength": 0.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -720,19 +748,22 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.425,
-    "starVisibility": 0.9,
-    "minBrightnessBoost": 1.25,
-    "nightSkyColor": "#FF0000",
-    "moonColor": "#ED3D3D",
-    "moonLightColor": "#ED8B8B",
     "sky": {
       "preset": "NIGHT",
-      "moonAngles": [ 22.6, 89.75 ]
-    },
-    "auroraVisibility": 0,
-    "nightSkyColorStrength": 4.5,
-    "moonSizeMult": 3.05,
-    "forceMoonPhase": "FULL_MOON"
+      "moonAngles": [
+        22.6,
+        89.75
+      ],
+      "forceMoonPhase": "FULL_MOON",
+      "moonColor": "#ED3D3D",
+      "moonLightColor": "#ED8B8B",
+      "nightSkyColor": "#FF0000",
+      "nightSkyColorStrength": 4.5,
+      "starVisibility": 0.9,
+      "auroraVisibility": 0,
+      "moonSizeMult": 3.05,
+      "minBrightnessBoost": 1.25
+    }
   },
   {
     "description": "Environment for the cutscene at the end of the The Blood Moon Rises",
@@ -749,13 +780,19 @@
     "groundFogEnd": -250,
     "ambientStrength": 0.6,
     "directionalStrength": 0,
-    "sunStrength": 0.75,
-    "sunAngles": [ 40, 110 ],
+    "shadowAngles": [
+      40,
+      110
+    ],
     "groundFogOpacity": 0.2,
     "sky": {
-      "sunAngles": [ 3, 107 ]
-    },
-    "auroraVisibility": 0
+      "sunAngles": [
+        3,
+        107
+      ],
+      "auroraVisibility": 0,
+      "sunStrength": 0.75
+    }
   },
   {
     "description": "Environment for post quest Icyene Graveyard",
@@ -772,13 +809,19 @@
     "groundFogEnd": -250,
     "ambientStrength": 0.6,
     "directionalStrength": 0,
-    "sunStrength": 0.75,
-    "sunAngles": [ 40, 110 ],
+    "shadowAngles": [
+      40,
+      110
+    ],
     "groundFogOpacity": 0.2,
     "sky": {
-      "sunAngles": [ 3, 107 ]
-    },
-    "auroraVisibility": 0
+      "sunAngles": [
+        3,
+        107
+      ],
+      "auroraVisibility": 0,
+      "sunStrength": 0.75
+    }
   },
   {
     "description": "With blood moon and Night, for the portion of the quest immediately after returning from Vampyrium to the overworld. Must remain above the default Morytania environment",
@@ -787,25 +830,28 @@
     "varbitCondition": "MYQ6 >=128 && MYQ6 < 178",
     "fogDepth": 20,
     "windAngle": 40,
-	"directionalStrength": 2,
+    "directionalStrength": 2,
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#4B1715",
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.7,
-    "starVisibility": 0.8,
-    "nightSkyColor": "#FF0000",
-    "moonColor": "#ED3D3D",
-    "moonLightColor": "#ED8B8B",
     "sky": {
       "preset": "NIGHT",
-      "moonAngles": [ 22.6, 89.75 ]
-    },
-    "auroraVisibility": 0,
-    "nightSkyColorStrength": 2.5,
-    "moonSizeMult": 3.05,
-    "forceMoonPhase": "FULL_MOON"
+      "moonAngles": [
+        22.6,
+        89.75
+      ],
+      "forceMoonPhase": "FULL_MOON",
+      "moonColor": "#ED3D3D",
+      "moonLightColor": "#ED8B8B",
+      "nightSkyColor": "#FF0000",
+      "nightSkyColorStrength": 2.5,
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "moonSizeMult": 3.05
+    }
   },
   {
     "description": "Default Morytania Environment",
@@ -819,21 +865,23 @@
     "groundFogStart": -150,
     "groundFogEnd": -350,
     "groundFogOpacity": 0.5,
-    "starVisibility": 0.25,
-    "moonVisibility": 0.35,
-    "sunStrength": 0.01,
-    "sunlightStrength": 0.25,
     "windAngle": 40,
     "windSpeed": 7,
     "windStrength": 26,
-    "minBrightnessBoost": 0.75
+    "sky": {
+      "starVisibility": 0.25,
+      "moonVisibility": 0.35,
+      "sunStrength": 0.01,
+      "sunlightStrength": 0.25,
+      "minBrightnessBoost": 0.75
+    }
   },
   {
     "area": "LUMBRIDGE_CASTLE_BASEMENT",
     "directionalColor": "#a29b71",
     "directionalStrength": 1.5,
     "ambientStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -845,7 +893,7 @@
     "ambientStrength": 0.85,
     "directionalColor": "#B5AC7E",
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -858,7 +906,7 @@
     "ambientStrength": 0.9,
     "directionalColor": "#a8ab90",
     "directionalStrength": 0.85,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -873,11 +921,13 @@
     "directionalColor": "#ffbcb7",
     "directionalStrength": 0.5,
     "fogColor": "#0c0b0a",
-    "nightSkyColor": "#7084AF",
     "fogDepth": 45,
-    "sunStrength": 0.02,
-    "sunlightStrength": 0.1,
-    "minBrightnessBoost": 0.9
+    "sky": {
+      "nightSkyColor": "#7084AF",
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.1,
+      "minBrightnessBoost": 0.9
+    }
   },
   {
     "area": "DRAYNOR_MANOR_FOREST",
@@ -888,16 +938,18 @@
     "directionalStrength": 2,
     "fogColor": "#474055",
     "fogDepth": 20,
-    "sunStrength": 0.02,
-    "sunlightStrength": 0.1,
-    "minBrightnessBoost": 0.9
+    "sky": {
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.1,
+      "minBrightnessBoost": 0.9
+    }
   },
   {
     "area": "DRAYNOR_MANOR_CRYPT",
     "ambientColor": "#7891b5",
     "directionalColor": "#4c78b6",
     "directionalStrength": 0,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -914,17 +966,19 @@
     "waterColor": "#1f2838",
     "waterCausticsStrength": 0,
     "fogDepth": 50,
-    "sky": "NIGHT",
-    "nightSkyColor": "#ADADAD",
-    "moonDirectionalStrength": 2,
-    "minBrightnessBoost": 0.35
+    "sky": {
+      "preset": "NIGHT",
+      "moonDirectionalStrength": 2,
+      "nightSkyColor": "#ADADAD",
+      "minBrightnessBoost": 0.35
+    }
   },
   {
     "area": "MOTHERLODE_MINE",
     "ambientColor": "#aaafb6",
     "ambientStrength": 4,
     "directionalStrength": 0.5,
-    "sunAngles": [
+    "shadowAngles": [
       75,
       190
     ],
@@ -937,7 +991,7 @@
     "ambientStrength": 1.5,
     "directionalColor": "#a29794",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -956,7 +1010,7 @@
     "ambientColor": "#ababab",
     "directionalColor": "#565656",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -966,7 +1020,7 @@
     "area": "SMOKE_DEVIL_DUNGEON",
     "fogColor": "#0A0A0A",
     "directionalStrength": 0.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1018,7 +1072,7 @@
     "ambientColor": "#b59b79",
     "directionalColor": "#8a9eb6",
     "directionalStrength": 0.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1030,7 +1084,7 @@
     "ambientColor": "#b59b79",
     "directionalColor": "#8a9eb6",
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1042,7 +1096,7 @@
     "ambientColor": "#b59b79",
     "directionalColor": "#8a9eb6",
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1054,7 +1108,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1069,7 +1123,10 @@
     "area": "ESSENCE_MINE",
     "ambientColor": "#6687a9",
     "ambientStrength": 0.85,
-    "sunAngles": [ 50, 244 ],
+    "shadowAngles": [
+      50,
+      244
+    ],
     "directionalStrength": 0.45,
     "fogColor": "#adb9c4",
     "fogDepth": 50
@@ -1078,7 +1135,10 @@
     "area": "ICE_QUEENS_DUNGEON",
     "ambientColor": "#6687a9",
     "ambientStrength": 0.85,
-    "sunAngles": [ 73, 244 ],
+    "shadowAngles": [
+      73,
+      244
+    ],
     "directionalStrength": 0.45,
     "fogColor": "#adb9c4",
     "fogDepth": 50
@@ -1091,10 +1151,12 @@
     "directionalStrength": 2,
     "fogColor": "#aebde0",
     "fogDepth": 50,
-    "sunlightStrength": 0.7,
-    "sunStrength": 0.6,
-    "starVisibility": 0.4,
-    "moonVisibility": 0.4
+    "sky": {
+      "starVisibility": 0.4,
+      "moonVisibility": 0.4,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.7
+    }
   },
   {
     "area": "RELLEKKA_HUNTER_ICEBERG",
@@ -1104,10 +1166,12 @@
     "directionalStrength": 1.75,
     "fogColor": "#aebde0",
     "fogDepth": 50,
-    "sunlightStrength": 0.7,
-    "sunStrength": 0.6,
-    "starVisibility": 0.4,
-    "moonVisibility": 0.4
+    "sky": {
+      "starVisibility": 0.4,
+      "moonVisibility": 0.4,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.7
+    }
   },
   {
     "area": "GIELINOR_SNOWY_NORTHERN_REGION",
@@ -1126,8 +1190,9 @@
     "directionalStrength": 1.5,
     "fogColor": "#aebde0",
     "fogDepth": 20,
-    "sunAngles": [
-      45, 235
+    "shadowAngles": [
+      45,
+      235
     ]
   },
   {
@@ -1140,11 +1205,13 @@
     "groundFogStart": -600,
     "groundFogEnd": -900,
     "groundFogOpacity": 0.4,
-    "sunStrength": 0.6,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 0.3,
-    "starVisibility": 0.5,
-    "moonVisibility": 0.5
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 0.5,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "MOUNTAIN_CAMP",
@@ -1156,11 +1223,13 @@
     "groundFogStart": -1200,
     "groundFogEnd": -1600,
     "groundFogOpacity": 0.5,
-    "sunStrength": 0.6,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 0.3,
-    "starVisibility": 0.5,
-    "moonVisibility": 0.5
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 0.5,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "FREMENNIK_PROVINCE",
@@ -1174,11 +1243,13 @@
     "groundFogOpacity": 0.3,
     "windSpeed": 17.5,
     "windStrength": 60,
-    "sunStrength": 0.6,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 0.3,
-    "starVisibility": 0.5,
-    "moonVisibility": 0.5
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 0.5,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "RELLEKKA_COLD_WATER",
@@ -1193,7 +1264,10 @@
     "area": "FREMENNIK_ISLES_MIDDLE",
     "ambientColor": "#97baff",
     "directionalStrength": 4,
-    "sunAngles": [ 52, 235 ],
+    "shadowAngles": [
+      52,
+      235
+    ],
     "fogDepth": 25,
     "windStrength": 85,
     "windCeiling": 400,
@@ -1204,7 +1278,10 @@
     "area": "NEITIZNOT",
     "ambientColor": "#97baff",
     "directionalStrength": 4,
-    "sunAngles": [ 52, 235 ],
+    "shadowAngles": [
+      52,
+      235
+    ],
     "fogDepth": 15,
     "windStrength": 85,
     "windCeiling": 400,
@@ -1225,10 +1302,12 @@
     "windCeiling": 400,
     "windAngle": 45,
     "windSpeed": 22.5,
-    "sunlightStrength": 0.9,
-    "sunStrength": 0.8,
-    "starVisibility": 0.8,
-    "moonVisibility": 0.8
+    "sky": {
+      "starVisibility": 0.8,
+      "moonVisibility": 0.8,
+      "sunStrength": 0.8,
+      "sunlightStrength": 0.9
+    }
   },
   {
     "area": "FREMENNIK_ISLES_FAR_NORTH",
@@ -1265,8 +1344,9 @@
     "directionalColor": "#ffffff",
     "directionalStrength": 0.25,
     "fogColor": "#000000",
-    "sunAngles": [
-      52, 235
+    "shadowAngles": [
+      52,
+      235
     ],
     "fogDepth": 45
   },
@@ -1274,36 +1354,46 @@
     "area": "WATERBIRTH_ISLAND",
     "ambientColor": "#6fb0ff",
     "ambientStrength": 1.75,
-    "sunAngles": [ 72, 235 ],
+    "shadowAngles": [
+      72,
+      235
+    ],
     "directionalColor": "#f4e5c9",
     "directionalStrength": 1.5,
     "fogColor": "#adb9c4",
     "fogDepth": 45,
-    "sunlightStrength": 0.8,
-    "sunStrength": 0.02,
-    "starVisibility": 0.2,
-    "moonVisibility": 0.1
+    "sky": {
+      "starVisibility": 0.2,
+      "moonVisibility": 0.1,
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "ISLAND_OF_STONE",
     "ambientColor": "#6fb0ff",
     "ambientStrength": 1.75,
-    "sunAngles": [ 72, 235 ],
+    "shadowAngles": [
+      72,
+      235
+    ],
     "directionalColor": "#f4e5c9",
     "directionalStrength": 1.5,
     "fogColor": "#adb9c4",
     "fogDepth": 45,
-    "sunlightStrength": 0.6,
-    "sunStrength": 0.02,
-    "starVisibility": 0.2,
-    "moonVisibility": 0.1
+    "sky": {
+      "starVisibility": 0.2,
+      "moonVisibility": 0.1,
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.6
+    }
   },
   {
     "area": "PENGUIN_BASE",
     "ambientColor": "#aaafb6",
     "ambientStrength": 0.75,
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1316,7 +1406,7 @@
     "ambientStrength": 0.5,
     "directionalColor": "#4c78b6",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1329,7 +1419,7 @@
     "ambientStrength": 1.2,
     "directionalColor": "#ffa400",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       60,
       10
     ],
@@ -1343,17 +1433,19 @@
     "directionalStrength": 1.5,
     "fogColor": "#e2e6ed",
     "fogDepth": 40,
-    "sunlightStrength": 0.6,
-    "sunStrength": 0.02,
-    "starVisibility": 0.2,
-    "moonVisibility": 0.1
+    "sky": {
+      "starVisibility": 0.2,
+      "moonVisibility": 0.1,
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.6
+    }
   },
   {
     "area": "GOD_WARS_DUNGEON",
     "ambientColor": "#b5d7ff",
     "directionalColor": "#92d1fa",
     "directionalStrength": 1.8,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1405,11 +1497,13 @@
     "windAngle": 40,
     "windSpeed": 10,
     "windStrength": 40,
-    "sunStrength": 0.1,
-    "sunlightStrength": 0.7,
-    "starVisibility": 0.3,
-    "moonVisibility": 0.3,
-    "minBrightnessBoost": 0.4
+    "sky": {
+      "starVisibility": 0.3,
+      "moonVisibility": 0.3,
+      "sunStrength": 0.1,
+      "sunlightStrength": 0.7,
+      "minBrightnessBoost": 0.4
+    }
   },
   {
     "area": "TIRANNWN_MAINLAND",
@@ -1434,7 +1528,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1460,12 +1554,14 @@
     "ambientColor": "#97baff",
     "fogColor": "#000000",
     "directionalStrength": 4,
-	"starHorizonHeight": 0,
-    "moonVisibility": 0,
-    "nightSkyColorStrength": 5,
-    "nightSkyColor": "#ff0000",
-    "sky": "NIGHT",
-    "forceHideNebulas": true
+    "sky": {
+      "preset": "NIGHT",
+      "nightSkyColor": "#ff0000",
+      "nightSkyColorStrength": 5,
+      "moonVisibility": 0,
+      "starHorizonHeight": 0,
+      "nebulaVisibility": 0
+    }
   },
   {
     "area": "SHADOW_DUNGEON",
@@ -1481,7 +1577,7 @@
     "ambientStrength": 0.9,
     "directionalColor": "#97ddff",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1493,7 +1589,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1518,7 +1614,7 @@
     "ambientStrength": 2,
     "directionalColor": "#9aeaff",
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1545,8 +1641,10 @@
     "fogDepth": 50,
     "windStrength": 30,
     "windSpeed": 10,
-    "sunlightStrength": 0.5,
-    "sunStrength": 0.1
+    "sky": {
+      "sunStrength": 0.1,
+      "sunlightStrength": 0.5
+    }
   },
   {
     "area": "LIZARDMAN_TEMPLE",
@@ -1560,8 +1658,10 @@
     "directionalStrength": 2.5,
     "fogColor": "#4f1325",
     "fogDepth": 30,
-    "sunStrength": 0.02,
-    "sunlightStrength": 0.8
+    "sky": {
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "ZEAH_SNOWY_NORTHERN_REGION",
@@ -1571,17 +1671,22 @@
     "directionalStrength": 1.5,
     "fogColor": "#aebde0",
     "fogDepth": 50,
-    "sunStrength": 0.1,
-    "sunlightStrength": 0.8,
-    "starVisibility": 0.3,
-    "moonVisibility": 0.3
+    "sky": {
+      "starVisibility": 0.3,
+      "moonVisibility": 0.3,
+      "sunStrength": 0.1,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "WINTERTODT_ARENA",
     "instantTransition": true,
     "ambientColor": "#6fb0ff",
     "ambientStrength": 1,
-    "sunAngles": [ 72, 235 ],
+    "shadowAngles": [
+      72,
+      235
+    ],
     "directionalColor": "#f4e5c9",
     "directionalStrength": 0.75,
     "fogColor": "#aebde3",
@@ -1589,9 +1694,11 @@
     "groundFogStart": -1750,
     "groundFogEnd": -2250,
     "groundFogOpacity": 0.65,
-    "sunStrength": 0.1,
-    "sunlightStrength": 0.8,
-    "starVisibility": 0.3
+    "sky": {
+      "starVisibility": 0.3,
+      "sunStrength": 0.1,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "ARCEUUS",
@@ -1600,9 +1707,11 @@
     "directionalStrength": 3.5,
     "fogColor": "#13184f",
     "fogDepth": 30,
-    "sunStrength": 0.1,
     "waterCausticsStrength": 0.8,
-    "minBrightnessBoost": 0.3
+    "sky": {
+      "sunStrength": 0.1,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "LOVAKENGJ",
@@ -1611,22 +1720,26 @@
     "directionalStrength": 4,
     "fogColor": "#150a05",
     "fogDepth": 40,
-    "starVisibility": 0.05,
-    "sunlightStrength": 0.01,
-    "sunStrength": 0.1,
-	"skyColorTakeoverAngle": 10,
-	"sunriseSunsetStrength": 0.2,
-    "moonVisibility": 0.01
+    "sky": {
+      "starVisibility": 0.05,
+      "moonVisibility": 0.01,
+      "sunStrength": 0.1,
+      "sunriseSunsetStrength": 0.2,
+      "skyColorTakeoverAngle": 10,
+      "sunlightStrength": 0.01
+    }
   },
   {
     "area": "BATTLEFRONT_LIZARDMAN_CANYON_SHAMANS",
     "fogColor": "#121216",
     "fogDepth": 16.5,
-    "minBrightnessBoost": 1.5,
     "windAngle": 40,
     "windSpeed": 15,
     "windStrength": 50,
-    "moonDirectionalStrength": 2
+    "sky": {
+      "moonDirectionalStrength": 2,
+      "minBrightnessBoost": 1.5
+    }
   },
   {
     "area": "THE_STRANGLEWOOD",
@@ -1636,9 +1749,11 @@
     "directionalStrength": 2.5,
     "fogColor": "#af979f",
     "fogDepth": 35,
-    "sunStrength": 0.8,
-    "sunlightStrength": 0.8,
-    "starVisibility": 0.3
+    "sky": {
+      "starVisibility": 0.3,
+      "sunStrength": 0.8,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "THE_STRANGLEWOOD_QUEST_UNDERGROUND_AREAS",
@@ -1646,7 +1761,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 4,
     "directionalStrength": 0,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1672,7 +1787,7 @@
     "ambientStrength": 1,
     "directionalColor": "#EDE9DC",
     "directionalStrength": 1.7,
-    "sunAngles": [
+    "shadowAngles": [
       90,
       180
     ],
@@ -1684,7 +1799,7 @@
     "ambientStrength": 1.25,
     "directionalColor": "#f5d67a",
     "directionalStrength": 0.8,
-    "sunAngles": [
+    "shadowAngles": [
       70,
       210
     ],
@@ -1700,7 +1815,7 @@
     "ambientStrength": 1.65,
     "directionalColor": "#78ffe3",
     "directionalStrength": 3,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1713,7 +1828,7 @@
     "ambientStrength": 1.65,
     "directionalColor": "#c58c9e",
     "directionalStrength": 3,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1726,7 +1841,7 @@
     "ambientStrength": 1.5,
     "directionalColor": "#78ffe3",
     "directionalStrength": 3,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1738,7 +1853,7 @@
     "allowSkyOverride": false,
     "ambientStrength": 1.2,
     "directionalStrength": 0,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1750,7 +1865,7 @@
     "ambientStrength": 1.5,
     "directionalColor": "#6dc5ff",
     "directionalStrength": 0,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1772,10 +1887,12 @@
     "groundFogStart": 0,
     "groundFogEnd": -300,
     "groundFogOpacity": 0.3,
-    "sunStrength": 0.02,
-    "starVisibility": 0.2,
-    "sunlightStrength": 0.8,
-    "moonVisibility": 0.1
+    "sky": {
+      "starVisibility": 0.2,
+      "moonVisibility": 0.1,
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "THE_STORM_TEMPOR_EDGE",
@@ -1784,10 +1901,12 @@
     "directionalColor": "#707070",
     "fogColor": "#99AECC",
     "fogDepth": 10,
-    "sunStrength": 0.02,
-    "starVisibility": 0.2,
-    "sunlightStrength": 0.8,
-    "moonVisibility": 0.1
+    "sky": {
+      "starVisibility": 0.2,
+      "moonVisibility": 0.1,
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "THE_STORM_TEMPOR",
@@ -1803,17 +1922,19 @@
     "groundFogStart": 0,
     "groundFogEnd": -300,
     "groundFogOpacity": 0.25,
-    "sunStrength": 0.02,
-    "starVisibility": 0.2,
-    "sunlightStrength": 0.8,
-    "moonVisibility": 0.1
+    "sky": {
+      "starVisibility": 0.2,
+      "moonVisibility": 0.1,
+      "sunStrength": 0.02,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "TEMPLE_OF_THE_EYE",
     "isUnderwater": true,
     "directionalColor": "#e6f4ff",
     "directionalStrength": 0.3,
-    "sunAngles": [
+    "shadowAngles": [
       50,
       235
     ],
@@ -1831,7 +1952,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 4,
     "directionalStrength": 0,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1843,7 +1964,7 @@
     "ambientStrength": 3,
     "directionalColor": "#acff68",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1857,7 +1978,7 @@
     "ambientStrength": 2.5,
     "directionalColor": "#DBDBDB",
     "directionalStrength": 2,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1887,7 +2008,7 @@
     "ambientStrength": 2,
     "directionalColor": "#71a3d0",
     "directionalStrength": 2.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1904,7 +2025,7 @@
     "ambientStrength": 1.5,
     "directionalColor": "#71a3d0",
     "directionalStrength": 3,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1950,7 +2071,7 @@
     "ambientStrength": 3,
     "directionalColor": "#cab6cd",
     "directionalStrength": 0.7,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1961,7 +2082,7 @@
     "allowSkyOverride": false,
     "ambientStrength": 0.2,
     "directionalStrength": 3,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -1985,7 +2106,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2009,7 +2130,7 @@
     "ambientStrength": 1.1,
     "directionalColor": "#ffc199",
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       67,
       60
     ],
@@ -2022,7 +2143,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.75,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2033,7 +2154,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 2.5,
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2044,7 +2165,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 0.75,
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2055,7 +2176,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 0.75,
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2066,7 +2187,7 @@
     "area": "DT2_MYSTERIOUS_FIGURE_HIDEOUT",
     "ambientColor": "#aaafb6",
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       70,
       190
     ],
@@ -2077,7 +2198,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 0.75,
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2090,7 +2211,7 @@
     "ambientStrength": 1.75,
     "directionalStrength": 0.75,
     "fogDepth": 30,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ]
@@ -2101,7 +2222,7 @@
     "ambientStrength": 1.75,
     "directionalStrength": 0.75,
     "fogDepth": 50,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2113,7 +2234,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 0.75,
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2126,7 +2247,7 @@
     "ambientStrength": 1.75,
     "instantTransition": true,
     "directionalStrength": 0.25,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2138,7 +2259,7 @@
     "ambientStrength": 1.75,
     "instantTransition": true,
     "directionalStrength": 0.25,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2150,7 +2271,7 @@
     "ambientStrength": 2.5,
     "directionalColor": "#878474",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2162,7 +2283,7 @@
     "area": "BURGH_DE_ROTT_BASEMENT",
     "directionalColor": "#a29b71",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2174,7 +2295,7 @@
     "ambientColor": "#aaafb6",
     "directionalColor": "#878474",
     "directionalStrength": 1.5,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       190
     ],
@@ -2186,7 +2307,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 0.75,
-    "sunAngles": [
+    "shadowAngles": [
       80,
       175
     ],
@@ -2198,7 +2319,7 @@
     "ambientStrength": 1.5,
     "directionalColor": "#fafaff",
     "directionalStrength": 0.5,
-    "sunAngles": [
+    "shadowAngles": [
       90,
       180
     ],
@@ -2209,7 +2330,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       30,
       315
     ],
@@ -2221,7 +2342,7 @@
     "ambientColor": "#aaafb6",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       50,
       135
     ],
@@ -2233,7 +2354,7 @@
     "ambientColor": "#aab6ac",
     "ambientStrength": 1.5,
     "directionalStrength": 1,
-    "sunAngles": [
+    "shadowAngles": [
       50,
       135
     ],
@@ -2248,7 +2369,10 @@
     "ambientStrength": 2.2,
     "directionalColor": "#FFFFFF",
     "directionalStrength": 1,
-    "sunAngles": [ 80, 190 ]
+    "shadowAngles": [
+      80,
+      190
+    ]
   },
   {
     "area": "DEFENDER_OF_VARROCK_CASTLE_UNDER_ATTACK",
@@ -2264,7 +2388,7 @@
     "ambientStrength": 0.6,
     "ambientColor": "#AAAFB6",
     "directionalStrength": 1.6,
-    "sunAngles": [
+    "shadowAngles": [
       70,
       222
     ],
@@ -2276,7 +2400,7 @@
     "ambientStrength": 0.6,
     "ambientColor": "#AAAFB6",
     "directionalStrength": 1.6,
-    "sunAngles": [
+    "shadowAngles": [
       76,
       222
     ],
@@ -2288,7 +2412,7 @@
     "ambientStrength": 0.3,
     "ambientColor": "#AAAFB6",
     "directionalStrength": 1.8,
-    "sunAngles": [
+    "shadowAngles": [
       66,
       195
     ],
@@ -2300,7 +2424,7 @@
     "ambientStrength": 0.6,
     "ambientColor": "#AAAFB6",
     "directionalStrength": 1.7,
-    "sunAngles": [
+    "shadowAngles": [
       66,
       250
     ],
@@ -2310,7 +2434,7 @@
     "area": "CHAOS_ALTAR",
     "ambientStrength": 0.3,
     "directionalStrength": 1.7,
-    "sunAngles": [
+    "shadowAngles": [
       66,
       210
     ],
@@ -2320,7 +2444,7 @@
     "area": "LAW_ALTAR",
     "ambientStrength": 0.6,
     "directionalStrength": 2,
-    "sunAngles": [
+    "shadowAngles": [
       74,
       215
     ],
@@ -2330,7 +2454,7 @@
     "area": "DEATH_ALTAR",
     "ambientStrength": 0.3,
     "directionalStrength": 2,
-    "sunAngles": [
+    "shadowAngles": [
       74,
       215
     ],
@@ -2338,7 +2462,10 @@
   },
   {
     "area": "EARTHBOUND_CAVERN",
-    "sunAngles": [ 62, 210 ],
+    "shadowAngles": [
+      62,
+      210
+    ],
     "waterColor": "#477d95",
     "waterCausticsStrength": 20,
     "windAngle": 30,
@@ -2372,7 +2499,7 @@
     "windAngle": 240,
     "windSpeed": 15,
     "windStrength": 55,
-    "sunAngles": [
+    "shadowAngles": [
       65,
       102
     ],
@@ -2388,11 +2515,13 @@
     "fogDepth": 65,
     "groundFogOpacity": 0.3,
     "groundFogEnd": -1800,
-    "sunStrength": 0.6,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 0.3,
-    "starVisibility": 0.5,
-    "moonVisibility": 0.5
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 0.5,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "VARLAMORE_SNOWY_MOUNTAINS_UPPER",
@@ -2402,12 +2531,13 @@
     "directionalStrength": 2,
     "fogColor": "#aebde0",
     "fogDepth": 50,
-    "sunStrength": 0.6,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 0.3,
-    "starVisibility": 0.5,
-    "moonVisibility": 0.5
-
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 0.5,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "VARLAMORE_SNOWY_MOUNTAINS_LOWER",
@@ -2417,11 +2547,13 @@
     "directionalStrength": 2.75,
     "fogColor": "#aebde0",
     "fogDepth": 30,
-    "sunStrength": 0.6,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 0.3,
-    "starVisibility": 0.5,
-    "moonVisibility": 0.5
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 0.5,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "WHITE_WOLF_MOUNTAIN_ENVIRONMENT",
@@ -2443,7 +2575,9 @@
     "windAngle": 40,
     "windSpeed": 13,
     "windStrength": 65,
-    "moonVisibility": 0
+    "sky": {
+      "moonVisibility": 0
+    }
   },
   {
     "area": "AUBURNVALE",
@@ -2461,8 +2595,10 @@
     "directionalStrength": 2,
     "fogColor": "#fddcb4",
     "fogDepth": 6.5,
-    "minBrightnessBoost": 0.4,
-    "windStrength": 50
+    "windStrength": 50,
+    "sky": {
+      "minBrightnessBoost": 0.4
+    }
   },
   {
     "area": "FISHING_TRAWLER_SUNK",
@@ -2496,7 +2632,7 @@
       176.9941
     ],
     "directionalStrength": 2,
-    "sunAngles": [
+    "shadowAngles": [
       25,
       135
     ],
@@ -2509,7 +2645,10 @@
   {
     "area": "Ruins of Tapoyauik",
     "waterColor": "#2759C6",
-    "sunAngles": [ 75, 235 ]
+    "shadowAngles": [
+      75,
+      235
+    ]
   },
   {
     "area": "AMOXLIATL_ARENA",
@@ -2542,7 +2681,10 @@
     "area": "Guthix Temple",
     "ambientStrength": 0.9,
     "fogDepth": 30,
-    "sunAngles": [ 70, 220 ]
+    "shadowAngles": [
+      70,
+      220
+    ]
   },
   {
     "area": "Doom of Mokhaiotl - Floor 1",
@@ -2587,7 +2729,10 @@
     "fogColor": "#b9d6ff",
     "ambientColor": "#97baff",
     "directionalStrength": 4,
-    "sunAngles": [ 72, 235 ],
+    "shadowAngles": [
+      72,
+      235
+    ],
     "fogDepth": 6.5,
     "windAngle": 40,
     "windSpeed": 15,
@@ -2603,38 +2748,43 @@
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#330D0D",
-    "sunStrength": 0.2,
-    "sunlightStrength": 2,
-    "minBrightnessBoost": 0.5,
-    "nightSkyColor": "#FF0000",
-    "moonColor": "#ED3D3D",
-    "moonLightColor": "#ED8B8B",
     "sky": {
       "preset": "NIGHT",
-      "moonAngles": [ 14.05, 89.85 ]
-    },
-    "forceMoonPhase": "FULL_MOON",
-    "moonSizeMult": 2.8,
-    "auroraVisibility": 0,
-    "nightSkyColorStrength": 10
+      "moonAngles": [
+        14.05,
+        89.85
+      ],
+      "forceMoonPhase": "FULL_MOON",
+      "moonColor": "#ED3D3D",
+      "moonLightColor": "#ED8B8B",
+      "nightSkyColor": "#FF0000",
+      "nightSkyColorStrength": 10,
+      "auroraVisibility": 0,
+      "moonSizeMult": 2.8,
+      "sunStrength": 0.2,
+      "sunlightStrength": 2,
+      "minBrightnessBoost": 0.5
+    }
   },
   {
     "area": "VAMPYRIUM",
     "description": "Environment for Vampyrium during the quest, set to fixed twilight to simulate being on the cusp of the blood moon rising",
     "varbitCondition": "MYQ6 >= 80 && MYQ6 != 178",
-    "sky": "DUSK",
+    "sky": {
+      "preset": "DUSK",
+      "nightSkyColor": "#FF0000",
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "sunStrength": 0.075,
+      "sunriseSunsetStrength": 0.2,
+      "sunlightStrength": 2,
+      "minBrightnessBoost": 0.5
+    },
     "fogDepth": 17.5,
     "windAngle": 40,
     "windSpeed": 15,
     "windStrength": 50,
-    "fogColor": "#330D0D",
-    "sunStrength": 0.075,
-    "sunlightStrength": 2,
-    "starVisibility": 0.8,
-    "minBrightnessBoost": 0.5,
-    "nightSkyColor": "#FF0000",
-    "sunriseSunsetStrength": 0.2,
-    "auroraVisibility": 0
+    "fogColor": "#330D0D"
   },
   {
     "description": "Environment for Vampyrium post quest, normal cycle since the events of the quest are now past",
@@ -2644,30 +2794,34 @@
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#330D0D",
-    "sunStrength": 0.075,
-    "sunlightStrength": 2,
-    "starVisibility": 0.8,
-    "minBrightnessBoost": 1.75,
-    "nightSkyColor": "#FF0000",
-    "sunriseSunsetStrength": 0.2,
-    "auroraVisibility": 0,
-    "moonDirectionalStrength": 3
+    "sky": {
+      "moonDirectionalStrength": 3,
+      "nightSkyColor": "#FF0000",
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "sunStrength": 0.075,
+      "sunriseSunsetStrength": 0.2,
+      "sunlightStrength": 2,
+      "minBrightnessBoost": 1.75
+    }
   },
   {
     "area": "VAMPYRIUM_FOREST_INSTANCE",
-    "sky": "DUSK",
+    "sky": {
+      "preset": "DUSK",
+      "nightSkyColor": "#FF0000",
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "sunStrength": 0.075,
+      "sunriseSunsetStrength": 0.2,
+      "sunlightStrength": 2,
+      "minBrightnessBoost": 0.5
+    },
     "fogDepth": 40,
     "windAngle": 40,
     "windSpeed": 15,
     "windStrength": 50,
-    "fogColor": "#330D0D",
-    "sunStrength": 0.075,
-    "sunlightStrength": 2,
-    "starVisibility": 0.8,
-    "minBrightnessBoost": 0.5,
-    "nightSkyColor": "#FF0000",
-    "sunriseSunsetStrength": 0.2,
-    "auroraVisibility": 0
+    "fogColor": "#330D0D"
   },
   {
     "area": "MAGGOT_KING_ARENA",
@@ -2676,13 +2830,15 @@
     "windSpeed": 15,
     "windStrength": 50,
     "fogColor": "#160404",
-    "sunStrength": 0.01,
-    "sunlightStrength": 2,
-    "starVisibility": 0.8,
-    "minBrightnessBoost": 1.15,
-    "nightSkyColor": "#FF0000",
-    "sunriseSunsetStrength": 0.2,
-    "auroraVisibility": 0
+    "sky": {
+      "nightSkyColor": "#FF0000",
+      "starVisibility": 0.8,
+      "auroraVisibility": 0,
+      "sunStrength": 0.01,
+      "sunriseSunsetStrength": 0.2,
+      "sunlightStrength": 2,
+      "minBrightnessBoost": 1.15
+    }
   },
   {
     "area": "PLAYER_OWNED_HOUSE_WILDY",
@@ -2699,11 +2855,13 @@
     "windAngle": 40,
     "windSpeed": 10,
     "windStrength": 20,
-    "sunlightStrength": 0.8,
-    "sunStrength": 0.05,
-    "starVisibility": 0.55,
-    "moonVisibility": 0.7,
-    "sky": "NIGHT"
+    "sky": {
+      "preset": "NIGHT",
+      "starVisibility": 0.55,
+      "moonVisibility": 0.7,
+      "sunStrength": 0.05,
+      "sunlightStrength": 0.8
+    }
   },
   {
     "area": "PLAYER_OWNED_HOUSE_FREM",
@@ -2718,11 +2876,13 @@
     "groundFogOpacity": 0.3,
     "windSpeed": 17.5,
     "windStrength": 60,
-    "sunStrength": 0.6,
-    "sunlightStrength": 0.4,
-    "minBrightnessBoost": 0.3,
-    "starVisibility": 0.5,
-    "moonVisibility": 0.5
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 0.5,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.4,
+      "minBrightnessBoost": 0.3
+    }
   },
   {
     "area": "PLAYER_OWNED_HOUSE_MORY",
@@ -2739,11 +2899,13 @@
     "windAngle": 40,
     "windSpeed": 7,
     "windStrength": 26,
-    "minBrightnessBoost": 0.75,
-    "starVisibility": 0.25,
-    "moonVisibility": 0.35,
-    "sunStrength": 0.025,
-    "sunlightStrength": 0.15
+    "sky": {
+      "starVisibility": 0.25,
+      "moonVisibility": 0.35,
+      "sunStrength": 0.025,
+      "sunlightStrength": 0.15,
+      "minBrightnessBoost": 0.75
+    }
   },
   {
     "area": "PLAYER_OWNED_HOUSE_DEATH",
@@ -2754,8 +2916,10 @@
     "directionalStrength": 0.75,
     "fogColor": "#000000",
     "fogDepth": 25,
-    "sky": "NIGHT",
-    "starVisibility": 0.5
+    "sky": {
+      "preset": "NIGHT",
+      "starVisibility": 0.5
+    }
   },
   {
     "area": "PLAYER_OWNED_HOUSE_SNOWY",
@@ -2766,10 +2930,12 @@
     "directionalStrength": 2.5,
     "fogColor": "#aebde0",
     "fogDepth": 50,
-    "sunlightStrength": 0.7,
-    "sunStrength": 0.6,
-    "starVisibility": 0.4,
-    "moonVisibility": 0.4
+    "sky": {
+      "starVisibility": 0.4,
+      "moonVisibility": 0.4,
+      "sunStrength": 0.6,
+      "sunlightStrength": 0.7
+    }
   },
   {
     "area": "WYRMSCRAIG",
@@ -2783,11 +2949,13 @@
     "groundFogOpacity": 0.225,
     "windSpeed": 17.5,
     "windStrength": 60,
-    "sunStrength": 0.5,
-    "sunlightStrength": 0.55,
-    "minBrightnessBoost": 0.75,
-    "starVisibility": 0.5,
-    "moonVisibility": 1
+    "sky": {
+      "starVisibility": 0.5,
+      "moonVisibility": 1,
+      "sunStrength": 0.5,
+      "sunlightStrength": 0.55,
+      "minBrightnessBoost": 0.75
+    }
   },
   {
     "area": "WYRMSCRAIG",
@@ -2807,7 +2975,10 @@
     "area": "OVERWORLD",
     "ambientColor": "#97baff",
     "directionalStrength": 4,
-    "sunAngles": [ 52, 235 ],
+    "shadowAngles": [
+      52,
+      235
+    ],
     "sky": "GIELINOR",
     "fogDepth": 6.5,
     "windAngle": 40,
@@ -2828,7 +2999,7 @@
       176.9941
     ],
     "directionalStrength": 1.7,
-    "sunAngles": [
+    "shadowAngles": [
       35,
       102
     ],
@@ -2843,7 +3014,10 @@
     "ambientColor": "#8fcaff",
     "ambientStrength": 3.5,
     "directionalStrength": 1.5,
-    "sunAngles": [ 52, 235 ],
+    "shadowAngles": [
+      52,
+      235
+    ],
     "fogColor": "#b8c5db",
     "fogDepth": 18,
     "windAngle": 40,

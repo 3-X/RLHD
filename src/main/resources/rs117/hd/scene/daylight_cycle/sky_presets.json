@@ -37,7 +37,7 @@
       "nightSkyColor": "#05070F",
       "directionalBaseTemperature": 4100,
       "directionalBaseStrength": 0.1,
-      "brightness": { "nightAltitude": -18, "twilightAltitude": -5, "horizonAltitude": 5, "twilightBoost": 0.07, "horizonBoost": 0.1, "earlyDayBoost": 0.05, "daytimeStrength": 1.2 }
+      "brightness": { "nightAltitude": -18, "lowSunAltitude": -5, "horizonAltitude": 5, "lowSunBoost": 0.07, "horizonBoost": 0.1, "earlyDayBoost": 0.05, "daytimeStrength": 1.2 }
     }
   },
   { "name": "DAWN", "preset": "GIELINOR", "sunAngles": [ -2.5, 90 ] },
@@ -45,5 +45,5 @@
   { "name": "DAY", "preset": "GIELINOR", "sunAngles": [ 52, 235 ] },
   { "name": "SUNSET", "preset": "GIELINOR", "sunAngles": [ 0, 272 ] },
   { "name": "DUSK", "preset": "GIELINOR", "sunAngles": [ -2.5, 270 ] },
-  { "name": "NIGHT", "preset": "GIELINOR", "sunAngles": [ -15, 210 ], "permanentNight": true }
+  { "name": "NIGHT", "preset": "GIELINOR", "sunAngles": [ -88, 210 ], "permanentNight": true }
 ]
