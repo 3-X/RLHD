@@ -628,8 +628,7 @@ public interface HdPluginConfig extends Config
 			"'Sunset' shows a constant sunset.<br>" +
 			"'Dusk' shows the sky just after sunset.<br>" +
 			"'Night' shows constant night-time.<br>" +
-			"'Custom Realistic' follows the sun and moon at the configured location, respecting the Custom duration.<br>" +
-			"'Custom Basic' moves the sun on a circular cycle, respecting the Custom duration and Basic night portion.",
+			"'Custom' follows the sun and moon at the configured location, respecting the Custom duration.",
 		position = 0,
 		section = daylightCycleSettings
 	)
@@ -673,7 +672,7 @@ public interface HdPluginConfig extends Config
 			"Controls how the moon moves across the sky.<br>" +
 			"'Disabled' hides the moon, keeping half-moon illumination for scene lighting.<br>" +
 			"'Realistic' makes the moon orbit naturally, independent of the sun.<br>" +
-			"'Mirrored' keeps the moon at the opposite side of the sun.<br>" +
+			"'Night-Synced' keeps the moon opposite the sun, so it rises at dusk and sets at dawn.<br>" +
 			"'Static' keeps the moon at a fixed point in the sky.",
 		position = 3,
 		section = daylightCycleSettings
@@ -740,22 +739,8 @@ public interface HdPluginConfig extends Config
 		position = 7,
 		section = daylightCycleSettings
 	)
-	default double customCycleDurationMinutes() {
+	default int customCycleDurationMinutes() {
 		return 60;
-	}
-
-	String KEY_BASIC_NIGHT_PERCENTAGE = "basicNightPercentage";
-	@Range(min = 0, max = 100)
-	@Units(Units.PERCENT)
-	@ConfigItem(
-		keyName = KEY_BASIC_NIGHT_PERCENTAGE,
-		name = "Basic night portion",
-		description = "Decides how much of the Custom Basic cycle should be dedicated to night-time.",
-		position = 8,
-		section = daylightCycleSettings
-	)
-	default int basicNightPercentage() {
-		return 50;
 	}
 
 	String KEY_LATITUDE_DEGREES = "latitudeDegrees";
@@ -763,33 +748,16 @@ public interface HdPluginConfig extends Config
 	@Units("°")
 	@ConfigItem(
 		keyName = KEY_LATITUDE_DEGREES,
-		name = "Latitude degrees",
+		name = "User-set latitude",
 		description =
 			"Advanced: sets the observer latitude for realistic sun and moon movement at a location on Earth.<br>" +
-			"Positive values are north and negative values are south. Combine with Latitude arcminutes for higher accuracy.<br>" +
-			"Only applies to Real-Time and Custom Realistic. Defaults to Jagex's offices in Cambridge, England.",
-		position = 9,
+			"Positive values are north and negative values are south.<br>" +
+			"Only applies to Real-Time and Custom. Defaults to Jagex's offices in Cambridge, England.",
+		position = 8,
 		section = daylightCycleSettings
 	)
 	default int latitudeDegrees() {
-		return (int) DEFAULT_LATLON[0];
-	}
-
-	String KEY_LATITUDE_ARCMINUTES = "latitudeArcminutes";
-	@Range(min = -59, max = 59)
-	@Units("′")
-	@ConfigItem(
-		keyName = KEY_LATITUDE_ARCMINUTES,
-		name = "Latitude arcminutes",
-		description =
-			"Advanced: adds arcminutes to Latitude degrees for realistic sun and moon movement.<br>" +
-			"The degree sign determines north or south; when degrees are zero, a negative value selects south.<br>" +
-			"Only applies to Real-Time and Custom Realistic. Defaults to Jagex's offices in Cambridge, England.",
-		position = 10,
-		section = daylightCycleSettings
-	)
-	default int latitudeArcminutes() {
-		return round((DEFAULT_LATLON[0] % 1) * 60);
+		return round(DEFAULT_LATLON[0]);
 	}
 
 	String KEY_LONGITUDE_DEGREES = "longitudeDegrees";
@@ -797,33 +765,16 @@ public interface HdPluginConfig extends Config
 	@Units("°")
 	@ConfigItem(
 		keyName = KEY_LONGITUDE_DEGREES,
-		name = "Longitude degrees",
+		name = "User-set longitude",
 		description =
 			"Advanced: sets the observer longitude for realistic sun and moon movement at a location on Earth.<br>" +
-			"Positive values are east and negative values are west. Combine with Longitude arcminutes for higher accuracy.<br>" +
-			"Only applies to Real-Time and Custom Realistic. Defaults to Jagex's offices in Cambridge, England.",
-		position = 11,
+			"Positive values are east and negative values are west.<br>" +
+			"Only applies to Real-Time and Custom. Defaults to Jagex's offices in Cambridge, England.",
+		position = 9,
 		section = daylightCycleSettings
 	)
 	default int longitudeDegrees() {
-		return (int) DEFAULT_LATLON[1];
-	}
-
-	String KEY_LONGITUDE_ARCMINUTES = "longitudeArcminutes";
-	@Range(min = -59, max = 59)
-	@Units("′")
-	@ConfigItem(
-		keyName = KEY_LONGITUDE_ARCMINUTES,
-		name = "Longitude arcminutes",
-		description =
-			"Advanced: adds arcminutes to Longitude degrees for realistic sun and moon movement.<br>" +
-			"The degree sign determines east or west; when degrees are zero, a negative value selects west.<br>" +
-			"Only applies to Real-Time and Custom Realistic. Defaults to Jagex's offices in Cambridge, England.",
-		position = 12,
-		section = daylightCycleSettings
-	)
-	default int longitudeArcminutes() {
-		return round((DEFAULT_LATLON[1] % 1) * 60);
+		return round(DEFAULT_LATLON[1]);
 	}
 
 
