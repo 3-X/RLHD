@@ -417,10 +417,10 @@ public class SkyRenderer {
 	private static float getShadowVisibility(float altitudeDegrees, float diameterDegrees) {
 		if (altitudeDegrees <= 0)
 			return 0;
-		// A 10 m caster projects a disk-shaped penumbra. Approximate its long-axis
+		// A 1 m caster projects a disk-shaped penumbra. Approximate its long-axis
 		// variance with a Gaussian and retain its contrast at a 1 m feature wavelength.
 		float elevation = sin(altitudeDegrees * DEG_TO_RAD);
-		float sigma = 10 * diameterDegrees * DEG_TO_RAD / (4 * elevation * elevation);
+		float sigma = 1 * diameterDegrees * DEG_TO_RAD / (4 * elevation * elevation);
 		return exp(-2 * PI * PI * sigma * sigma);
 	}
 
