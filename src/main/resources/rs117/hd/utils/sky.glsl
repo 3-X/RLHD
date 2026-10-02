@@ -16,6 +16,24 @@ struct SkyGradient {
 // The camera makes the perceived horizon about 5° below astronomical 0°.
 #define HORIZON_OFFSET 0.087
 
+vec3 sunGlow(vec3 viewDir, vec3 glowDir) {
+    float sunDot = dot(viewDir, glowDir);
+    if (sunDot <= 0.0)
+        return vec3(0.0);
+    // Use multiply/sqrt equivalents of pow for the glow falloffs.
+    float s2 = sunDot * sunDot;
+    float s4 = s2 * s2;
+    float s8 = s4 * s4;
+    float s16 = s8 * s8;
+    float s32 = s16 * s16;
+    float s128 = s32 * s32; s128 = s128 * s128;
+    float coreGlow = s128 * 0.4;
+    float innerGlow = s32 * 0.25;
+    float midGlow = s8 * 0.15;
+    float outerGlow = s2 * sunDot * sqrt(sunDot) * 0.08;
+    return uboSky.sunColor * (coreGlow + innerGlow + midGlow + outerGlow);
+}
+
 SkyGradient computeSkyGradient(vec3 viewDir) {
     SkyGradient g;
 
@@ -53,29 +71,23 @@ SkyGradient computeSkyGradient(vec3 viewDir) {
         smoothstep(0.0, uboSky.horizonWidth, abs(g.upAmount)));
     g.color = mix(g.color, customColor, uboSky.customGradient);
 
-    // Use multiply/sqrt equivalents of pow for the glow falloffs.
-    // Below sunset, keep scattered sunlight at the perceived horizon. Its color and
-    // disappearance are authored in sunGlow, independently of the sun disk's position.
-    vec3 glowDir = normalize(vec3(uboSky.sunDir.x, -max(0.0, uboSky.sunDir.y) + HORIZON_OFFSET, uboSky.sunDir.z));
-    float sunDot = dot(viewDir, glowDir);
-    if (sunDot > 0.0) {
-        float s2 = sunDot * sunDot;
-        float s4 = s2 * s2;
-        float s8 = s4 * s4;
-        float s16 = s8 * s8;
-        float s32 = s16 * s16;
-        float s128 = s32 * s32; s128 = s128 * s128;
-        float coreGlow = s128 * 0.4;
-        float innerGlow = s32 * 0.25;
-        float midGlow = s8 * 0.15;
-        float outerGlow = s2 * sunDot * sqrt(sunDot) * 0.08;
-        float diskDot = dot(celestialViewDirection(viewDir, g.sunDir), g.sunDir);
-        float disk = smoothstep(0.99933, 0.99955, diskDot);
-        g.color += uboSky.sunColor * (coreGlow + innerGlow + midGlow + outerGlow);
-    }
+    #if SUN_STYLE == SUN_STYLE_OLD_SCHOOL
+        // Below sunset, keep scattered sunlight at the perceived horizon. Its color and
+        // disappearance are authored in sunGlow, independently of the sun disk's position.
+        vec3 glowDir = normalize(vec3(uboSky.sunDir.x, -max(0.0, uboSky.sunDir.y) + HORIZON_OFFSET, uboSky.sunDir.z));
+        g.color += sunGlow(viewDir, glowDir);
+    #endif
 
     return g;
 }
+
+#if SUN_STYLE == SUN_STYLE_ARTISTIC
+// The glow is the sun itself, following it below the horizon. It's added after sky fog,
+// since the fog would otherwise swallow it well before it reaches the horizon.
+vec3 artisticSunGlow(vec3 viewDir, SkyGradient sky) {
+    return sunGlow(viewDir, sky.sunDir) * uboSky.visibility;
+}
+#endif
 
 vec3 blendSkyBackground(vec3 gradient, vec3 background, float amount) {
     // Keep an authored gradient visible behind stars and nebulae, including below the horizon.
@@ -107,5 +119,9 @@ vec3 foggedSkyColor(vec3 viewDir) {
     vec3 color = visibleSkyColor(sky, viewDir, elapsedTime);
     vec3 moonDir = normalize(vec3(uboSky.moonDir.x, -uboSky.moonDir.y + HORIZON_OFFSET, uboSky.moonDir.z));
     float transmittance = skyFogTransmittance(sky.upAmount);
-    return applySkyFog(color, transmittance) + skyFogGlow(viewDir, sky.sunDir, moonDir, transmittance);
+    color = applySkyFog(color, transmittance) + skyFogGlow(viewDir, sky.sunDir, moonDir, transmittance);
+    #if SUN_STYLE == SUN_STYLE_ARTISTIC
+        color += artisticSunGlow(viewDir, sky);
+    #endif
+    return color;
 }

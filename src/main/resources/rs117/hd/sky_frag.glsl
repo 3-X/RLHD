@@ -76,17 +76,20 @@ void main() {
             shootingStarColor = shootingStars(viewDir, elapsedTime) * starBlend;
     #endif
 
-    float sunDot = dot(celestialViewDirection(viewDir, sky.sunDir), sky.sunDir);
     float sunRadius = acos(0.99945);
-    float sunEdge = cos(sunRadius);
-    float sunAntialias = max(fwidth(sunDot), 1e-7);
-    float sunDisk = smoothstep(sunEdge - sunAntialias, sunEdge + sunAntialias, sunDot);
-    // Fade the sun gradually into the horizon
-    float sunHorizon = smoothstep(-0.09, 0.04, sky.upAmount + HORIZON_OFFSET);
-    sunHorizon *= smoothstep(sin(radians(-4.0)), sin(radians(-0.5)), uboSky.sunDir.y);
-    float sunMu = sqrt(clamp((sunDot - sunEdge) / (1.0 - sunEdge), 0.0, 1.0));
-    // Mild limb darkening; the moon is composited afterward and can cover the sun.
-    skyColor += uboSky.sunColor * sunDisk * sunHorizon * mix(0.6, 1.0, sunMu);
+    // The artistic sun is only the glow from computeSkyGradient, without a disk.
+    #if SUN_STYLE == SUN_STYLE_OLD_SCHOOL
+        float sunDot = dot(celestialViewDirection(viewDir, sky.sunDir), sky.sunDir);
+        float sunEdge = cos(sunRadius);
+        float sunAntialias = max(fwidth(sunDot), 1e-7);
+        float sunDisk = smoothstep(sunEdge - sunAntialias, sunEdge + sunAntialias, sunDot);
+        // Fade the sun gradually into the horizon
+        float sunHorizon = smoothstep(-0.09, 0.04, sky.upAmount + HORIZON_OFFSET);
+        sunHorizon *= smoothstep(sin(radians(-4.0)), sin(radians(-0.5)), uboSky.sunDir.y);
+        float sunMu = sqrt(clamp((sunDot - sunEdge) / (1.0 - sunEdge), 0.0, 1.0));
+        // Mild limb darkening; the moon is composited afterward and can cover the sun.
+        skyColor += uboSky.sunColor * sunDisk * sunHorizon * mix(0.6, 1.0, sunMu);
+    #endif
 
     // Apply the same perceived-horizon offset as the sun.
     vec3 moonDir = normalize(vec3(uboSky.moonDir.x, -uboSky.moonDir.y + HORIZON_OFFSET, uboSky.moonDir.z));
@@ -347,6 +350,10 @@ void main() {
 
     skyColor = applySkyFog(skyColor, fogTransmittance);
     skyColor = mix(skyColor, moonCompositeColor, moonCompositeAlpha);
+    #if SUN_STYLE == SUN_STYLE_ARTISTIC
+        // Like the Old School glow, this also shows through the moon's dark side
+        skyColor += artisticSunGlow(viewDir, sky);
+    #endif
     skyColor += skyFogGlow(viewDir, sky.sunDir, moonDir, fogTransmittance);
     // Shooting stars and auroras are in front of the moon, but still attenuated by fog.
     skyColor += atmosphericForeground * fogTransmittance;
