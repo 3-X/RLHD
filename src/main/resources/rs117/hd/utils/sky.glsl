@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utils/celestial_projection.glsl>
+#include <utils/color_utils.glsl>
 #include <utils/starfield.glsl>
 #include <utils/sky_fog.glsl>
 
@@ -16,10 +17,10 @@ struct SkyGradient {
 // The camera makes the perceived horizon about 5° below astronomical 0°.
 #define HORIZON_OFFSET 0.087
 
-vec3 sunGlow(vec3 viewDir, vec3 glowDir) {
+float sunGlowFalloff(vec3 viewDir, vec3 glowDir) {
     float sunDot = dot(viewDir, glowDir);
     if (sunDot <= 0.0)
-        return vec3(0.0);
+        return 0.0;
     // Use multiply/sqrt equivalents of pow for the glow falloffs.
     float s2 = sunDot * sunDot;
     float s4 = s2 * s2;
@@ -31,7 +32,7 @@ vec3 sunGlow(vec3 viewDir, vec3 glowDir) {
     float innerGlow = s32 * 0.25;
     float midGlow = s8 * 0.15;
     float outerGlow = s2 * sunDot * sqrt(sunDot) * 0.08;
-    return uboSky.sunColor * (coreGlow + innerGlow + midGlow + outerGlow);
+    return coreGlow + innerGlow + midGlow + outerGlow;
 }
 
 SkyGradient computeSkyGradient(vec3 viewDir) {
@@ -75,7 +76,7 @@ SkyGradient computeSkyGradient(vec3 viewDir) {
         // Below sunset, keep scattered sunlight at the perceived horizon. Its color and
         // disappearance are authored in sunGlow, independently of the sun disk's position.
         vec3 glowDir = normalize(vec3(uboSky.sunDir.x, -max(0.0, uboSky.sunDir.y) + HORIZON_OFFSET, uboSky.sunDir.z));
-        g.color += sunGlow(viewDir, glowDir);
+        g.color += uboSky.sunColor * sunGlowFalloff(viewDir, glowDir);
     #endif
 
     return g;
@@ -84,8 +85,15 @@ SkyGradient computeSkyGradient(vec3 viewDir) {
 #if SUN_STYLE == SUN_STYLE_ARTISTIC
 // The glow is the sun itself, following it below the horizon. It's added after sky fog,
 // since the fog would otherwise swallow it well before it reaches the horizon.
-vec3 artisticSunGlow(vec3 viewDir, SkyGradient sky) {
-    return sunGlow(viewDir, sky.sunDir) * uboSky.visibility;
+// The sky used to be composited in sRGB, where the glow's dim falloff spreads much wider
+// than when added in linear space, so add it in sRGB to keep its original size.
+vec3 applyArtisticSunGlow(vec3 color, vec3 viewDir, SkyGradient sky) {
+    float glow = sunGlowFalloff(viewDir, sky.sunDir) * uboSky.visibility;
+    if (glow <= 0.0)
+        return color;
+    vec3 srgb = linearToSrgb(max(color, vec3(0.0)));
+    srgb += linearToSrgb(max(uboSky.sunColor, vec3(0.0))) * glow;
+    return srgbToLinear(srgb);
 }
 #endif
 
@@ -121,7 +129,7 @@ vec3 foggedSkyColor(vec3 viewDir) {
     float transmittance = skyFogTransmittance(sky.upAmount);
     color = applySkyFog(color, transmittance) + skyFogGlow(viewDir, sky.sunDir, moonDir, transmittance);
     #if SUN_STYLE == SUN_STYLE_ARTISTIC
-        color += artisticSunGlow(viewDir, sky);
+        color = applyArtisticSunGlow(color, viewDir, sky);
     #endif
     return color;
 }

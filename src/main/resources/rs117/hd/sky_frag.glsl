@@ -352,7 +352,7 @@ void main() {
     skyColor = mix(skyColor, moonCompositeColor, moonCompositeAlpha);
     #if SUN_STYLE == SUN_STYLE_ARTISTIC
         // Like the Old School glow, this also shows through the moon's dark side
-        skyColor += artisticSunGlow(viewDir, sky);
+        skyColor = applyArtisticSunGlow(skyColor, viewDir, sky);
     #endif
     skyColor += skyFogGlow(viewDir, sky.sunDir, moonDir, fogTransmittance);
     // Shooting stars and auroras are in front of the moon, but still attenuated by fog.
