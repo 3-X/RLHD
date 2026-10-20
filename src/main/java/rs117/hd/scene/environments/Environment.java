@@ -207,7 +207,7 @@ public class Environment {
 		groundFogEnd = mix(from.groundFogEnd, to.groundFogEnd, t);
 		groundFogOpacity = mix(from.groundFogOpacity, to.groundFogOpacity, t);
 		waterCausticsStrength = mix(from.waterCausticsStrength, to.waterCausticsStrength, t);
-		windAngle = mix(from.windAngle, to.windAngle, t);
+		windAngle = mod(from.windAngle + angleDiff(to.windAngle, from.windAngle) * t, TWO_PI);
 		windSpeed = mix(from.windSpeed, to.windSpeed, t);
 		windStrength = mix(from.windStrength, to.windStrength, t);
 		windCeiling = mix(from.windCeiling, to.windCeiling, t);

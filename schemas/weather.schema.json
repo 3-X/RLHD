@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "weather.schema.json",
+  "title": "Weather",
+  "description": "Weather controller data. One deterministic timeline, shared by every climate and every player, gives each segment of time a latent foulness value in [0, 1). Each climate maps that value through a fair-to-foul ladder of weather types, and ordered bindings assign climates to parts of the world. The file is validated as a whole: any error rejects it and the previous data stays loaded. The loader also checks what this schema cannot: unique names, that every referenced type, climate and parent exists, ladder severity order and spacing, forbidden parameters, min <= max in segmentMinutes, the volatility lower bound and area names.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [ "defaultClimate", "timeline", "types", "climates", "bindings" ],
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "Optional notes for authors. Ignored by the loader."
+    },
+    "defaultClimate": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "const": "NONE" },
+      "description": "Climate used until the player first enters a binding whose climate is not NONE, e.g. after logging in somewhere sheltered or unbound. It is also the fallback for forecasts and developer commands there. Must name a climate defined in climates; NONE is not allowed."
+    },
+    "timeline": {
+      "$ref": "#/$defs/timeline"
+    },
+    "types": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Weather types: named parameter presets such as CLEAR, RAIN or SANDSTORM, which climates arrange into ladders. Names must be unique, and NONE is reserved.",
+      "items": {
+        "$ref": "#/$defs/weatherType"
+      }
+    },
+    "climates": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Climates: which weather a region can have and how often, its default wind, and what it must never produce. Names must be unique, and NONE is reserved.",
+      "items": {
+        "$ref": "#/$defs/climate"
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "description": "Ordered climate assignments. For each point, the first binding that contains it wins, so list carve-outs (sheltered realms, locked minigame weather, a desert inside a warmer region) before the larger areas around them. Points that no binding contains, and points in NONE bindings, get no weather.",
+      "items": {
+        "$ref": "#/$defs/binding"
+      }
+    }
+  },
+  "$defs": {
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name", "segmentMinutes", "volatility", "driftAngle" ],
+      "description": "The single weather timeline shared by every climate and every player. Time is cut into segments of random length, and each segment holds one latent foulness value in [0, 1) that follows a random walk from segment to segment. Every climate's ladder turns that value into a weather type, so all regions get fouler and fairer together. The timeline is deterministic: everyone in the same place sees the same weather at the same time, and nothing needs to be saved.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Seed for the timeline. Changing it reshuffles everyone's weather."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional notes. Ignored by the loader."
+        },
+        "segmentMinutes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 26.1438,
+            "maximum": 240
+          },
+          "description": "[min, max] segment length in minutes. Each segment's length is uniformly random in this range, and its latent value, and so its weather type and intensity, holds for the whole segment apart from the transitions at either end. Longer segments give longer spells. Requires min <= max <= 240 and min >= 26.1438 (the loader's exact bound is 128000 / (60 * 32 * 2.55), about 26.14379), so the 7-segment forecast strip always reaches the edge of the visible sky."
+        },
+        "volatility": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5,
+          "description": "Largest change in the latent value from one segment to the next, as a fraction of its 0-1 range. Each step is uniformly random within +-volatility, reflecting at 0 and 1. Higher values change the weather faster and can skip ladder rungs whose share of the total weight is below the volatility; lower values give long spells and gradual build-ups. It must also be at least 1 / (1 + 0.98 * (n - 1)), where n is the fewest segments a 24-hour epoch can hold (about 1440 / max segment minutes): 0.064 for [30, 90], or 0.17 for a max of 240."
+        },
+        "driftAngle": {
+          "type": "number",
+          "description": "Mean direction weather systems travel (downwind), in degrees: 0 = east, 90 = north, as environment windAngle. Fronts therefore roll in from the opposite side of the sky. The upper (cloud-level) wind wanders slowly up to about 40 degrees around this direction. Any number; it is wrapped to 0-360."
+        }
+      }
+    },
+    "weatherType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name" ],
+      "description": "A named weather preset. A type without a parent must set severity, onsetMinutes and clearMinutes.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "not": { "const": "NONE" },
+          "description": "Unique weather type name, used by ladders, climate overrides and parent. NONE is reserved."
+        },
+        "parent": {
+          "type": "string",
+          "description": "Another weather type in this list to inherit from; it may be defined anywhere in the list. Every key this type leaves out is copied from the parent, and params merge key by key, so a child only lists what differs (e.g. SLEET is RAIN with snow). Unknown or circular parents are errors."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional notes. Ignored by the loader."
+        },
+        "severity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4,
+          "description": "How foul this weather is, from 0 (fair) to 4 (severe). Each ladder must list its types in non-decreasing severity, and the climate's maxSeverityStep limits which types can follow one another. Severity also picks each transition's length: worsening weather uses the incoming type's onsetMinutes, improving weather uses the outgoing type's clearMinutes, and a change between types of equal severity uses the average of the two."
+        },
+        "onsetMinutes": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Length in minutes of the transition into this type when the severity rises, centred on the segment boundary. Clouds and wind lead, haze and fog follow, and precipitation starts late (35% of the way through). Each half of the window is capped at 45% of the shorter neighbouring segment."
+        },
+        "clearMinutes": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Length in minutes of the transition out of this type when the severity falls, centred on the segment boundary. Precipitation stops early (60% of the way through) and clouds clear last. Each half of the window is capped at 45% of the shorter neighbouring segment."
+        },
+        "params": {
+          "description": "This type's parameter values. Parameters left out keep their defaults. A child type's params merge key by key with its parent's; null drops every inherited parameter, while an empty object keeps them.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/params"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "if": {
+        "required": [ "parent" ]
+      },
+      "else": {
+        "required": [ "severity", "onsetMinutes", "clearMinutes" ]
+      }
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Weather parameters. A scalar is a number, or [mild, severe]: its value at the fair and the foul edge of the type's ladder rung, interpolated by how deep the latent value sits inside the rung. Colours are a single value. In a type, parameters left out keep their defaults; in climate overrides, they keep the type's values. Cloud, precipitation and atmosphere parameters are published for sky and weather effects. The wind parameters modulate the surface wind outdoors.",
+      "properties": {
+        "cloudCover": {
+          "$ref": "#/$defs/fraction",
+          "description": "Fraction of the sky covered by the low and mid cloud deck, 0 (clear) to 1 (overcast). Default 0."
+        },
+        "cloudThickness": {
+          "type": [ "number", "array" ],
+          "minimum": 0,
+          "maximum": 8,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 8
+          },
+          "description": "Optical thickness of the cloud deck, 0 to 8. Thicker clouds are more opaque, darker underneath and dim the sun more. Default 1."
+        },
+        "cloudBillow": {
+          "$ref": "#/$defs/fraction",
+          "description": "Cloud form, from 0 (flat stratiform sheets) to 1 (towering convective billows). Default 0.5."
+        },
+        "cloudScale": {
+          "type": [ "number", "array" ],
+          "minimum": 0.25,
+          "maximum": 4,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 4
+          },
+          "description": "Cloud feature size multiplier, 0.25 to 4. Default 1."
+        },
+        "highCloudCover": {
+          "$ref": "#/$defs/fraction",
+          "description": "Coverage of the high cirrus deck, 0 to 1. It thickens ahead of an incoming front, before the main deck arrives. Default 0."
+        },
+        "cloudDarkness": {
+          "$ref": "#/$defs/fraction",
+          "description": "Extra darkening of the cloud base, 0 to 1. Default 0."
+        },
+        "cloudTint": {
+          "$ref": "#/$defs/color",
+          "description": "Cloud colour tint in sRGB, e.g. ash grey or sand. A single colour, not a range. Default #ffffff."
+        },
+        "rain": {
+          "$ref": "#/$defs/fraction",
+          "description": "Rain intensity, 0 to 1. Rain and snow together make sleet. Default 0. Can be forbidden."
+        },
+        "snow": {
+          "$ref": "#/$defs/fraction",
+          "description": "Snow intensity, 0 to 1. Default 0. Can be forbidden."
+        },
+        "ash": {
+          "$ref": "#/$defs/fraction",
+          "description": "Falling ash intensity, 0 to 1. Default 0. Can be forbidden."
+        },
+        "dust": {
+          "$ref": "#/$defs/fraction",
+          "description": "Airborne sand and dust, 0 to 1. Default 0. Can be forbidden."
+        },
+        "storminess": {
+          "$ref": "#/$defs/fraction",
+          "description": "Thunderstorm activity, such as the lightning rate, 0 to 1. Default 0. Can be forbidden."
+        },
+        "haze": {
+          "$ref": "#/$defs/fraction",
+          "description": "Distance haze, 0 to 1. Default 0. Can be forbidden."
+        },
+        "fog": {
+          "$ref": "#/$defs/fraction",
+          "description": "Low fog and mist, 0 to 1. Default 0. Can be forbidden."
+        },
+        "hazeColor": {
+          "$ref": "#/$defs/color",
+          "description": "Colour of haze and airborne particles in sRGB. A single colour, not a range. Default #c9d1d9."
+        },
+        "windStrength": {
+          "type": [ "number", "array" ],
+          "minimum": 0,
+          "maximum": 3,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "description": "Multiplier for the baseline surface wind strength (vertex displacement), 0 to 3. Default 1. The result is capped at 100, or at the baseline if that is higher."
+        },
+        "windSpeed": {
+          "type": [ "number", "array" ],
+          "minimum": 0,
+          "maximum": 3,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "description": "Multiplier for the baseline surface wind speed (how quickly the wind noise changes), 0 to 3. Default 1. The result is capped at 40, or at the baseline if that is higher."
+        },
+        "gustiness": {
+          "$ref": "#/$defs/fraction",
+          "description": "Gust depth, 0 to 1. At 1, wind strength swings by +-50% and speed by +-25% in gusts lasting a few seconds. Default 0."
+        },
+        "windAlign": {
+          "$ref": "#/$defs/fraction",
+          "description": "How far the surface wind turns from its baseline direction toward the upper (cloud-level) wind, which is the direction weather systems travel. 0 keeps the baseline direction and 1 blows along with the fronts. When the upper wind is within about 18 degrees of directly opposite the baseline, the turn fades out, so the wind never flips around. Default 0."
+        },
+        "cloudSpeed": {
+          "type": [ "number", "array" ],
+          "minimum": 0,
+          "maximum": 4,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "description": "Multiplier for how fast cloud features drift with the upper wind, 0 to 4. Default 1. It is applied at the camera, so all visible cloud features drift at the local value. Fronts themselves always travel at a fixed speed."
+        }
+      }
+    },
+    "fraction": {
+      "type": [ "number", "array" ],
+      "description": "A number from 0 to 1, or [mild, severe] with both ends from 0 to 1.",
+      "minimum": 0,
+      "maximum": 1,
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "color": {
+      "type": [ "string", "array" ],
+      "description": "sRGB color, specified as a hex code or an array in the range 0-255.",
+      "pattern": "^#[A-Fa-f0-9]{6}$",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 255
+      }
+    },
+    "climate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name" ],
+      "description": "Which weather a region can have and how often, its default wind, and what it must never produce. A climate without a parent must set wind and ladder.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "not": { "const": "NONE" },
+          "description": "Unique climate name, used by bindings, defaultClimate and parent. NONE is reserved for sheltered bindings."
+        },
+        "parent": {
+          "type": "string",
+          "description": "Another climate in this list to inherit from; it may be defined anywhere in the list. Every key this climate leaves out is copied from the parent. Objects (wind, seasons, overrides) merge key by key, while ladder, forbid and numbers replace the parent's value whole. Unknown or circular parents are errors."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional notes. Ignored by the loader."
+        },
+        "maxSeverityStep": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "Largest severity difference allowed between weather types that can follow one another directly, 1 to 4. Default 2. In every ladder, two rungs further apart in severity than this need rungs between them whose weights total at least the timeline volatility times the ladder's total weight, so the weather can never jump straight from one to the other (e.g. from CLEAR at 0 to THUNDERSTORM at 4)."
+        },
+        "wind": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "This climate's default surface wind. Where it applies: only outdoors, meaning an overworld environment that is not underwater and has no fixed sun, inside a binding whose climate is not NONE, and not in a player-owned house. There it replaces the environment's wind wherever the environment authors none (windStrength unset or 0); where the environment does author wind, windBlend sets how much of it this wind replaces (none by default). Everywhere else the environment's wind is used unchanged. Outdoors, the weather's windStrength, windSpeed, gustiness and windAlign parameters then modulate the resulting wind, which also veers slightly with the upper wind. Required unless inherited; a child climate can override single keys.",
+          "properties": {
+            "angle": {
+              "type": "number",
+              "description": "Wind direction in degrees: 0 = east, 90 = north, as environment windAngle. Any number; it is wrapped to 0-360."
+            },
+            "speed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 40,
+              "description": "Wind speed, 0 to 40: how quickly the wind noise changes (turbulence), as environment windSpeed (whose default is 15)."
+            },
+            "strength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Wind strength, 0 to 100: the maximum displacement of a single vertex, as environment windStrength."
+            }
+          }
+        },
+        "windBlend": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "How much this climate's wind replaces wind that the environment does author, outdoors, from 0 to 1. Default 0: authored environment wind is kept, and the climate's wind only fills in where the environment authors none. 1 always uses this climate's wind outdoors."
+        },
+        "forbid": {
+          "type": "array",
+          "description": "Parameters this climate must never produce, e.g. snow in the desert. The loader checks that every weather type in any of this climate's ladders (default and seasonal, with overrides applied) is exactly 0 for each of them at both ends of its range, and when crossing into this climate they fade to 0 within 3 seconds. Only parameters where 0 means absent can be forbidden. A child's list replaces its parent's.",
+          "items": {
+            "type": "string",
+            "enum": [ "rain", "snow", "ash", "dust", "storminess", "haze", "fog" ]
+          }
+        },
+        "ladder": {
+          "$ref": "#/$defs/ladder",
+          "description": "Default fair-to-foul ladder of [TYPE, weight] rungs. How ladders work: the shared timeline gives every segment a latent foulness value in [0, 1), and the ladder splits that range into consecutive rungs sized by weight; the rung holding the latent is the current weather. The latent is spread evenly over time, so weights are long-run time shares ([[\"CLEAR\", 3], [\"RAIN\", 1]] is clear 75% of the time). The latent moves by at most the timeline volatility per segment, so the weather steps between neighbouring rungs, and can only skip rungs whose combined weight is below volatility times the total weight. Order rungs by non-decreasing severity; rungs more than maxSeverityStep apart in severity need at least volatility times the total weight between them. Within a rung, [mild, severe] parameters are interpolated by how deep the latent sits in it: mild at the fair edge, severe at the foul edge. Each type may appear once. Check time shares and spell lengths in game with ::117hd weather stats. Required unless inherited."
+        },
+        "seasons": {
+          "type": [ "object", "null" ],
+          "additionalProperties": false,
+          "description": "Seasonal ladders, each replacing ladder whole while the plugin's seasonal theme is that season (the Automatic theme picks it from the month and hemisphere). Seasons without an entry use ladder. A child climate's seasons merge with its parent's one season at a time; null drops every inherited seasonal ladder.",
+          "properties": {
+            "SUMMER": {
+              "$ref": "#/$defs/ladder",
+              "description": "Ladder used with the summer seasonal theme."
+            },
+            "AUTUMN": {
+              "$ref": "#/$defs/ladder",
+              "description": "Ladder used with the autumn seasonal theme."
+            },
+            "WINTER": {
+              "$ref": "#/$defs/ladder",
+              "description": "Ladder used with the winter seasonal theme."
+            }
+          }
+        },
+        "overrides": {
+          "type": [ "object", "null" ],
+          "description": "Parameter changes for individual weather types in this climate only, e.g. a sandier haze colour for HAZE in the desert. Keys are weather types used by this climate's ladders (default or seasonal). Each value replaces only the parameters it lists, and a number replaces both ends of the range. Overrides apply before the forbid check, so they can also zero a forbidden parameter. A child climate's overrides merge with its parent's key by key; null drops every inherited override.",
+          "additionalProperties": {
+            "$ref": "#/$defs/params"
+          }
+        }
+      },
+      "if": {
+        "required": [ "parent" ]
+      },
+      "else": {
+        "required": [ "wind", "ladder" ],
+        "properties": {
+          "wind": {
+            "required": [ "angle", "speed", "strength" ]
+          }
+        }
+      }
+    },
+    "ladder": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Fair-to-foul list of [TYPE, weight] rungs, where weights are long-run time shares. Severity must not decrease along the ladder, and each type may appear only once. See a climate's ladder for how ladders work.",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "[TYPE, weight]: a weather type name and its relative share of time.",
+        "prefixItems": [
+          {
+            "type": "string",
+            "description": "Weather type name."
+          },
+          {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Relative weight, greater than 0. The rung's share of time is its weight divided by the ladder's total weight."
+          }
+        ]
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "climate" ],
+      "description": "Assigns a climate to areas, boxes and regions. At least one of areas, aabbs or regions must be a non-empty list.",
+      "properties": {
+        "climate": {
+          "type": "string",
+          "description": "Climate for points in this binding, or NONE for sheltered places with no weather. Since the first matching binding wins, NONE also stops later bindings (such as OVERWORLD) from claiming those places. While the player is sheltered, the previous climate's weather keeps evolving unseen."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional notes. Ignored by the loader."
+        },
+        "areas": {
+          "type": "array",
+          "description": "Area names from areas.json, matched exactly, including each area's own nested areas, boxes and regions. ALL and NONE cannot be bound. Unknown names are errors in development and are skipped with a warning otherwise.",
+          "items": {
+            "type": "string",
+            "not": { "enum": [ "ALL", "NONE" ] }
+          }
+        },
+        "aabbs": {
+          "type": "array",
+          "description": "Boxes in world tile coordinates: [x, y], [x, y, plane], [x1, y1, x2, y2], [x1, y1, x2, y2, plane] or [x1, y1, plane1, x2, y2, plane2]. Corners are inclusive, and a box without a plane covers every plane. Unlike areas.json, area names and region IDs are not accepted here; use areas and regions instead. In development, every box must lie within x -128 to 5000 and y 1000 to 13000.",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 6,
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "regions": {
+          "type": "array",
+          "description": "Region IDs to include. A region is a 64x64-tile map square with ID ((x >> 6) << 8) | (y >> 6).",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [ "areas" ],
+          "properties": {
+            "areas": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [ "aabbs" ],
+          "properties": {
+            "aabbs": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [ "regions" ],
+          "properties": {
+            "regions": {
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

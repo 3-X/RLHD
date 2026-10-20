@@ -59,6 +59,7 @@ import rs117.hd.scene.LightManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SceneContext;
 import rs117.hd.scene.SkyManager;
+import rs117.hd.scene.WeatherManager;
 import rs117.hd.scene.environments.Environment;
 import rs117.hd.scene.lights.Light;
 import rs117.hd.scene.model_overrides.ModelOverride;
@@ -127,6 +128,9 @@ public class ZoneRenderer implements Renderer {
 
 	@Inject
 	private EnvironmentManager environmentManager;
+
+	@Inject
+	private WeatherManager weatherManager;
 
 	@Inject
 	private SceneManager sceneManager;
@@ -529,6 +533,10 @@ public class ZoneRenderer implements Renderer {
 				frameTimer.begin(Timer.UPDATE_ENVIRONMENT);
 				environmentManager.update(ctx.sceneContext);
 				frameTimer.end(Timer.UPDATE_ENVIRONMENT);
+
+				frameTimer.begin(Timer.UPDATE_WEATHER);
+				weatherManager.update(ctx.sceneContext);
+				frameTimer.end(Timer.UPDATE_WEATHER);
 
 				frameTimer.begin(Timer.UPDATE_SKY);
 				skyManager.update();

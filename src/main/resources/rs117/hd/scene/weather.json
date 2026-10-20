@@ -1,0 +1,340 @@
+{
+  "description": "Weather controller data. One global timeline gives each 30-90 minute segment a latent foulness value that moves by at most the volatility per segment. Each climate maps it through a fair-to-foul ladder of [TYPE, weight] pairs, so weights are long-run time shares. The weather can skip narrow rungs, but never changes severity by more than the climate's maxSeverityStep at once; the loader checks the weights between distant severities. Parameters are a number or [mild, severe], interpolated by how deep the latent is into its rung. A climate's wind only applies outdoors where the environment authors none, unless windBlend says otherwise. Bindings are ordered, the first match wins, and unbound points get no weather. Check time shares and spell lengths with ::117hd weather stats. See schemas/weather.schema.json.",
+  "defaultClimate": "TEMPERATE",
+  "timeline": {
+    "name": "GIELINOR",
+    "description": "Seed name, segment lengths, latent volatility and the direction weather systems travel (degrees, 0 = east, 90 = north).",
+    "segmentMinutes": [ 30, 90 ],
+    "volatility": 0.3,
+    "driftAngle": 40
+  },
+  "types": [
+    {
+      "name": "CLEAR", "severity": 0, "onsetMinutes": 20, "clearMinutes": 20,
+      "params": {
+        "cloudCover": [ 0, 0.08 ], "cloudThickness": 0.6, "cloudBillow": 0.7, "cloudScale": 0.8, "highCloudCover": [ 0, 0.15 ],
+        "haze": [ 0, 0.05 ],
+        "windStrength": [ 0.6, 0.8 ], "windSpeed": 0.8, "gustiness": 0.1, "cloudSpeed": [ 0.6, 0.9 ]
+      }
+    },
+    {
+      "name": "PARTLY_CLOUDY", "severity": 1, "onsetMinutes": 20, "clearMinutes": 20,
+      "params": {
+        "cloudCover": [ 0.25, 0.5 ], "cloudThickness": [ 1.5, 2.5 ], "cloudBillow": 0.85, "highCloudCover": [ 0.1, 0.35 ], "cloudDarkness": 0.05,
+        "haze": 0.05,
+        "windStrength": [ 0.85, 1 ], "gustiness": 0.25, "windAlign": 0.1, "cloudSpeed": [ 0.9, 1.1 ]
+      }
+    },
+    {
+      "name": "HAZE", "severity": 1, "onsetMinutes": 25, "clearMinutes": 25,
+      "params": {
+        "cloudCover": [ 0, 0.15 ], "cloudThickness": 0.6, "cloudBillow": 0.4, "highCloudCover": [ 0.2, 0.5 ],
+        "haze": [ 0.35, 0.6 ], "hazeColor": "#d9cfb8",
+        "windStrength": [ 0.5, 0.7 ], "windSpeed": 0.7, "gustiness": 0.1, "cloudSpeed": [ 0.5, 0.75 ]
+      }
+    },
+    {
+      "name": "FOG", "severity": 1, "onsetMinutes": 15, "clearMinutes": 25,
+      "params": {
+        "cloudCover": [ 0.6, 0.9 ], "cloudThickness": [ 1, 2 ], "cloudBillow": 0, "cloudScale": 1.6,
+        "haze": [ 0.4, 0.6 ], "fog": [ 0.6, 1 ],
+        "windStrength": [ 0.2, 0.35 ], "windSpeed": 0.5, "cloudSpeed": [ 0.25, 0.4 ]
+      }
+    },
+    {
+      "name": "OVERCAST", "severity": 2, "onsetMinutes": 30, "clearMinutes": 25,
+      "params": {
+        "cloudCover": [ 0.85, 1 ], "cloudThickness": [ 3, 5 ], "cloudBillow": 0.15, "cloudScale": 1.4, "highCloudCover": [ 0.3, 0.6 ],
+        "cloudDarkness": [ 0.2, 0.35 ],
+        "haze": [ 0.1, 0.2 ], "fog": [ 0, 0.15 ],
+        "windStrength": [ 0.9, 1.1 ], "gustiness": 0.3, "windAlign": [ 0.2, 0.35 ], "cloudSpeed": [ 1, 1.4 ]
+      }
+    },
+    {
+      "name": "DRIZZLE", "severity": 2, "onsetMinutes": 25, "clearMinutes": 20,
+      "params": {
+        "cloudCover": [ 0.9, 1 ], "cloudThickness": [ 3.5, 5 ], "cloudBillow": 0.1, "cloudScale": 1.5, "cloudDarkness": [ 0.3, 0.4 ],
+        "rain": [ 0.08, 0.25 ],
+        "haze": [ 0.2, 0.3 ], "fog": [ 0.1, 0.3 ],
+        "windStrength": [ 0.8, 1 ], "gustiness": 0.25, "windAlign": 0.3, "cloudSpeed": [ 0.9, 1.25 ]
+      }
+    },
+    {
+      "name": "ASH_HAZE", "severity": 2, "onsetMinutes": 25, "clearMinutes": 25,
+      "params": {
+        "cloudCover": [ 0.3, 0.6 ], "cloudThickness": [ 1.5, 3 ], "cloudBillow": 0.3, "cloudDarkness": 0.3, "cloudTint": "#9c8f84",
+        "ash": [ 0, 0.1 ],
+        "haze": [ 0.45, 0.7 ], "hazeColor": "#8e8279",
+        "windStrength": [ 0.7, 0.9 ], "gustiness": 0.2, "windAlign": 0.2, "cloudSpeed": [ 0.75, 1 ]
+      }
+    },
+    {
+      "name": "RAIN", "severity": 3, "onsetMinutes": 20, "clearMinutes": 15,
+      "params": {
+        "cloudCover": [ 0.9, 1 ], "cloudThickness": [ 4, 6 ], "cloudBillow": 0.35, "cloudScale": 1.2, "highCloudCover": 0.5,
+        "cloudDarkness": [ 0.4, 0.55 ],
+        "rain": [ 0.35, 0.8 ], "storminess": [ 0, 0.1 ],
+        "haze": [ 0.25, 0.35 ], "fog": [ 0.1, 0.2 ],
+        "windStrength": [ 1.1, 1.4 ], "windSpeed": 1.2, "gustiness": 0.45, "windAlign": [ 0.4, 0.6 ], "cloudSpeed": [ 1.25, 1.75 ]
+      }
+    },
+    {
+      "name": "SLEET", "parent": "RAIN",
+      "params": {
+        "rain": [ 0.15, 0.35 ], "snow": [ 0.15, 0.35 ], "storminess": 0,
+        "windStrength": [ 1, 1.3 ], "cloudSpeed": [ 1.1, 1.5 ]
+      }
+    },
+    {
+      "name": "SNOW", "severity": 3, "onsetMinutes": 25, "clearMinutes": 20,
+      "params": {
+        "cloudCover": [ 0.9, 1 ], "cloudThickness": [ 3.5, 5.5 ], "cloudBillow": 0.2, "cloudScale": 1.3, "cloudDarkness": [ 0.25, 0.4 ],
+        "snow": [ 0.3, 0.7 ],
+        "haze": [ 0.3, 0.45 ], "fog": [ 0.1, 0.25 ], "hazeColor": "#dfe6ee",
+        "windStrength": [ 0.7, 0.9 ], "windSpeed": 0.8, "gustiness": 0.3, "windAlign": [ 0.3, 0.45 ], "cloudSpeed": [ 0.75, 1.1 ]
+      }
+    },
+    {
+      "name": "SANDSTORM", "severity": 3, "onsetMinutes": 10, "clearMinutes": 15,
+      "params": {
+        "cloudCover": [ 0.2, 0.4 ], "cloudThickness": [ 1, 2 ], "cloudBillow": 0.2, "cloudDarkness": 0.3, "cloudTint": "#cdb38a",
+        "dust": [ 0.5, 0.9 ],
+        "haze": [ 0.7, 0.95 ], "hazeColor": "#c9a873",
+        "windStrength": [ 1.8, 2.2 ], "windSpeed": 1.8, "gustiness": 0.8, "windAlign": [ 0.75, 0.9 ], "cloudSpeed": [ 2, 2.75 ]
+      }
+    },
+    {
+      "name": "ASHFALL", "severity": 3, "onsetMinutes": 20, "clearMinutes": 20,
+      "params": {
+        "cloudCover": [ 0.7, 0.95 ], "cloudThickness": [ 3, 5 ], "cloudBillow": 0.3, "cloudDarkness": [ 0.5, 0.6 ], "cloudTint": "#8a7f78",
+        "ash": [ 0.3, 0.6 ], "storminess": [ 0, 0.15 ],
+        "haze": [ 0.5, 0.7 ], "fog": [ 0.1, 0.2 ], "hazeColor": "#7d736c",
+        "windStrength": [ 0.8, 1 ], "gustiness": 0.3, "windAlign": [ 0.35, 0.5 ], "cloudSpeed": [ 0.75, 1.1 ]
+      }
+    },
+    {
+      "name": "THUNDERSTORM", "severity": 4, "onsetMinutes": 25, "clearMinutes": 12,
+      "params": {
+        "cloudCover": [ 0.95, 1 ], "cloudThickness": [ 6, 8 ], "cloudBillow": 0.9, "cloudScale": 1.1, "highCloudCover": 0.6,
+        "cloudDarkness": [ 0.7, 0.9 ],
+        "rain": [ 0.7, 1 ], "storminess": [ 0.6, 1 ],
+        "haze": [ 0.3, 0.4 ], "fog": 0.1,
+        "windStrength": [ 1.5, 2 ], "windSpeed": 1.5, "gustiness": 0.85, "windAlign": [ 0.7, 0.9 ], "cloudSpeed": [ 1.75, 2.5 ]
+      }
+    },
+    {
+      "name": "BLIZZARD", "severity": 4, "onsetMinutes": 20, "clearMinutes": 15,
+      "params": {
+        "cloudCover": 1, "cloudThickness": [ 5, 7 ], "cloudBillow": 0.2, "cloudScale": 1.4, "cloudDarkness": [ 0.4, 0.5 ],
+        "snow": [ 0.8, 1 ],
+        "haze": [ 0.6, 0.85 ], "fog": [ 0.2, 0.4 ], "hazeColor": "#e4ebf2",
+        "windStrength": [ 1.8, 2.2 ], "windSpeed": 1.8, "gustiness": 0.9, "windAlign": [ 0.75, 0.9 ], "cloudSpeed": [ 2.25, 3 ]
+      }
+    },
+    {
+      "name": "DRY_THUNDERSTORM", "severity": 4, "onsetMinutes": 25, "clearMinutes": 15,
+      "params": {
+        "cloudCover": [ 0.85, 1 ], "cloudThickness": [ 5, 7 ], "cloudBillow": 0.7, "cloudDarkness": [ 0.75, 0.9 ], "cloudTint": "#8f8682",
+        "ash": [ 0, 0.15 ], "storminess": [ 0.5, 0.9 ],
+        "haze": [ 0.35, 0.5 ], "fog": [ 0.1, 0.3 ], "hazeColor": "#4a4446",
+        "windStrength": [ 1.2, 1.5 ], "windSpeed": 1.3, "gustiness": 0.6, "windAlign": [ 0.6, 0.8 ], "cloudSpeed": [ 1.4, 2 ]
+      }
+    }
+  ],
+  "climates": [
+    {
+      "name": "TEMPERATE",
+      "description": "Misthalin, Asgarnia, Kandarin, Kourend, Varlamore, Tirannwn and the mid-latitude seas. Snow only with the winter theme.",
+      "wind": { "angle": 40, "speed": 15, "strength": 50 },
+      "forbid": [ "ash", "dust" ],
+      "ladder": [ [ "CLEAR", 7 ], [ "FOG", 1 ], [ "PARTLY_CLOUDY", 6 ], [ "OVERCAST", 3 ], [ "DRIZZLE", 2 ], [ "RAIN", 3 ], [ "THUNDERSTORM", 2 ] ],
+      "seasons": {
+        "AUTUMN": [ [ "CLEAR", 4 ], [ "FOG", 4 ], [ "PARTLY_CLOUDY", 5 ], [ "OVERCAST", 4 ], [ "DRIZZLE", 2 ], [ "RAIN", 4 ], [ "THUNDERSTORM", 1 ] ],
+        "WINTER": [ [ "CLEAR", 4 ], [ "FOG", 4 ], [ "PARTLY_CLOUDY", 5 ], [ "OVERCAST", 4 ], [ "SNOW", 6 ], [ "BLIZZARD", 1 ] ]
+      }
+    },
+    {
+      "name": "TEMPERATE_GLOOMY", "parent": "TEMPERATE",
+      "description": "Arceuus and Lovakengj: more fog and overcast. Winter is inherited from TEMPERATE.",
+      "ladder": [ [ "CLEAR", 4 ], [ "FOG", 4 ], [ "PARTLY_CLOUDY", 5 ], [ "OVERCAST", 5 ], [ "DRIZZLE", 2 ], [ "RAIN", 3 ], [ "THUNDERSTORM", 1 ] ],
+      "seasons": {
+        "AUTUMN": [ [ "CLEAR", 2 ], [ "FOG", 6 ], [ "PARTLY_CLOUDY", 4 ], [ "OVERCAST", 5 ], [ "DRIZZLE", 3 ], [ "RAIN", 3 ], [ "THUNDERSTORM", 1 ] ]
+      }
+    },
+    {
+      "name": "ARCTIC",
+      "description": "Snowy peaks and the frozen north. Never rains.",
+      "wind": { "angle": 40, "speed": 12, "strength": 45 },
+      "forbid": [ "rain", "ash", "dust" ],
+      "ladder": [ [ "CLEAR", 5 ], [ "FOG", 3 ], [ "PARTLY_CLOUDY", 5 ], [ "OVERCAST", 4 ], [ "SNOW", 5 ], [ "BLIZZARD", 2 ] ],
+      "seasons": {
+        "AUTUMN": [ [ "CLEAR", 2 ], [ "FOG", 4 ], [ "PARTLY_CLOUDY", 4 ], [ "OVERCAST", 5 ], [ "SNOW", 6 ], [ "BLIZZARD", 3 ] ],
+        "WINTER": [ [ "CLEAR", 2 ], [ "FOG", 3 ], [ "PARTLY_CLOUDY", 2 ], [ "OVERCAST", 4 ], [ "SNOW", 8 ], [ "BLIZZARD", 5 ] ]
+      }
+    },
+    {
+      "name": "SUBARCTIC",
+      "description": "Cold maritime Fremennik lands, Trollheim and the northern seas.",
+      "wind": { "angle": 45, "speed": 17.5, "strength": 60 },
+      "forbid": [ "ash", "dust" ],
+      "ladder": [ [ "CLEAR", 3 ], [ "FOG", 3 ], [ "PARTLY_CLOUDY", 5 ], [ "OVERCAST", 5 ], [ "DRIZZLE", 3 ], [ "RAIN", 4 ], [ "THUNDERSTORM", 1 ] ],
+      "seasons": {
+        "AUTUMN": [ [ "CLEAR", 2 ], [ "FOG", 4 ], [ "PARTLY_CLOUDY", 4 ], [ "OVERCAST", 5 ], [ "DRIZZLE", 3 ], [ "RAIN", 4 ], [ "SLEET", 2 ] ],
+        "WINTER": [ [ "CLEAR", 2 ], [ "FOG", 3 ], [ "PARTLY_CLOUDY", 3 ], [ "OVERCAST", 5 ], [ "SLEET", 3 ], [ "SNOW", 6 ], [ "BLIZZARD", 2 ] ]
+      }
+    },
+    {
+      "name": "SWAMP",
+      "description": "Morytania, Kebos, the Stranglewood and other gloomy marshes. Snow only with the winter theme.",
+      "wind": { "angle": 40, "speed": 7, "strength": 26 },
+      "forbid": [ "ash", "dust" ],
+      "ladder": [ [ "CLEAR", 2 ], [ "PARTLY_CLOUDY", 4 ], [ "FOG", 5 ], [ "OVERCAST", 5 ], [ "DRIZZLE", 3 ], [ "RAIN", 4 ], [ "THUNDERSTORM", 1 ] ],
+      "seasons": {
+        "AUTUMN": [ [ "CLEAR", 1 ], [ "PARTLY_CLOUDY", 2 ], [ "FOG", 8 ], [ "OVERCAST", 5 ], [ "DRIZZLE", 3 ], [ "RAIN", 4 ], [ "THUNDERSTORM", 1 ] ],
+        "WINTER": [ [ "CLEAR", 1 ], [ "PARTLY_CLOUDY", 2 ], [ "FOG", 7 ], [ "OVERCAST", 5 ], [ "SLEET", 3 ], [ "SNOW", 6 ] ]
+      }
+    },
+    {
+      "name": "DESERT",
+      "description": "The Kharidian desert. Never rains or snows, in any season.",
+      "wind": { "angle": 270, "speed": 15, "strength": 14 },
+      "forbid": [ "rain", "snow", "ash" ],
+      "ladder": [ [ "CLEAR", 14 ], [ "PARTLY_CLOUDY", 4 ], [ "HAZE", 4 ], [ "SANDSTORM", 2 ] ],
+      "overrides": { "HAZE": { "hazeColor": "#dcc8a0" } }
+    },
+    {
+      "name": "DESERT_DEEP", "parent": "DESERT",
+      "description": "Deep desert: more haze and sandstorms.",
+      "wind": { "angle": 270, "speed": 20, "strength": 66 },
+      "ladder": [ [ "CLEAR", 12 ], [ "PARTLY_CLOUDY", 3 ], [ "HAZE", 5 ], [ "SANDSTORM", 4 ] ]
+    },
+    {
+      "name": "SAVANNA",
+      "description": "Southern Varlamore: warm and dry, with short convective storms. Never snows.",
+      "maxSeverityStep": 3,
+      "wind": { "angle": 60, "speed": 15, "strength": 40 },
+      "forbid": [ "snow", "ash" ],
+      "ladder": [ [ "CLEAR", 9 ], [ "HAZE", 4 ], [ "PARTLY_CLOUDY", 5 ], [ "OVERCAST", 2 ], [ "RAIN", 2 ], [ "THUNDERSTORM", 2 ] ]
+    },
+    {
+      "name": "TROPICAL",
+      "description": "Karamja, the southern isles and seas, Tlati rainforest. Humid haze, showers and thunderstorms. Never snows.",
+      "maxSeverityStep": 3,
+      "wind": { "angle": 40, "speed": 12, "strength": 40 },
+      "forbid": [ "snow", "ash", "dust" ],
+      "ladder": [ [ "CLEAR", 6 ], [ "HAZE", 3 ], [ "PARTLY_CLOUDY", 4 ], [ "OVERCAST", 3 ], [ "RAIN", 5 ], [ "THUNDERSTORM", 3 ] ],
+      "overrides": { "HAZE": { "hazeColor": "#e6ecef" }, "RAIN": { "cloudBillow": 0.6 } }
+    },
+    {
+      "name": "VOLCANIC",
+      "description": "Volcanoes and lava fields: ash haze, ashfall and dry lightning. Never rains or snows.",
+      "wind": { "angle": 40, "speed": 10, "strength": 30 },
+      "forbid": [ "rain", "snow", "dust" ],
+      "ladder": [ [ "CLEAR", 4 ], [ "PARTLY_CLOUDY", 4 ], [ "ASH_HAZE", 7 ], [ "OVERCAST", 3 ], [ "ASHFALL", 4 ], [ "DRY_THUNDERSTORM", 2 ] ],
+      "overrides": { "OVERCAST": { "cloudTint": "#a39a94" } }
+    },
+    {
+      "name": "WASTELAND",
+      "description": "The Wilderness: overcast, ash and dry lightning; snow only with the winter theme. Never rains.",
+      "wind": { "angle": 40, "speed": 15, "strength": 40 },
+      "forbid": [ "rain", "dust" ],
+      "ladder": [ [ "CLEAR", 3 ], [ "PARTLY_CLOUDY", 4 ], [ "OVERCAST", 5 ], [ "ASH_HAZE", 5 ], [ "ASHFALL", 4 ], [ "DRY_THUNDERSTORM", 3 ] ],
+      "seasons": {
+        "WINTER": [ [ "CLEAR", 2 ], [ "PARTLY_CLOUDY", 3 ], [ "OVERCAST", 5 ], [ "ASH_HAZE", 4 ], [ "SNOW", 4 ], [ "ASHFALL", 3 ], [ "DRY_THUNDERSTORM", 3 ] ]
+      }
+    },
+    {
+      "name": "WILDERNESS_DEEP",
+      "description": "Locked: matches the permanent storm baked into the WILDERNESS_HIGH environment. Intensity still varies over time.",
+      "wind": { "angle": 40, "speed": 10, "strength": 20 },
+      "forbid": [ "rain", "snow", "dust" ],
+      "ladder": [ [ "DRY_THUNDERSTORM", 1 ] ]
+    },
+    {
+      "name": "LOCKED_BLIZZARD",
+      "description": "Locked: Wintertodt.",
+      "wind": { "angle": 40, "speed": 20, "strength": 60 },
+      "forbid": [ "rain", "ash", "dust" ],
+      "ladder": [ [ "BLIZZARD", 1 ] ]
+    },
+    {
+      "name": "LOCKED_TEMPEST",
+      "description": "Locked: Tempoross.",
+      "wind": { "angle": 0, "speed": 20, "strength": 65 },
+      "forbid": [ "snow", "ash", "dust" ],
+      "ladder": [ [ "THUNDERSTORM", 1 ] ]
+    }
+  ],
+  "bindings": [
+    { "climate": "LOCKED_BLIZZARD", "areas": [ "WINTERTODT_ARENA" ] },
+    { "climate": "LOCKED_TEMPEST", "areas": [ "THE_STORM_TEMPOR", "THE_STORM_TEMPOR_EDGE", "TEMPOROSS_COVE" ] },
+    {
+      "climate": "NONE", "description": "Sheltered realms inside OVERWORLD (MAINLAND_EXTENSIONS)",
+      "areas": [
+        "PLAYER_OWNED_HOUSE", "PURO_PURO", "CLAN_HALL", "FISHER_KINGS_REALM", "SORCERESS_GARDEN", "ENCHANTED_VALLEY", "YU_BIUSK",
+        "AIR_ALTAR", "NATURE_ALTAR", "WATER_ALTAR", "TRUE_BLOOD_ALTAR", "COSMIC_ALTAR", "SOTE_FRAGMENT_OF_SEREN_ARENA",
+        "RANDOM_EVENT_CLASSROOM", "RANDOM_EVENT_DRILL_DEMON", "RANDOM_EVENT_BEE_KEEPER", "RANDOM_EVENT_FREAKY_FORESTER",
+        "RANDOM_EVENT_GRAVEDIGGER", "EVIL_BOB_ISLAND", "MISTHALIN_MYSTERY_MANOR_REGION"
+      ]
+    },
+    {
+      "climate": "ARCTIC", "description": "Must precede WILDERNESS_HIGH (contains FROZEN_WASTE_PLATEAU) and TROLL_COUNTRY / KOUREND / VARLAMORE",
+      "areas": [
+        "ZEAH_SNOWY_NORTHERN_REGION", "FROZEN_WASTE_PLATEAU", "Lucien's Base Snow", "GIELINOR_SNOWY_NORTHERN_REGION", "TROLL_ICE_PATH",
+        "TROLLWEISS_MOUNTAIN", "WEISS_REGION", "RELLEKKA_SNOWY_REGION", "RELLEKKA_HUNTER_ICEBERG", "ICEBERG", "UNGAEL", "ISLAND_OF_STONE",
+        "FREMENNIK_ISLES_NORTH", "GRIMSTONE", "ICE_MOUNTAIN", "WHITE_WOLF_MOUNTAIN_ENVIRONMENT", "EAGLES_PEAK",
+        "VARLAMORE_SNOWY_MOUNTAINS_LOWER", "VARLAMORE_SNOWY_MOUNTAINS_UPPER", "RALOS_RISE", "Hueycoatl Arena"
+      ]
+    },
+    { "climate": "WILDERNESS_DEEP", "areas": [ "WILDERNESS_HIGH" ] },
+    { "climate": "TEMPERATE", "description": "Carved out of TROLLHEIM", "areas": [ "BURTHORPE", "WARRIORS_GUILD" ] },
+    {
+      "climate": "SUBARCTIC",
+      "areas": [
+        "FREMENNIK_REGION", "RELLEKKA", "RELLEKKA_HUNTER_REGION", "MOUNTAIN_CAMP", "LIGHTHOUSE", "WATERBIRTH_ISLAND", "LADY_ZAY",
+        "TROLLHEIM", "TROLL_COUNTRY", "RELLEKKA_COLD_WATER", "LITHKREN"
+      ]
+    },
+    {
+      "climate": "VOLCANIC", "description": "Must precede KARAMJA / WARM_REGIONS, FOSSIL_ISLAND, KOUREND and WILDERNESS",
+      "areas": [
+        "KARAMJA_VOLCANO", "FOSSIL_ISLAND_VOLCANO", "MOUNT_KARUULM", "Wilderness areas with lava in them", "CHARRED_ISLAND", "RED_ROCK", "CRANDOR"
+      ]
+    },
+    {
+      "climate": "SWAMP", "description": "MORYTANIA also covers TEMPLE_TREKKING_INSTANCES and GROTESQUE_GUARDIANS (outside OVERWORLD)",
+      "areas": [
+        "MORYTANIA", "KEBOS_LOWLANDS_SWAMP", "TAR_SWAMP", "POISON_WASTE", "THE_STRANGLEWOOD", "Gloomthorn Trail", "DRAYNOR_MANOR",
+        "DRAYNOR_MANOR_FOREST"
+      ]
+    },
+    { "climate": "DESERT_DEEP", "areas": [ "KHARIDIAN_DESERT_DEEP" ] },
+    {
+      "climate": "DESERT", "description": "Desert areas whose AABBs are not fully covered by KHARID_DESERT_REGION are listed explicitly",
+      "areas": [ "KHARID_DESERT_REGION", "KHARIDIAN_DESERT", "NECROPOLIS", "RUINS_OF_UNKAH", "REGION_SOUTH_OF_UNKAH" ]
+    },
+    {
+      "climate": "SAVANNA",
+      "areas": [
+        "SOUTHERN_VARLAMORE", "HUNTER_GUILD_SURFACE", "VARLAMORE_SAVANNA_HUNTER_PIT_TRAPS", "Savannah Church of Ralos",
+        "Colossal Wyrm Agility Course", "Varlamore - Outer Fortis Temples", "ALDARIN"
+      ]
+    },
+    {
+      "climate": "TROPICAL", "description": "Everything in WARM_REGIONS not matched above (desert, savanna, volcanic and locked carve-outs come first)",
+      "areas": [ "WARM_REGIONS", "CRAB_QUEST_ISLAND" ]
+    },
+    { "climate": "WASTELAND", "areas": [ "WILDERNESS", "Daimon's Crater - Bounty Hunter" ] },
+    { "climate": "TEMPERATE_GLOOMY", "areas": [ "ARCEUUS", "LOVAKENGJ" ] },
+    {
+      "climate": "TEMPERATE", "description": "Named land, listed before the latitude sea bands so the bands never capture it",
+      "areas": [
+        "KINGDOM_OF_MISTHALIN_REGION", "KINGDOM_OF_ASGARNIA_REGION", "KINGDOM_OF_KANDARIN_REGION", "TREE_GNOME_STRONGHOLD", "FELDIP_HILLS",
+        "TUTORIAL_ISLAND", "ENTRANA", "ISLE_OF_SOULS", "TIRANNWN", "KOUREND", "VARLAMORE", "FOSSIL_ISLAND", "DRAGONTOOTH_ISLAND"
+      ]
+    },
+    { "climate": "SUBARCTIC", "description": "Open sea, far north", "aabbs": [ [ 960, 3904, 4031, 4223 ] ] },
+    { "climate": "TROPICAL", "description": "Open sea, far south", "aabbs": [ [ 960, 2048, 4031, 2899 ] ] },
+    { "climate": "TEMPERATE", "description": "Fallback for any other overworld point. Points outside OVERWORLD stay unbound (no weather).", "areas": [ "OVERWORLD" ] }
+  ]
+}

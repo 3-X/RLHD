@@ -49,6 +49,7 @@ import rs117.hd.scene.LightManager;
 import rs117.hd.scene.ModelOverrideManager;
 import rs117.hd.scene.ProceduralGenerator;
 import rs117.hd.scene.SkyManager;
+import rs117.hd.scene.WeatherManager;
 import rs117.hd.scene.areas.Area;
 import rs117.hd.scene.daylight_cycle.SkyState;
 import rs117.hd.scene.environments.Environment;
@@ -112,6 +113,9 @@ public class LegacyRenderer implements Renderer {
 
 	@Inject
 	private EnvironmentManager environmentManager;
+
+	@Inject
+	private WeatherManager weatherManager;
 
 	@Inject
 	private ModelOverrideManager modelOverrideManager;
@@ -656,13 +660,6 @@ public class LegacyRenderer implements Renderer {
 				uboCompute.cameraY.set(plugin.cameraPosition[1]);
 				uboCompute.cameraZ.set(plugin.cameraPosition[2]);
 
-				Environment env = environmentManager.getCurrentEnvironment();
-				uboCompute.windDirectionX.set(cos(env.windAngle));
-				uboCompute.windDirectionZ.set(sin(env.windAngle));
-				uboCompute.windStrength.set(env.windStrength);
-				uboCompute.windCeiling.set(env.windCeiling);
-				uboCompute.windOffset.set(plugin.windOffset);
-
 				if (plugin.configCharacterDisplacement && localPlayer != null) {
 					// The local player needs to be added first for distance culling
 					var lp = localPlayer.getLocalLocation();
@@ -706,6 +703,10 @@ public class LegacyRenderer implements Renderer {
 						environmentManager.update(sceneContext);
 						frameTimer.end(Timer.UPDATE_ENVIRONMENT);
 
+						frameTimer.begin(Timer.UPDATE_WEATHER);
+						weatherManager.update(sceneContext);
+						frameTimer.end(Timer.UPDATE_WEATHER);
+
 						frameTimer.begin(Timer.UPDATE_SKY);
 						skyManager.update();
 						frameTimer.end(Timer.UPDATE_SKY);
@@ -719,6 +720,13 @@ public class LegacyRenderer implements Renderer {
 						return;
 					}
 				}
+
+				var wind = weatherManager.getState().surfaceWind;
+				uboCompute.windDirectionX.set(wind.windDirectionX);
+				uboCompute.windDirectionZ.set(wind.windDirectionZ);
+				uboCompute.windStrength.set(wind.windStrength);
+				uboCompute.windCeiling.set(wind.windCeiling);
+				uboCompute.windOffset.set(wind.windOffset);
 
 				plugin.uboGlobal.viewportSize.set(slice(plugin.sceneViewport, 2));
 				plugin.uboGlobal.cameraPos.set(plugin.cameraPosition);

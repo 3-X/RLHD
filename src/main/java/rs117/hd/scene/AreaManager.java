@@ -49,6 +49,9 @@ public class AreaManager {
 	@Inject
 	private LightManager lightManager;
 
+	@Inject
+	private WeatherManager weatherManager;
+
 	private FileWatcher.UnregisterCallback fileWatcher;
 
 	public static Area[] AREAS = new Area[0];
@@ -85,12 +88,14 @@ public class AreaManager {
 						tileOverrideManager.shutDown();
 						modelOverrideManager.shutDown();
 						lightManager.shutDown();
+						weatherManager.shutDown();
 						environmentManager.shutDown();
 
 						tileOverrideManager.startUp();
 						modelOverrideManager.startUp();
 						lightManager.startUp();
 						environmentManager.startUp();
+						weatherManager.startUp();
 
 						// Force reload the scene to reapply area hiding
 						if (client.getGameState() == GameState.LOGGED_IN)

@@ -118,6 +118,7 @@ import rs117.hd.scene.SkyManager;
 import rs117.hd.scene.TextureManager;
 import rs117.hd.scene.TileOverrideManager;
 import rs117.hd.scene.WaterTypeManager;
+import rs117.hd.scene.WeatherManager;
 import rs117.hd.scene.daylight_cycle.StarField;
 import rs117.hd.utils.ColorUtils;
 import rs117.hd.utils.DestructibleHandler;
@@ -276,6 +277,9 @@ public class HdPlugin extends Plugin {
 
 	@Inject
 	private EnvironmentManager environmentManager;
+
+	@Inject
+	private WeatherManager weatherManager;
 
 	@Inject
 	private TextureManager textureManager;
@@ -510,6 +514,12 @@ public class HdPlugin extends Plugin {
 	public float deltaClientTime;
 	private long lastFrameTimeMillis;
 	private double lastFrameClientTime;
+	/**
+	 * Mirror of {@code WeatherManager.getState().surfaceWind.windOffset}, written by {@link WeatherManager#update}.
+	 *
+	 * @deprecated read the weather state's surface wind instead
+	 */
+	@Deprecated
 	public float windOffset;
 	public long colorFilterChangedAt;
 
@@ -755,6 +765,7 @@ public class HdPlugin extends Plugin {
 				lightManager.startUp();
 				skyManager.startUp();
 				environmentManager.startUp();
+				weatherManager.startUp();
 				fishingSpotReplacer.startUp();
 				gammaCalibrationOverlay.initialize();
 				npcDisplacementCache.initialize();
@@ -823,6 +834,7 @@ public class HdPlugin extends Plugin {
 			groundMaterialManager.shutDown();
 			modelOverrideManager.shutDown();
 			lightManager.shutDown();
+			weatherManager.shutDown();
 			environmentManager.shutDown();
 			skyManager.shutDown();
 			fishingSpotReplacer.shutDown();
@@ -1785,6 +1797,7 @@ public class HdPlugin extends Plugin {
 		if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN) {
 			hasLoggedIn = false;
 			environmentManager.reset();
+			weatherManager.reset();
 		}
 	}
 
@@ -1889,6 +1902,7 @@ public class HdPlugin extends Plugin {
 		}
 
 		skyManager.updateConfig();
+		weatherManager.updateConfig();
 		developerTools.updateConfig();
 	}
 
@@ -2183,7 +2197,6 @@ public class HdPlugin extends Plugin {
 			deltaClientTime = (float) (elapsedClientTime - lastFrameClientTime);
 
 			elapsedTime += deltaTime;
-			windOffset += deltaTime * environmentManager.getCurrentEnvironment().windSpeed;
 		}
 		lastFrameTimeMillis = System.currentTimeMillis();
 		lastFrameClientTime = elapsedClientTime;

@@ -16,6 +16,7 @@ import net.runelite.client.input.KeyListener;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.ui.components.colorpicker.ColorPickerManager;
 import net.runelite.client.ui.components.colorpicker.RuneliteColorPicker;
+import net.runelite.client.util.Text;
 import rs117.hd.HdPlugin;
 import rs117.hd.HdPluginConfig;
 import rs117.hd.overlays.FrameTimerOverlay;
@@ -23,7 +24,10 @@ import rs117.hd.overlays.LightGizmoOverlay;
 import rs117.hd.overlays.ShadowMapOverlay;
 import rs117.hd.overlays.TileInfoOverlay;
 import rs117.hd.overlays.TiledLightingOverlay;
+import rs117.hd.overlays.WeatherOverlay;
 import rs117.hd.scene.GamevalManager;
+import rs117.hd.scene.WeatherManager;
+import rs117.hd.scene.weather.WeatherCommands;
 
 import static java.awt.event.InputEvent.CTRL_DOWN_MASK;
 import static java.awt.event.InputEvent.SHIFT_DOWN_MASK;
@@ -41,6 +45,7 @@ public class DeveloperTools implements KeyListener {
 	private static final Keybind KEY_TOGGLE_SHADOW_MAP_OVERLAY = new Keybind(KeyEvent.VK_F5, CTRL_DOWN_MASK);
 	private static final Keybind KEY_TOGGLE_LIGHT_GIZMO_OVERLAY = new Keybind(KeyEvent.VK_F6, CTRL_DOWN_MASK);
 	private static final Keybind KEY_TOGGLE_TILED_LIGHTING_OVERLAY = new Keybind(KeyEvent.VK_F7, CTRL_DOWN_MASK);
+	private static final Keybind KEY_TOGGLE_WEATHER_OVERLAY = new Keybind(KeyEvent.VK_F8, CTRL_DOWN_MASK);
 	private static final Keybind KEY_TOGGLE_FREEZE_FRAME = new Keybind(KeyEvent.VK_ESCAPE, SHIFT_DOWN_MASK);
 	private static final Keybind KEY_TOGGLE_ORTHOGRAPHIC = new Keybind(KeyEvent.VK_TAB, SHIFT_DOWN_MASK);
 	private static final Keybind KEY_TOGGLE_HIDE_UI = new Keybind(KeyEvent.VK_H, CTRL_DOWN_MASK);
@@ -93,6 +98,12 @@ public class DeveloperTools implements KeyListener {
 	@Inject
 	private TiledLightingOverlay tiledLightingOverlay;
 
+	@Inject
+	private WeatherOverlay weatherOverlay;
+
+	@Inject
+	private WeatherManager weatherManager;
+
 	private boolean keyBindingsEnabled;
 	private boolean tileInfoOverlayEnabled;
 	@Getter
@@ -102,6 +113,7 @@ public class DeveloperTools implements KeyListener {
 	@Getter
 	private boolean hideUiEnabled;
 	private boolean tiledLightingOverlayEnabled;
+	private boolean weatherOverlayEnabled;
 
 	private RuneliteColorPicker colorPicker;
 
@@ -123,6 +135,7 @@ public class DeveloperTools implements KeyListener {
 			shadowMapOverlay.setActive(shadowMapOverlayEnabled);
 			lightGizmoOverlay.setActive(lightGizmoOverlayEnabled);
 			tiledLightingOverlay.setActive(tiledLightingOverlayEnabled);
+			weatherOverlay.setActive(weatherOverlayEnabled);
 		});
 	}
 
@@ -134,6 +147,7 @@ public class DeveloperTools implements KeyListener {
 		shadowMapOverlay.setActive(false);
 		lightGizmoOverlay.setActive(false);
 		tiledLightingOverlay.setActive(false);
+		weatherOverlay.setActive(false);
 		hideUiEnabled = false;
 	}
 
@@ -193,6 +207,9 @@ public class DeveloperTools implements KeyListener {
 			case "latlon":
 				handleLatLonCommand(args);
 				break;
+			case "weather":
+				handleWeatherCommand(args);
+				break;
 		}
 
 		// Other commands are gated behind RuneLite's --developer-mode
@@ -232,6 +249,16 @@ public class DeveloperTools implements KeyListener {
 		} else {
 			postMessage("Usage: ::117hd latlon <lt>latitude<gt> <lt>longitude<gt> / reset");
 		}
+	}
+
+	private void handleWeatherCommand(String[] args) {
+		if (args.length == 1) {
+			weatherOverlay.setActive(weatherOverlayEnabled = !weatherOverlayEnabled);
+			return;
+		}
+		// Escape, since the chatbox would otherwise swallow usage placeholders like <TYPE> as markup
+		for (String line : WeatherCommands.handle(weatherManager, args))
+			postMessage(Text.escapeJagex(line));
 	}
 
 	private void handleVarCommand(String type, String[] args) {
@@ -359,6 +386,8 @@ public class DeveloperTools implements KeyListener {
 			lightGizmoOverlay.setActive(lightGizmoOverlayEnabled = !lightGizmoOverlayEnabled);
 		} else if (KEY_TOGGLE_TILED_LIGHTING_OVERLAY.matches(e)) {
 			tiledLightingOverlay.setActive(tiledLightingOverlayEnabled = !tiledLightingOverlayEnabled);
+		} else if (KEY_TOGGLE_WEATHER_OVERLAY.matches(e)) {
+			weatherOverlay.setActive(weatherOverlayEnabled = !weatherOverlayEnabled);
 		} else if (KEY_TOGGLE_FREEZE_FRAME.matches(e)) {
 			plugin.toggleFreezeFrame();
 		} else if (KEY_TOGGLE_ORTHOGRAPHIC.matches(e)) {
