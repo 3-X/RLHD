@@ -65,6 +65,9 @@ public class Light
 	public GraphicsObject graphicsObject;
 	public TileItem tileItem;
 	public Tile tileItemTile;
+	public RuneLiteObjectController runeLiteObject;
+	@Nullable
+	public int[] anchorVertices;
 	public int tileObjectId;
 	public int spotanimId = -1;
 	public int[] projectileRefCounter;

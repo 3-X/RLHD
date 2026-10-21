@@ -31,7 +31,10 @@ import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -46,6 +49,7 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.callback.RenderCallbackManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.PluginMessage;
 import rs117.hd.HdPlugin;
 import rs117.hd.config.DynamicLights;
 import rs117.hd.data.ObjectType;
@@ -80,6 +84,8 @@ import static rs117.hd.utils.collections.Util.quickSort;
 public class LightManager {
 	private static final ResourcePath LIGHTS_PATH = Props
 		.getFile("rlhd.lights-path", () -> path(LightManager.class, "lights.json"));
+
+	public static final String PLUGIN_MESSAGE_NAMESPACE = "117hd";
 
 	@Inject
 	private Client client;
@@ -122,6 +128,16 @@ public class LightManager {
 	private final ListMultimap<Integer, LightDefinition> PROJECTILE_LIGHTS = ArrayListMultimap.create();
 	private final ListMultimap<Integer, LightDefinition> GRAPHICS_OBJECT_LIGHTS = ArrayListMultimap.create();
 	private final ListMultimap<Integer, LightDefinition> ITEM_LIGHTS = ArrayListMultimap.create();
+
+	// RuneLiteObjects other plugins attached item lights to. Weak keys, so forgotten objects are dropped.
+	private final Map<RuneLiteObjectController, ObjectLightAttachment> attachedObjects = new WeakHashMap<>();
+	private final HashSet<RuneLiteObjectController> litObjects = new HashSet<>();
+
+	private static class ObjectLightAttachment {
+		int itemId = -1;
+		@Nullable
+		int[] anchorVertices;
+	}
 
 	private boolean reloadLights;
 	private int currentPlane;
@@ -238,6 +254,19 @@ public class LightManager {
 				   light.actor instanceof Player && view.players().byIndex(((Player) light.actor).getId()) != light.actor;
 		});
 
+		// (Re)spawn lights for attached RuneLiteObjects which are active, but currently unlit
+		if (!attachedObjects.isEmpty()) {
+			for (Light light : lights)
+				if (light.runeLiteObject != null && !light.markedForRemoval)
+					litObjects.add(light.runeLiteObject);
+			for (var entry : attachedObjects.entrySet()) {
+				var object = entry.getKey();
+				if (!litObjects.contains(object) && client.isRuneLiteObjectRegistered(object))
+					addRuneLiteObjectLights(object, entry.getValue());
+			}
+			litObjects.clear();
+		}
+
 		int drawDistance = plugin.getDrawDistance() * LOCAL_TILE_SIZE;
 		int gameCycle = client.getGameCycle();
 		boolean changedPlanes = false;
@@ -336,6 +365,23 @@ public class LightManager {
 							isRenderableHidden(light.tileItem);
 					}
 				}
+			} else if (light.runeLiteObject != null) {
+				var object = light.runeLiteObject;
+				if (!light.markedForRemoval) {
+					if (!client.isRuneLiteObjectRegistered(object)) {
+						// Respawned by the sync above if the object becomes active again
+						parentExists = false;
+						light.markedForRemoval = true;
+					} else {
+						light.origin[0] = object.getX();
+						light.origin[1] = object.getZ() - light.def.height;
+						light.origin[2] = object.getY();
+						light.plane = object.getLevel();
+						light.orientation = object.getOrientation();
+						if (light.anchorVertices != null)
+							hiddenTemporarily = !anchorToVertices(light, object.getModel());
+					}
+				}
 			} else if (light.actor != null && !light.markedForRemoval) {
 				if (light.actor instanceof NPC && light.actor != vw.npcs().byIndex(((NPC) light.actor).getIndex()) ||
 					light.actor instanceof Player && light.actor != vw.players().byIndex(((Player) light.actor).getId()) ||
@@ -421,7 +467,8 @@ public class LightManager {
 
 			if (!plugin.configSpotanimLights && (light.spotanimId != -1 || light.graphicsObject != null))
 				hiddenTemporarily = true;
-			if (!plugin.configObjectLights && (light.tileObject != null || light.tileItem != null || light.worldLight))
+			if (!plugin.configObjectLights &&
+				(light.tileObject != null || light.tileItem != null || light.runeLiteObject != null || light.worldLight))
 				hiddenTemporarily = true;
 
 			copyTo(light.sceneLocalPos, light.origin);
@@ -965,6 +1012,73 @@ public class LightManager {
 		}
 	}
 
+	private void addRuneLiteObjectLights(RuneLiteObjectController object, ObjectLightAttachment attachment) {
+		var defs = ITEM_LIGHTS.get(attachment.itemId);
+		if (defs.isEmpty())
+			return;
+
+		var ctx = getLightScene(client.getWorldView(object.getWorldView()));
+		if (ctx == null)
+			return;
+
+		int plane = object.getLevel();
+		int[] worldPos = ctx.localToWorld(object.getX(), object.getY(), plane);
+
+		for (LightDefinition def : defs) {
+			if (def.areas.length > 0) {
+				boolean isInArea = Arrays.stream(def.areas).anyMatch(aabb -> aabb.contains(worldPos));
+				if (!isInArea)
+					continue;
+			}
+			if (def.excludeAreas.length > 0) {
+				boolean isInArea = Arrays.stream(def.excludeAreas).anyMatch(aabb -> aabb.contains(worldPos));
+				if (isInArea)
+					continue;
+			}
+
+			Light light = new Light(def);
+			light.runeLiteObject = object;
+			light.anchorVertices = attachment.anchorVertices;
+			if (light.anchorVertices != null)
+				light.alignment = Alignment.CUSTOM;
+			light.sceneContext = ctx.scene.getWorldViewId() == WorldView.TOPLEVEL ? null : ctx;
+			light.plane = plane;
+			lights.add(light);
+		}
+	}
+
+	/**
+	 * Offset the light to the average position of its anchor vertices in the model, which follows the model's
+	 * animations and shape changes. Returns false if none of the vertices exist in the model.
+	 */
+	private static boolean anchorToVertices(Light light, @Nullable Model model) {
+		if (model == null)
+			return false;
+
+		float[] verticesX = model.getVerticesX();
+		float[] verticesY = model.getVerticesY();
+		float[] verticesZ = model.getVerticesZ();
+		int vertexCount = model.getVerticesCount();
+		float x = 0, y = 0, z = 0;
+		int count = 0;
+		for (int vertex : light.anchorVertices) {
+			if (vertex < 0 || vertex >= vertexCount)
+				continue;
+			x += verticesX[vertex];
+			y += verticesY[vertex];
+			z += verticesZ[vertex];
+			count++;
+		}
+		if (count == 0)
+			return false;
+
+		// Light offsets point opposite to model coordinates along the horizontal axes
+		light.offset[0] = -x / count;
+		light.offset[1] = y / count;
+		light.offset[2] = -z / count;
+		return true;
+	}
+
 	private void handleObjectSpawn(TileObject object) {
 		var sceneContext = getLightScene(object.getWorldView());
 		if (sceneContext != null)
@@ -1386,6 +1500,72 @@ public class LightManager {
 	public void onItemDespawned(ItemDespawned despawn) {
 		TileItem item = despawn.getItem();
 		removeLightIf(light -> light.tileItem == item);
+	}
+
+	/**
+	 * Lets other plugins attach the item lights from lights.json to their RuneLiteObjects, by posting a
+	 * {@link PluginMessage} with the namespace {@value #PLUGIN_MESSAGE_NAMESPACE}:
+	 * <ul>
+	 * <li>{@code attachLights}, with {@code object} (the RuneLiteObjectController), {@code itemId} (whose lights to use)
+	 * and optionally {@code vertices} (an int[] of vertex indices in the object's model). With vertices, the lights are
+	 * placed at their average position in the object's current model, instead of at the light definitions' offsets,
+	 * which assume the item's own model lying on the ground. Posting it again for the same object updates it.</li>
+	 * <li>{@code detachLights}, with {@code object}.</li>
+	 * </ul>
+	 * Lights follow the object while it's active, and the object is forgotten once no longer referenced elsewhere.
+	 */
+	@Subscribe
+	public void onPluginMessage(PluginMessage message) {
+		if (!PLUGIN_MESSAGE_NAMESPACE.equals(message.getNamespace()))
+			return;
+		clientThread.invoke(() -> handlePluginMessage(message));
+	}
+
+	private void handlePluginMessage(PluginMessage message) {
+		var data = message.getData();
+		if (data == null || !(data.get("object") instanceof RuneLiteObjectController)) {
+			log.warn("Ignoring {} message without a RuneLiteObjectController object: {}", message.getName(), data);
+			return;
+		}
+		var object = (RuneLiteObjectController) data.get("object");
+
+		switch (message.getName()) {
+			case "attachLights": {
+				Object itemId = data.get("itemId");
+				Object vertices = data.get("vertices");
+				if (!(itemId instanceof Integer) || vertices != null && !(vertices instanceof int[])) {
+					log.warn("Ignoring attachLights message without an int itemId, or with non-int[] vertices: {}", data);
+					return;
+				}
+
+				var attachment = attachedObjects.computeIfAbsent(object, k -> new ObjectLightAttachment());
+				int[] anchorVertices = vertices == null ? null : ((int[]) vertices).clone();
+				if (attachment.itemId == (int) itemId) {
+					// Update existing lights in place
+					for (Light light : lights) {
+						if (light.runeLiteObject == object) {
+							light.anchorVertices = anchorVertices;
+							light.alignment = anchorVertices == null ? light.def.alignment : Alignment.CUSTOM;
+							if (anchorVertices == null)
+								copyTo(light.offset, light.def.offset);
+						}
+					}
+				} else {
+					// Respawned with the new item's lights during the next update
+					removeLightIf(light -> light.runeLiteObject == object);
+				}
+				attachment.itemId = (int) itemId;
+				attachment.anchorVertices = anchorVertices;
+				break;
+			}
+			case "detachLights":
+				attachedObjects.remove(object);
+				removeLightIf(light -> light.runeLiteObject == object);
+				break;
+			default:
+				log.warn("Ignoring unknown plugin message: {}", message.getName());
+				break;
+		}
 	}
 
 	// TODO: Check whether this is still necessary. If so, we could track varbits/varps within each light
