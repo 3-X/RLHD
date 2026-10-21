@@ -57,6 +57,8 @@ public class LightDefinition {
 	public HashSet<Integer> projectileIds = new HashSet<>();
 	@JsonAdapter(GamevalManager.SpotanimAdapter.class)
 	public HashSet<Integer> graphicsObjectIds = new HashSet<>();
+	@JsonAdapter(GamevalManager.ItemAdapter.class)
+	public HashSet<Integer> itemIds = new HashSet<>();
 	@JsonAdapter(GamevalManager.AnimationAdapter.class)
 	public HashSet<Integer> animationIds = new HashSet<>();
 

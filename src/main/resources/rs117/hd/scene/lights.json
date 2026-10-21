@@ -50873,5 +50873,72 @@
     "graphicsObjectIds": [
       "LOWLVLALCHEMY_CASTING"
     ]
+  },
+  {
+    "description": "Lit candle on the ground",
+    "height": 40,
+    "radius": 200,
+    "strength": 6,
+    "color": [ 252, 148, 3 ],
+    "type": "FLICKER",
+    "range": 20,
+    "itemIds": [
+      "LIT_CANDLE",
+      "LIT_BLACK_CANDLE"
+    ]
+  },
+  {
+    "description": "Lit torch on the ground",
+    "height": 25,
+    "radius": 300,
+    "strength": 8,
+    "color": [ 252, 148, 3 ],
+    "type": "FLICKER",
+    "range": 20,
+    "itemIds": [
+      "TORCH_LIT"
+    ]
+  },
+  {
+    "description": "Lit lamp or lantern on the ground",
+    "height": 40,
+    "radius": 300,
+    "strength": 7.5,
+    "color": [ 255, 190, 103 ],
+    "type": "FLICKER",
+    "range": 10,
+    "itemIds": [
+      "OIL_LAMP_LIT",
+      "CANDLE_LANTERN_LIT",
+      "CANDLE_LANTERN_BLACK_LIT",
+      "OIL_LANTERN_LIT",
+      "BULLSEYE_LANTERN_LIT",
+      "BULLSEYE_LANTERN_LIT_LUNAR_QUEST"
+    ]
+  },
+  {
+    "description": "Lit bug lantern on the ground",
+    "height": 40,
+    "radius": 300,
+    "strength": 6,
+    "color": [ 180, 255, 200 ],
+    "type": "FLICKER",
+    "range": 10,
+    "itemIds": [
+      "SLAYER_BUGLAN_ON"
+    ]
+  },
+  {
+    "description": "Raw anglerfish lure on the ground",
+    "offset": [ 14, 43, 86 ],
+    "radius": 150,
+    "strength": 5,
+    "color": [ 190, 255, 230 ],
+    "type": "PULSE",
+    "duration": 3000,
+    "range": 20,
+    "itemIds": [
+      "RAW_ANGLERFISH"
+    ]
   }
 ]

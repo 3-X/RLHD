@@ -121,6 +121,7 @@ public class LightManager {
 	private final ListMultimap<Integer, LightDefinition> OBJECT_LIGHTS = ArrayListMultimap.create();
 	private final ListMultimap<Integer, LightDefinition> PROJECTILE_LIGHTS = ArrayListMultimap.create();
 	private final ListMultimap<Integer, LightDefinition> GRAPHICS_OBJECT_LIGHTS = ArrayListMultimap.create();
+	private final ListMultimap<Integer, LightDefinition> ITEM_LIGHTS = ArrayListMultimap.create();
 
 	private boolean reloadLights;
 	private int currentPlane;
@@ -146,6 +147,7 @@ public class LightManager {
 			OBJECT_LIGHTS.clear();
 			PROJECTILE_LIGHTS.clear();
 			GRAPHICS_OBJECT_LIGHTS.clear();
+			ITEM_LIGHTS.clear();
 
 			for (int i = 0; i < lights.length; i++) {
 				LightDefinition def = lights[i];
@@ -169,6 +171,7 @@ public class LightManager {
 				def.objectIds.forEach(id -> OBJECT_LIGHTS.put(id, def));
 				def.projectileIds.forEach(id -> PROJECTILE_LIGHTS.put(id, def));
 				def.graphicsObjectIds.forEach(id -> GRAPHICS_OBJECT_LIGHTS.put(id, def));
+				def.itemIds.forEach(id -> ITEM_LIGHTS.put(id, def));
 			}
 
 			log.debug("Loaded {} lights", lights.length);
@@ -191,6 +194,7 @@ public class LightManager {
 		OBJECT_LIGHTS.clear();
 		PROJECTILE_LIGHTS.clear();
 		GRAPHICS_OBJECT_LIGHTS.clear();
+		ITEM_LIGHTS.clear();
 
 		eventBus.unregister(this);
 	}
@@ -313,6 +317,25 @@ public class LightManager {
 						parentExists = animation != null && light.def.animationIds.contains(animation.getId());
 					}
 				}
+			} else if (light.tileItem != null) {
+				if (!light.markedForRemoval) {
+					ItemLayer itemLayer = light.tileItemTile.getItemLayer();
+					if (itemLayer == null) {
+						// The item pile no longer exists, in case the despawn event was missed
+						parentExists = false;
+						light.markedForRemoval = true;
+					} else {
+						// Item piles are raised when placed on top of objects, such as tables
+						light.origin[1] = itemLayer.getZ() - itemLayer.getHeight() - light.def.height - 1;
+						// Only up to three items with different IDs get drawn per item pile
+						hiddenTemporarily =
+							itemLayer.getBottom() != light.tileItem &&
+							itemLayer.getMiddle() != light.tileItem &&
+							itemLayer.getTop() != light.tileItem ||
+							!renderCallbackManager.drawObject(ctx.scene, itemLayer) ||
+							isRenderableHidden(light.tileItem);
+					}
+				}
 			} else if (light.actor != null && !light.markedForRemoval) {
 				if (light.actor instanceof NPC && light.actor != vw.npcs().byIndex(((NPC) light.actor).getIndex()) ||
 					light.actor instanceof Player && light.actor != vw.players().byIndex(((Player) light.actor).getId()) ||
@@ -398,7 +421,7 @@ public class LightManager {
 
 			if (!plugin.configSpotanimLights && (light.spotanimId != -1 || light.graphicsObject != null))
 				hiddenTemporarily = true;
-			if (!plugin.configObjectLights && (light.tileObject != null || light.worldLight))
+			if (!plugin.configObjectLights && (light.tileObject != null || light.tileItem != null || light.worldLight))
 				hiddenTemporarily = true;
 
 			copyTo(light.sceneLocalPos, light.origin);
@@ -785,6 +808,20 @@ public class LightManager {
 		}
 		for (Player player : view.players())
 			addSpotanimLights(player, source);
+		if (!ITEM_LIGHTS.isEmpty()) {
+			for (Tile[][] plane : source.scene.getTiles()) {
+				for (Tile[] column : plane) {
+					for (Tile tile : column) {
+						if (tile == null || tile.getItemLayer() == null)
+							continue;
+						var items = tile.getGroundItems();
+						if (items != null)
+							for (TileItem item : items)
+								addItemLights(tile, item, source);
+					}
+				}
+			}
+		}
 		numVisibleLights = 0;
 	}
 
@@ -877,6 +914,53 @@ public class LightManager {
 			light.plane = -1;
 			light.actor = npc;
 			light.sceneContext = npc.getWorldView().isTopLevel() ? null : ctx;
+			lights.add(light);
+		}
+	}
+
+	private void addItemLights(Tile tile, TileItem item, @Nullable SceneContext ctx) {
+		if (ctx == null)
+			return;
+
+		var defs = ITEM_LIGHTS.get(item.getId());
+		if (defs.isEmpty())
+			return;
+
+		LocalPoint lp = tile.getLocalLocation();
+		int plane = tile.getPlane();
+		int[] worldPos = ctx.localToWorld(lp, plane);
+
+		for (LightDefinition def : defs) {
+			if (def.areas.length > 0) {
+				boolean isInArea = Arrays.stream(def.areas).anyMatch(aabb -> aabb.contains(worldPos));
+				if (!isInArea)
+					continue;
+			}
+			if (def.excludeAreas.length > 0) {
+				boolean isInArea = Arrays.stream(def.excludeAreas).anyMatch(aabb -> aabb.contains(worldPos));
+				if (isInArea)
+					continue;
+			}
+
+			// Prevent duplicate lights from being spawned for the same item
+			boolean isDuplicate = lights.stream()
+				.anyMatch(light ->
+					light.tileItem == item &&
+					light.def == def &&
+					!light.markedForRemoval);
+			if (isDuplicate)
+				continue;
+
+			Light light = new Light(def);
+			light.tileItem = item;
+			light.tileItemTile = tile;
+			light.sceneContext = ctx.scene.getWorldViewId() == WorldView.TOPLEVEL ? null : ctx;
+			light.plane = plane;
+			light.origin[0] = lp.getX();
+			light.origin[2] = lp.getY();
+			ItemLayer itemLayer = tile.getItemLayer();
+			if (itemLayer != null)
+				light.origin[1] = itemLayer.getZ() - itemLayer.getHeight() - def.height - 1;
 			lights.add(light);
 		}
 	}
@@ -1286,6 +1370,22 @@ public class LightManager {
 	@Subscribe
 	public void onGroundObjectDespawned(GroundObjectDespawned despawn) {
 		handleObjectDespawn(despawn.getGroundObject());
+	}
+
+	@Subscribe
+	public void onItemSpawned(ItemSpawned spawn) {
+		Tile tile = spawn.getTile();
+		ItemLayer itemLayer = tile.getItemLayer();
+		WorldView view = itemLayer == null ? null : itemLayer.getWorldView();
+		if (view == null)
+			view = client.getTopLevelWorldView();
+		addItemLights(tile, spawn.getItem(), getLightScene(view));
+	}
+
+	@Subscribe
+	public void onItemDespawned(ItemDespawned despawn) {
+		TileItem item = despawn.getItem();
+		removeLightIf(light -> light.tileItem == item);
 	}
 
 	// TODO: Check whether this is still necessary. If so, we could track varbits/varps within each light

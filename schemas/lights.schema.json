@@ -249,6 +249,13 @@
           "type": "string"
         }
       },
+      "itemIds": {
+        "type": "array",
+        "description": "A set of item gameval names to apply the light to while the item is lying on the ground. Only items visible in the item pile get lit.",
+        "items": {
+          "type": "string"
+        }
+      },
       "animationIds": {
         "type": "array",
         "description": "A set of animation gameval names to display the light for, or the special value `-1` for no animation. Must be specified alongside an NPC or other thing to watch for animations on.",

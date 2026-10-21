@@ -546,7 +546,7 @@ public interface HdPluginConfig extends Config
 	@ConfigItem(
 		keyName = KEY_OBJECT_LIGHTS,
 		name = "Object lights",
-		description = "Adds dynamic lights to objects, such as lamps and fires.",
+		description = "Adds dynamic lights to objects and items on the ground, such as lamps, fires and lit candles.",
 		position = 1,
 		section = lightingSettings
 	)
