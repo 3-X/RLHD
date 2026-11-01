@@ -5,6 +5,7 @@ import java.io.IOException;
 import static org.lwjgl.opengl.GL33C.*;
 import static rs117.hd.HdPlugin.TEXTURE_UNIT_GAME;
 import static rs117.hd.HdPlugin.TEXTURE_UNIT_NEBULA_MAP;
+import static rs117.hd.HdPlugin.TEXTURE_UNIT_ROOF_MAP;
 import static rs117.hd.HdPlugin.TEXTURE_UNIT_SHADOW_MAP;
 import static rs117.hd.HdPlugin.TEXTURE_UNIT_TERRAIN_SHADOW_MAP;
 import static rs117.hd.HdPlugin.TEXTURE_UNIT_TILED_LIGHTING_MAP;
@@ -17,6 +18,7 @@ public class SceneShaderProgram extends ShaderProgram {
 	protected final UniformTexture uniTiledLightingTextureArray = addUniformTexture("tiledLightingArray");
 	protected final UniformTexture uniTextureFaces = addUniformTexture("textureFaces");
 	protected final UniformTexture uniNebulaMap = addUniformTexture("nebulaMap");
+	protected final UniformTexture uniRoofMap = addUniformTexture("roofMap");
 
 	public SceneShaderProgram() {
 		super(t -> t
@@ -40,6 +42,7 @@ public class SceneShaderProgram extends ShaderProgram {
 		uniTiledLightingTextureArray.set(TEXTURE_UNIT_TILED_LIGHTING_MAP);
 		uniTextureFaces.set(TEXTURE_UNIT_TEXTURED_FACES);
 		uniNebulaMap.set(TEXTURE_UNIT_NEBULA_MAP);
+		uniRoofMap.set(TEXTURE_UNIT_ROOF_MAP);
 	}
 
 	public static class Water extends SceneShaderProgram {}
