@@ -2092,7 +2092,20 @@
     "windAngle": 140,
     "groundFogOpacity": 0.7,
     "groundFogUnderRoofs": true,
+<<<<<<< HEAD
     "waterCausticsStrength": 40
+=======
+    "waterCausticsStrength": 40,
+    "sky": {
+      "parent": "NIGHT",
+      "skyVisibility": 0.6,
+      "moonVisibility": 0.7,
+      "skyFogDensity": 0.11,
+      "starVisibility": 0.439,
+      "starHorizonHeight": 0.93,
+      "auroraVisibility": 0.439
+    }
+>>>>>>> 503f25b7bba67ee6e1deb106add9e0aa832e8e8a
   },
   {
     "area": "DEATHS_OFFICE",

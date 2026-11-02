@@ -45,7 +45,19 @@ public class SceneShaderProgram extends ShaderProgram {
 		uniRoofMap.set(TEXTURE_UNIT_ROOF_MAP);
 	}
 
+<<<<<<< HEAD
 	public static class Water extends SceneShaderProgram {}
+=======
+	public static class GapFiller extends SceneShaderProgram {
+		GapFiller() {
+			shaderTemplate.add(GL_FRAGMENT_SHADER, "gap_filler_frag.glsl");
+			uniTextureFaces.ignoreMissing = true;
+			uniTextureArray.ignoreMissing = true;
+			uniShadowMap.ignoreMissing = true;
+			uniRoofMap.ignoreMissing = true;
+		}
+	}
+>>>>>>> 503f25b7bba67ee6e1deb106add9e0aa832e8e8a
 
 	public static class Legacy extends SceneShaderProgram {
 		Legacy() {

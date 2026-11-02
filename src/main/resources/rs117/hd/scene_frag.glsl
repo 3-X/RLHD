@@ -576,7 +576,10 @@ void main() {
             vec3 cameraFacingNormal = dot(flatNormal, viewDir) < 0 ? -flatNormal : flatNormal;
             groundFog *= 1 - sampleRoofShelter(IN.position, cameraFacingNormal);
         }
+<<<<<<< HEAD
         #if DAYLIGHT_CYCLE
+=======
+>>>>>>> 503f25b7bba67ee6e1deb106add9e0aa832e8e8a
         float nightFogBlend = 0.0;
 
         // Scale optical depth, with lighter haze at night. Apply before water coverage too.
